@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Section Timetable – UniSchedule{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>📅 Section Timetable View</h2>
+    <p>View timetable for each section in grid format</p>
+</div>
+
+<div class="card no-print">
+    <div class="filter-bar">
+        <select id="filterDept" onchange="loadSectionsForDept()">
+            <option value="">Select Department</option>
+        </select>
+        <select id="filterSection" onchange="loadTimetable()">
+            <option value="">Select Section</option>
+        </select>
+        <button class="btn btn-outline" onclick="exportPrint()">🖨️ Print / PDF</button>
+    </div>
+</div>
+
+<div id="timetableArea"></div>
+
+<!-- Room Edit Modal -->
+<div class="modal-overlay" id="editRoomModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Change Room Assignment</h3>
+            <button class="modal-close" onclick="closeEditRoomModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <p>Smart Room Suggestions <span class="badge" style="background:#gold;color:#000;">AI</span></p>
+            <div id="roomSuggestions" style="margin-top: 10px; max-height: 300px; overflow-y: auto;">
+                Loading suggestions...
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeEditRoomModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let departments = [], sections = [], university = {};
+
+    async function init() {
+        [departments, sections, university] = await Promise.all([
+            api('/api/departments'),
+            api('/api/sections'),
+            api('/api/university')
+        ]);
+        populateSelect('filterDept', departments, d => d.id, d => `${d.code} – ${d.name}`, 'Select Department');
+    }
+
+    function loadSectionsForDept() {
+        const deptId = document.getElementById('filterDept').value;
+        const filtered = sections.filter(s => s.department_id == deptId);
+        populateSelect('filterSection', filtered, s => s.id, s => `${s.department_code}-${s.name} (${s.student_count} students)`, 'Select Section');
+    }
+
+    async function loadTimetable() {
+        const sectionId = document.getElementById('filterSection').value;
+        if (!sectionId) return;
+
+        const entries = await api(`/api/timetable/section/${sectionId}`);
+        const days = university.days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        const timeslots = university.timeslots || [];
+
+        const area = document.getElementById('timetableArea');
+        if (entries.length === 0) {
+            area.innerHTML = '<div class="card"><div class="empty-state"><div class="icon">📅</div><p>No timetable generated for this section yet</p></div></div>';
+            return;
+        }
+
+        const sec = sections.find(s => s.id == sectionId);
+        area.innerHTML = `
+        <div class="card">
+            <div class="card-title">Timetable: ${sec ? sec.department_code + '-' + sec.name : ''}</div>
+            <div class="timetable-grid" id="ttGrid"></div>
+        </div>
+    `;
+        const mode = '{{ session.get("role") }}' === 'admin' ? 'section_admin' : 'section';
+        renderTimetableGrid('ttGrid', entries, days, timeslots, mode);
+    }
+
+    let currentEditEntryId = null;
+
+    async function openEditRoomModal(entryId, sectionId, day, timeslot) {
+        currentEditEntryId = entryId;
+        document.getElementById('editRoomModal').classList.add('open');
+        document.getElementById('roomSuggestions').innerHTML = '<div style="text-align:center;padding:20px;">Loading...</div>';
+        
+        try {
+            const suggestions = await api(`/api/suggest-room?section_id=${sectionId}&day=${day}&timeslot=${timeslot}`);
+            let html = '';
+            if (!suggestions || suggestions.length === 0) {
+                html = '<div class="empty-state">No free rooms available.</div>';
+            } else {
+                html = '<div class="suggestion-list" style="display:flex;flex-direction:column;gap:10px;">';
+                suggestions.forEach(r => {
+                    html += `
+                    <div class="suggestion-card" style="border:1px solid #ddd;padding:12px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <strong>${r.room_number}</strong> (Cap: ${r.capacity})<br>
+                            <small style="color:var(--primary-color);">💡 ${r.suggestion_reason}</small>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="saveRoomChange(${r.id})">Select</button>
+                    </div>`;
+                });
+                html += '</div>';
+            }
+            document.getElementById('roomSuggestions').innerHTML = html;
+        } catch (e) {
+            document.getElementById('roomSuggestions').innerHTML = '<div style="color:red;">Error loading suggestions</div>';
+        }
+    }
+
+    function closeEditRoomModal() {
+        document.getElementById('editRoomModal').classList.remove('open');
+        currentEditEntryId = null;
+    }
+
+    async function saveRoomChange(newRoomId) {
+        if (!currentEditEntryId) return;
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+            const res = await fetch(`/api/timetable/entry/${currentEditEntryId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ classroom_id: newRoomId })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to update');
+            showToast('Room updated successfully!', 'success');
+            closeEditRoomModal();
+            loadTimetable(); // refresh grid
+        } catch (e) {
+            showToast(e.message, 'danger');
+        }
+    }
+
+    init();
+</script>
+{% endblock %}

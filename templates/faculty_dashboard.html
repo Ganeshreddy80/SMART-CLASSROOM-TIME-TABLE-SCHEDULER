@@ -1,0 +1,3433 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>UniSchedule — Faculty Dashboard</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    :root {
+      --navy: #1e2a5e;
+      --navy-deep: #141d42;
+      --gold: #f5c518;
+      --gold-dark: #c9a200;
+      --gold-light: #fff3b0;
+      --surface: #f7f8fc;
+      --surface2: #eef0f8;
+      --text: #1a1a2e;
+      --muted: #6b7280;
+      --accent: #4f8ef7;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --faculty-purple: #7c3aed;
+      --faculty-light: #ede9fe;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--surface);
+      color: var(--text);
+      overflow-x: hidden
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(24px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    @keyframes floatBadge {
+
+      0%,
+      100% {
+        transform: translateY(0)
+      }
+
+      50% {
+        transform: translateY(-5px)
+      }
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(245, 197, 24, .4)
+      }
+
+      50% {
+        box-shadow: 0 0 18px 4px rgba(245, 197, 24, .15)
+      }
+    }
+
+    @keyframes glow {
+
+      0%,
+      100% {
+        opacity: .6
+      }
+
+      50% {
+        opacity: 1
+      }
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    @keyframes barGrow {
+      from {
+        width: 0
+      }
+
+      to {
+        width: var(--w)
+      }
+    }
+
+    @keyframes absentPulse {
+
+      0%,
+      100% {
+        background: #fff5f5
+      }
+
+      50% {
+        background: #fff
+      }
+    }
+
+    @keyframes cardPop {
+      from {
+        opacity: 0;
+        transform: scale(.95)
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1)
+      }
+    }
+
+    @keyframes photoRing {
+
+      0%,
+      100% {
+        border-color: #7c3aed
+      }
+
+      50% {
+        border-color: #f5c518
+      }
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(40px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    @keyframes checkPop {
+      0% {
+        transform: scale(0)
+      }
+
+      60% {
+        transform: scale(1.2)
+      }
+
+      100% {
+        transform: scale(1)
+      }
+    }
+
+    @keyframes savePulse {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(124, 58, 237, .4)
+      }
+
+      50% {
+        box-shadow: 0 0 16px 4px rgba(124, 58, 237, .18)
+      }
+    }
+
+    /* LOGIN */
+    #loginView {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f1a3e 0%, #1e2a5e 40%, #2d1b69 100%);
+      position: relative;
+      overflow: hidden
+    }
+
+    #loginView::before {
+      content: '';
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(245, 197, 24, .08), transparent 70%);
+      top: -120px;
+      right: -100px;
+      border-radius: 50%
+    }
+
+    #loginView::after {
+      content: '';
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(124, 58, 237, .1), transparent 70%);
+      bottom: -80px;
+      left: -60px;
+      border-radius: 50%
+    }
+
+    .lcard {
+      background: #fff;
+      border-radius: 24px;
+      padding: 40px 36px;
+      width: 420px;
+      max-width: 92vw;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .3);
+      animation: fadeUp .6s;
+      position: relative;
+      z-index: 1;
+      text-align: center
+    }
+
+    .lcard h2 {
+      font-size: 1.6rem;
+      color: var(--navy);
+      margin: 8px 0 2px
+    }
+
+    .lcard .lsub {
+      color: var(--muted);
+      font-size: .82rem;
+      margin-bottom: 18px
+    }
+
+    .licon {
+      font-size: 2.4rem;
+      margin-bottom: 4px
+    }
+
+    .role-tabs {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-bottom: 20px
+    }
+
+    .role-tab {
+      padding: 9px 18px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      background: #fff;
+      cursor: pointer;
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--muted);
+      transition: all .2s
+    }
+
+    .role-tab.active {
+      border-color: var(--gold);
+      color: var(--gold-dark);
+      background: var(--gold-light)
+    }
+
+    .role-tab:hover {
+      border-color: var(--gold)
+    }
+
+    .linner {
+      text-align: left
+    }
+
+    .fg {
+      margin-bottom: 14px
+    }
+
+    .fg label {
+      display: block;
+      font-size: .72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 5px
+    }
+
+    .fg input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: .88rem;
+      font-family: inherit;
+      transition: border .2s
+    }
+
+    .fg input:focus {
+      outline: none;
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(245, 197, 24, .15)
+    }
+
+    .lbtn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+      border: none;
+      border-radius: 14px;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--navy);
+      cursor: pointer;
+      transition: transform .15s, box-shadow .2s;
+      margin-top: 6px
+    }
+
+    .lbtn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(245, 197, 24, .35)
+    }
+
+    .lforgot {
+      margin-top: 14px;
+      text-align: center
+    }
+
+    .lforgot a {
+      color: var(--accent);
+      font-size: .8rem;
+      text-decoration: none
+    }
+
+    /* APP LAYOUT */
+    #appView {
+      display: none
+    }
+
+    .wrap {
+      display: flex;
+      min-height: 100vh
+    }
+
+    .sb {
+      width: 220px;
+      background: var(--navy-deep);
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      overflow-y: auto
+    }
+
+    .sb-brand {
+      padding: 20px 18px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, .06)
+    }
+
+    .sb-brand .sb-icon {
+      font-size: 1.5rem;
+      animation: floatBadge 3s infinite;
+      display: inline-block
+    }
+
+    .sb-brand .sb-title {
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-left: 6px
+    }
+
+    .sb-brand .sb-sub {
+      color: rgba(255, 255, 255, .35);
+      font-size: .68rem;
+      margin-top: 2px;
+      display: block
+    }
+
+    .sb-section {
+      padding: 14px 0 4px 18px;
+      font-size: .62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: rgba(255, 255, 255, .25)
+    }
+
+    .sb-nav {
+      list-style: none;
+      padding: 0 8px
+    }
+
+    .sb-nav li {
+      margin: 2px 0
+    }
+
+    .sb-nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      color: rgba(255, 255, 255, .55);
+      font-size: .82rem;
+      font-weight: 500;
+      text-decoration: none;
+      border-radius: 10px;
+      transition: all .2s;
+      position: relative;
+      cursor: pointer
+    }
+
+    .sb-nav a:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, .06)
+    }
+
+    .sb-nav a.active {
+      color: #fff;
+      background: linear-gradient(90deg, rgba(124, 58, 237, .18), rgba(124, 58, 237, .05))
+    }
+
+    .sb-nav a.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 6px;
+      bottom: 6px;
+      width: 3px;
+      background: var(--faculty-purple);
+      border-radius: 0 3px 3px 0
+    }
+
+    .sb-footer {
+      margin-top: auto;
+      padding: 14px 16px;
+      border-top: 1px solid rgba(255, 255, 255, .06);
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+
+    .sb-footer-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid var(--faculty-purple);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0
+    }
+
+    .sb-footer-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover
+    }
+
+    .sb-footer-avatar .initials {
+      background: linear-gradient(135deg, #7c3aed, #4f8ef7);
+      color: #fff;
+      font-size: .82rem;
+      font-weight: 700;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .sb-footer-info .sb-fn {
+      color: #fff;
+      font-size: .78rem;
+      font-weight: 500
+    }
+
+    .sb-footer-info .sb-desig {
+      color: rgba(255, 255, 255, .4);
+      font-size: .66rem
+    }
+
+    .sb-footer-info .sb-dept-pill {
+      display: inline-block;
+      background: rgba(124, 58, 237, .3);
+      color: #c4b5fd;
+      font-size: .58rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-top: 2px;
+      font-weight: 600
+    }
+
+    .main {
+      margin-left: 220px;
+      flex: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column
+    }
+
+    .topbar {
+      height: 64px;
+      background: #fff;
+      border-bottom: 1px solid rgba(0, 0, 0, .06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      position: sticky;
+      top: 0;
+      z-index: 50
+    }
+
+    .tb-search {
+      padding: 9px 16px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: .82rem;
+      width: 280px;
+      font-family: inherit;
+      transition: border .2s, box-shadow .2s
+    }
+
+    .tb-search:focus {
+      outline: none;
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(245, 197, 24, .12)
+    }
+
+    .tb-right {
+      display: flex;
+      align-items: center;
+      gap: 14px
+    }
+
+    .tb-bell {
+      position: relative;
+      font-size: 1.2rem;
+      cursor: pointer
+    }
+
+    .tb-bell::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 8px;
+      height: 8px;
+      background: var(--danger);
+      border-radius: 50%;
+      animation: pulse 2s infinite
+    }
+
+    .tb-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      padding: 6px 14px 6px 6px;
+      border-radius: 30px
+    }
+
+    .tb-user-av {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0
+    }
+
+    .tb-user-av img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover
+    }
+
+    .tb-user-av .initials {
+      background: linear-gradient(135deg, #7c3aed, #4f8ef7);
+      color: #fff;
+      font-size: .7rem;
+      font-weight: 700;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .tb-user span {
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--text)
+    }
+
+    .tb-user small {
+      font-size: .7rem;
+      color: var(--muted)
+    }
+
+    .btn-logout {
+      padding: 8px 16px;
+      background: var(--navy-deep);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: .78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s
+    }
+
+    .btn-logout:hover {
+      background: var(--navy)
+    }
+
+    .page {
+      padding: 28px;
+      animation: fadeUp .5s
+    }
+
+    /* HERO */
+    .hero-card {
+      background: linear-gradient(135deg, #141d42, #1e2a5e, #2d1b69);
+      border-radius: 20px;
+      padding: 32px;
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      color: #fff;
+      margin-bottom: 24px;
+      flex-wrap: wrap
+    }
+
+    .hero-photo {
+      position: relative;
+      flex-shrink: 0
+    }
+
+    .hero-photo .photo-circle {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      border: 4px solid var(--gold);
+      animation: photoRing 3s infinite;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative
+    }
+
+    .hero-photo .photo-circle img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover
+    }
+
+    .hero-photo .photo-circle .initials {
+      background: linear-gradient(135deg, #7c3aed, #4f8ef7);
+      color: #fff;
+      font-size: 40px;
+      font-weight: 700;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .hero-photo .photo-overlay {
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, .55);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity .25s;
+      cursor: pointer
+    }
+
+    .hero-photo:hover .photo-overlay {
+      opacity: 1
+    }
+
+    .photo-overlay span {
+      font-size: 1.4rem
+    }
+
+    .photo-overlay small {
+      color: #fff;
+      font-size: .68rem;
+      margin-top: 2px
+    }
+
+    .upload-btn {
+      margin-top: 10px;
+      background: #fff;
+      color: var(--faculty-purple);
+      border: 1.5px solid var(--faculty-purple);
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: .7rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      display: block;
+      text-align: center
+    }
+
+    .upload-btn:hover {
+      background: var(--faculty-purple);
+      color: #fff
+    }
+
+    .hero-info {
+      flex: 1;
+      min-width: 200px
+    }
+
+    .hero-info h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 4px
+    }
+
+    .hero-id {
+      display: inline-block;
+      background: var(--gold);
+      color: var(--navy);
+      font-size: .68rem;
+      font-weight: 700;
+      padding: 3px 12px;
+      border-radius: 20px;
+      margin-bottom: 6px
+    }
+
+    .hero-sub {
+      font-size: .85rem;
+      color: rgba(255, 255, 255, .7);
+      margin-bottom: 3px
+    }
+
+    .hero-spec {
+      font-size: .78rem;
+      color: rgba(255, 255, 255, .5);
+      margin-bottom: 6px
+    }
+
+    .hero-contact {
+      font-size: .76rem;
+      color: rgba(255, 255, 255, .55);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      flex-shrink: 0
+    }
+
+    .hstat {
+      background: rgba(255, 255, 255, .08);
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 12px;
+      padding: 14px 18px;
+      text-align: center;
+      min-width: 110px
+    }
+
+    .hstat .hv {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #fff
+    }
+
+    .hstat .hl {
+      font-size: .68rem;
+      color: rgba(255, 255, 255, .45);
+      margin-top: 2px
+    }
+
+    .absent-banner {
+      background: rgba(239, 68, 68, .2);
+      border: 1px solid rgba(239, 68, 68, .4);
+      border-radius: 10px;
+      padding: 10px 16px;
+      margin-top: 14px;
+      font-size: .8rem;
+      color: #fecaca;
+      width: 100%
+    }
+
+    /* DETAIL CARDS */
+    .det-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px
+    }
+
+    .det-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 22px;
+      border: 1px solid rgba(0, 0, 0, .05);
+      border-left: 4px solid var(--faculty-purple)
+    }
+
+    .det-card h3 {
+      font-size: .95rem;
+      font-weight: 700;
+      margin-bottom: 14px;
+      color: var(--navy)
+    }
+
+    .det-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #f3f4f6
+    }
+
+    .det-row:last-child {
+      border-bottom: none
+    }
+
+    .det-l {
+      font-size: .7rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted);
+      font-weight: 600
+    }
+
+    .det-v {
+      font-size: .82rem;
+      font-weight: 500;
+      text-align: right;
+      max-width: 60%
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 10px;
+      font-size: .65rem;
+      font-weight: 700;
+      margin: 2px
+    }
+
+    .pill-purple {
+      background: var(--faculty-light);
+      color: var(--faculty-purple)
+    }
+
+    .pill-gold {
+      background: var(--gold-light);
+      color: var(--gold-dark)
+    }
+
+    .pill-green {
+      background: #dcfce7;
+      color: #15803d
+    }
+
+    .pill-red {
+      background: #fee2e2;
+      color: #dc2626
+    }
+
+    .pill-blue {
+      background: #dbeafe;
+      color: #1d4ed8
+    }
+
+    .pill-amber {
+      background: #fef3c7;
+      color: #92400e
+    }
+
+    /* SECTION CARDS */
+    .sec-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 22px;
+      border: 1px solid rgba(0, 0, 0, .06);
+      border-left: 4px solid var(--faculty-purple);
+      margin-bottom: 16px;
+      transition: all .25s;
+      animation: cardPop .3s
+    }
+
+    .sec-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .07)
+    }
+
+    .sec-card-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      flex-wrap: wrap
+    }
+
+    .sec-card-top h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--navy)
+    }
+
+    .sec-stats {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 12px;
+      flex-wrap: wrap
+    }
+
+    .sec-stat {
+      font-size: .78rem;
+      color: var(--muted);
+      font-weight: 500
+    }
+
+    .sec-stat strong {
+      color: var(--text)
+    }
+
+    .sec-courses {
+      margin-bottom: 12px
+    }
+
+    .sec-courses-label {
+      font-size: .7rem;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 6px
+    }
+
+    .sec-avatars {
+      display: flex;
+      align-items: center;
+      margin-bottom: 14px
+    }
+
+    .sec-av {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .6rem;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #7c3aed, #4f8ef7);
+      border: 2px solid #fff
+    }
+
+    .sec-av+.sec-av {
+      margin-left: -8px
+    }
+
+    .sec-av-more {
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: .65rem;
+      font-weight: 600;
+      margin-left: -8px
+    }
+
+    .sec-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: .75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px
+    }
+
+    .btn:hover {
+      transform: translateY(-1px)
+    }
+
+    .btn-purple {
+      background: var(--faculty-purple);
+      color: #fff
+    }
+
+    .btn-purple-o {
+      background: transparent;
+      color: var(--faculty-purple);
+      border: 1.5px solid var(--faculty-purple)
+    }
+
+    .btn-gold-o {
+      background: transparent;
+      color: var(--gold-dark);
+      border: 1.5px solid var(--gold)
+    }
+
+    .btn-red {
+      background: var(--danger);
+      color: #fff
+    }
+
+    .btn-red-o {
+      background: transparent;
+      color: var(--danger);
+      border: 1.5px solid var(--danger)
+    }
+
+    .btn-green {
+      background: var(--success);
+      color: #fff
+    }
+
+    .btn-navy {
+      background: var(--navy-deep);
+      color: #fff
+    }
+
+    .btn-full {
+      width: 100%
+    }
+
+    .btn-lg {
+      padding: 12px 28px;
+      font-size: .88rem
+    }
+
+    .btn-save {
+      background: linear-gradient(135deg, #7c3aed, #6d28d9);
+      color: #fff;
+      animation: savePulse 2s infinite;
+      font-size: .88rem;
+      font-weight: 700;
+      padding: 12px 28px;
+      border-radius: 12px
+    }
+
+    .btn-save.saved {
+      background: var(--success);
+      animation: none
+    }
+
+    /* TIMETABLE GRID */
+    .tt-grid {
+      display: grid;
+      grid-template-columns: 70px repeat(5, 1fr);
+      gap: 1px;
+      background: #e5e7eb;
+      border-radius: 14px;
+      overflow: hidden;
+      margin-top: 14px
+    }
+
+    .tt-hdr {
+      background: var(--navy-deep);
+      color: #fff;
+      padding: 12px 8px;
+      text-align: center;
+      font-size: .75rem;
+      font-weight: 700
+    }
+
+    .tt-hdr.today-col {
+      background: var(--faculty-purple)
+    }
+
+    .tt-time {
+      background: #fff;
+      padding: 10px 6px;
+      text-align: center;
+      font-size: .72rem;
+      font-weight: 700;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .tt-cell {
+      background: #fff;
+      padding: 8px;
+      min-height: 70px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      transition: background .2s;
+      font-size: .72rem
+    }
+
+    .tt-cell.today-col {
+      background: #f5f3ff
+    }
+
+    .tt-cell.lunch {
+      background: var(--gold-light);
+      color: var(--gold-dark);
+      font-weight: 700;
+      font-size: .78rem
+    }
+
+    .tt-cell .cc {
+      font-weight: 700;
+      color: var(--faculty-purple);
+      font-size: .75rem
+    }
+
+    .tt-cell .cn {
+      color: var(--text);
+      font-size: .68rem;
+      margin: 2px 0
+    }
+
+    .tt-cell .cr {
+      color: var(--muted);
+      font-size: .62rem
+    }
+
+    .tt-cell.cancelled {
+      background: #fff5f5;
+      animation: absentPulse 2s infinite
+    }
+
+    .tt-cell.empty {
+      color: #d1d5db
+    }
+
+    /* TIMELINE */
+    .timeline {
+      position: relative;
+      padding-left: 48px
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 20px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--gold)
+    }
+
+    .tl-item {
+      position: relative;
+      margin-bottom: 16px;
+      animation: fadeUp .4s
+    }
+
+    .tl-dot {
+      position: absolute;
+      left: -32px;
+      top: 16px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--faculty-purple);
+      border: 2px solid #fff;
+      z-index: 1
+    }
+
+    .tl-time {
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 4px
+    }
+
+    .tl-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px;
+      border: 1px solid rgba(0, 0, 0, .06);
+      border-left: 4px solid var(--faculty-purple);
+      position: relative;
+      transition: all .2s
+    }
+
+    .tl-card:hover {
+      box-shadow: 0 4px 14px rgba(0, 0, 0, .06)
+    }
+
+    .tl-card.cancelled {
+      border-left-color: var(--danger);
+      animation: absentPulse 2s infinite
+    }
+
+    .tl-status {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      font-size: .65rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px
+    }
+
+    .tl-status.ongoing {
+      background: #dcfce7;
+      color: #15803d
+    }
+
+    .tl-status.done {
+      background: var(--surface2);
+      color: var(--muted)
+    }
+
+    .tl-status.upcoming {
+      background: #dbeafe;
+      color: var(--accent)
+    }
+
+    .tl-status.cancel {
+      background: #fee2e2;
+      color: var(--danger)
+    }
+
+    .lunch-card {
+      background: linear-gradient(135deg, var(--gold-light), #fff3b0);
+      border-radius: 14px;
+      padding: 16px;
+      text-align: center;
+      font-weight: 700;
+      color: var(--gold-dark);
+      margin-bottom: 16px;
+      font-size: .9rem
+    }
+
+    /* STUDENT CARDS */
+    .stu-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px 18px;
+      border: 1px solid rgba(0, 0, 0, .06);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 8px;
+      transition: all .2s;
+      animation: cardPop .3s
+    }
+
+    .stu-card:hover {
+      background: #f5f3ff;
+      border-left: 3px solid var(--faculty-purple)
+    }
+
+    .stu-av {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 2px solid var(--gold)
+    }
+
+    .stu-av img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover
+    }
+
+    .stu-av .initials {
+      background: linear-gradient(135deg, #7c3aed, #4f8ef7);
+      color: #fff;
+      font-size: .78rem;
+      font-weight: 700;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .stu-info {
+      flex: 1;
+      min-width: 0
+    }
+
+    .stu-info .sn {
+      font-size: .9rem;
+      font-weight: 600;
+      color: var(--navy)
+    }
+
+    .stu-info .sr {
+      font-size: .72rem;
+      color: var(--faculty-purple)
+    }
+
+    .stu-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0
+    }
+
+    /* ATTENDANCE */
+    .att-header {
+      background: linear-gradient(135deg, #141d42, #2d1b69);
+      border-radius: 16px;
+      padding: 20px 24px;
+      color: #fff;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap
+    }
+
+    .att-header .att-icon {
+      font-size: 2rem
+    }
+
+    .att-header-info h3 {
+      font-size: 1.1rem;
+      font-weight: 700
+    }
+
+    .att-header-info p {
+      font-size: .78rem;
+      color: rgba(255, 255, 255, .7)
+    }
+
+    .att-header .att-badge {
+      margin-left: auto;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: .72rem;
+      font-weight: 700
+    }
+
+    .att-badge.new {
+      background: rgba(16, 185, 129, .2);
+      color: #6ee7b7
+    }
+
+    .att-badge.existing {
+      background: rgba(245, 158, 11, .2);
+      color: #fcd34d
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 10px;
+      background: var(--surface2);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 18px
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--faculty-purple);
+      border-radius: 6px;
+      transition: width .4s
+    }
+
+    .progress-label {
+      font-size: .75rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 500
+    }
+
+    .roll-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #fff;
+      padding: 12px 16px;
+      border-radius: 12px;
+      margin-bottom: 6px;
+      border: 1px solid rgba(0, 0, 0, .04);
+      transition: all .2s;
+      animation: cardPop .3s
+    }
+
+    .roll-row:nth-child(even) {
+      background: #fafafa
+    }
+
+    .roll-row:hover {
+      background: #f5f3ff
+    }
+
+    .roll-row.unmarked-highlight {
+      border-left: 3px solid var(--warning)
+    }
+
+    .roll-num {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #7c3aed, #4f8ef7);
+      color: #fff;
+      font-size: .78rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0
+    }
+
+    .roll-info {
+      flex: 1;
+      min-width: 0
+    }
+
+    .roll-info .rn {
+      font-size: .88rem;
+      font-weight: 600;
+      color: var(--navy)
+    }
+
+    .roll-info .rr {
+      font-size: .7rem;
+      color: var(--faculty-purple)
+    }
+
+    .roll-btns {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0
+    }
+
+    .att-btn {
+      min-width: 80px;
+      padding: 8px 0;
+      border-radius: 8px;
+      font-size: .78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      border: 2px solid #e5e7eb;
+      background: #fff;
+      color: var(--muted);
+      text-align: center
+    }
+
+    .att-btn:active {
+      transform: scale(.96)
+    }
+
+    .att-btn.sel-p {
+      background: #dcfce7;
+      border-color: var(--success);
+      color: #15803d;
+      font-weight: 700;
+      animation: checkPop .3s
+    }
+
+    .att-btn.sel-a {
+      background: #fee2e2;
+      border-color: var(--danger);
+      color: #dc2626;
+      font-weight: 700;
+      animation: checkPop .3s
+    }
+
+    .att-btn.sel-od {
+      background: #dbeafe;
+      border-color: #3b82f6;
+      color: #1d4ed8;
+      font-weight: 700;
+      animation: checkPop .3s
+    }
+
+    .sticky-save {
+      position: sticky;
+      bottom: 0;
+      background: #fff;
+      border-top: 2px solid #e5e7eb;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 20;
+      border-radius: 0 0 16px 16px;
+      flex-wrap: wrap;
+      gap: 10px
+    }
+
+    .save-summary {
+      font-size: .8rem;
+      color: var(--muted);
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap
+    }
+
+    .save-summary .sc {
+      font-weight: 700
+    }
+
+    .sc-p {
+      color: var(--success)
+    }
+
+    .sc-a {
+      color: var(--danger)
+    }
+
+    .sc-od {
+      color: var(--accent)
+    }
+
+    .sc-u {
+      color: var(--muted)
+    }
+
+    /* ABSENCE PAGE */
+    .absence-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px;
+      border: 1px solid rgba(0, 0, 0, .06);
+      margin-bottom: 16px
+    }
+
+    .absence-active {
+      background: #fee2e2;
+      border: 1px solid rgba(239, 68, 68, .3)
+    }
+
+    .absence-class-list {
+      margin: 12px 0
+    }
+
+    .absence-class {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(0, 0, 0, .04);
+      font-size: .82rem
+    }
+
+    .absence-notes {
+      background: #fef9c3;
+      border: 1px solid rgba(245, 158, 11, .3);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: .78rem;
+      color: #92400e;
+      margin-top: 14px
+    }
+
+    .absence-notes li {
+      margin: 4px 0;
+      list-style: disc inside
+    }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200
+    }
+
+    .modal-overlay.show {
+      display: flex
+    }
+
+    .modal-box {
+      background: #fff;
+      border-radius: 20px;
+      padding: 32px;
+      max-width: 420px;
+      width: 92%;
+      animation: fadeUp .3s;
+      text-align: center
+    }
+
+    .modal-box h3 {
+      font-size: 1.2rem;
+      margin-bottom: 8px
+    }
+
+    .modal-box p {
+      font-size: .85rem;
+      color: var(--muted);
+      margin-bottom: 18px
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center
+    }
+
+    /* SEARCH */
+    .search-input {
+      padding: 10px 16px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: .82rem;
+      width: 100%;
+      max-width: 320px;
+      font-family: inherit;
+      margin-bottom: 14px;
+      transition: border .2s
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--faculty-purple);
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, .1)
+    }
+
+    /* DROPDOWN */
+    .sel {
+      padding: 10px 14px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: .82rem;
+      font-family: inherit;
+      background: #fff;
+      min-width: 180px;
+      transition: border .2s
+    }
+
+    .sel:focus {
+      outline: none;
+      border-color: var(--faculty-purple);
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, .1)
+    }
+
+    /* STEP LABEL */
+    .step-label {
+      font-size: .72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 6px
+    }
+
+    .step-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px solid rgba(0, 0, 0, .06);
+      margin-bottom: 16px;
+      animation: slideUp .4s
+    }
+
+    /* CARD */
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 22px;
+      border: 1px solid rgba(0, 0, 0, .06);
+      margin-bottom: 16px
+    }
+
+    .card-title {
+      font-size: .95rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 14px
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+      font-size: .88rem
+    }
+
+    .empty-state .es-icon {
+      font-size: 2.4rem;
+      margin-bottom: 8px;
+      display: block
+    }
+
+    .section-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 16px
+    }
+
+    /* SECTION TABS */
+    .sec-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 18px;
+      flex-wrap: wrap
+    }
+
+    .sec-tab {
+      padding: 8px 18px;
+      border-radius: 20px;
+      border: 2px solid #e5e7eb;
+      background: #fff;
+      cursor: pointer;
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--muted);
+      transition: all .2s
+    }
+
+    .sec-tab.active {
+      background: var(--faculty-purple);
+      color: #fff;
+      border-color: var(--faculty-purple)
+    }
+
+    .sec-tab:hover {
+      border-color: var(--faculty-purple)
+    }
+
+    .sec-info-banner {
+      background: linear-gradient(135deg, #7c3aed, #6d28d9);
+      color: #fff;
+      border-radius: 14px;
+      padding: 18px 24px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap
+    }
+
+    .sec-info-banner h3 {
+      font-size: 1.15rem;
+      font-weight: 700
+    }
+
+    .sec-info-banner .sib-details {
+      font-size: .78rem;
+      color: rgba(255, 255, 255, .75);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap
+    }
+
+    /* TOAST */
+    .toast-wrap {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      gap: 8px
+    }
+
+    .toast {
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: .82rem;
+      font-weight: 500;
+      animation: slideUp .4s cubic-bezier(.34, 1.56, .64, 1);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, .12);
+      max-width: 380px;
+      border-left: 4px solid var(--navy)
+    }
+
+    .toast.ts {
+      background: #dcfce7;
+      color: #15803d;
+      border-left-color: var(--success)
+    }
+
+    .toast.te {
+      background: #fee2e2;
+      color: #dc2626;
+      border-left-color: var(--danger)
+    }
+
+    .toast.tw {
+      background: #fef9c3;
+      color: #92400e;
+      border-left-color: var(--warning)
+    }
+
+    .toast.tf {
+      background: var(--faculty-light);
+      color: #6d28d9;
+      border-left-color: var(--faculty-purple)
+    }
+
+    /* STUDENT TIMETABLE VIEWER */
+    .stv-student-banner {
+      background: linear-gradient(135deg, #7c3aed, #4f8ef7);
+      border-radius: 16px;
+      padding: 20px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+      animation: fadeUp .4s
+    }
+
+    .stv-av {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 3px solid var(--gold);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0
+    }
+
+    .stv-av img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover
+    }
+
+    .stv-av .initials {
+      background: rgba(255, 255, 255, .15);
+      font-size: 1.4rem;
+      font-weight: 700;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .stv-info h3 {
+      font-size: 1.2rem;
+      font-weight: 700
+    }
+
+    .stv-info .stv-reg {
+      display: inline-block;
+      background: var(--gold);
+      color: var(--navy);
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: .68rem;
+      font-weight: 700;
+      margin-top: 2px
+    }
+
+    .stv-info p {
+      font-size: .78rem;
+      color: rgba(255, 255, 255, .7);
+      margin-top: 4px
+    }
+
+    /* SELECT CONTROLS GRID */
+    .ctrl-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-bottom: 16px
+    }
+
+    /* RESPONSIVE */
+    @media(max-width:900px) {
+      .sb {
+        transform: translateX(-100%);
+        transition: transform .3s
+      }
+
+      .sb.open {
+        transform: translateX(0)
+      }
+
+      .main {
+        margin-left: 0
+      }
+
+      .hero-card {
+        flex-direction: column;
+        text-align: center
+      }
+
+      .hero-stats {
+        grid-template-columns: 1fr 1fr
+      }
+
+      .det-grid {
+        grid-template-columns: 1fr
+      }
+
+      .tt-grid {
+        font-size: .65rem
+      }
+
+      .ctrl-grid {
+        grid-template-columns: 1fr
+      }
+
+      .roll-row {
+        flex-wrap: wrap
+      }
+
+      .roll-btns {
+        width: 100%;
+        justify-content: center
+      }
+    }
+
+    /* ─── AI Chatbot UI ────────────────────────────────────────────── */
+    .chat-fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 60px;
+      height: 60px;
+      background: var(--navy);
+      color: var(--gold);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      cursor: pointer;
+      z-index: 1000;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .chat-fab:hover {
+      transform: translateY(-2px) scale(1.05);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .chat-panel {
+      position: fixed;
+      bottom: 96px;
+      right: 24px;
+      width: 380px;
+      height: 500px;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      display: flex;
+      flex-direction: column;
+      z-index: 1000;
+      overflow: hidden;
+      transform: translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
+    .chat-panel.open {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .chat-header {
+      background: var(--navy);
+      color: #fff;
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .chat-header h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chat-header h3 .icon {
+      color: var(--gold);
+    }
+
+    .chat-close {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 1.2rem;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+
+    .chat-close:hover {
+      opacity: 1;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: var(--surface);
+    }
+
+    .chat-bubble {
+      max-width: 85%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      word-wrap: break-word;
+    }
+
+    .chat-bubble table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 0.8rem;
+    }
+
+    .chat-bubble th,
+    .chat-bubble td {
+      border: 1px solid #e2e8f0;
+      padding: 4px 6px;
+      text-align: left;
+    }
+
+    .chat-bubble th {
+      background: var(--surface);
+    }
+
+    .chat-msg.user {
+      align-self: flex-end;
+    }
+
+    .chat-msg.user .chat-bubble {
+      background: var(--navy);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .chat-msg.bot {
+      align-self: flex-start;
+    }
+
+    .chat-msg.bot .chat-bubble {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid #e2e8f0;
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-input-area {
+      padding: 16px;
+      background: #fff;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      gap: 8px;
+    }
+
+    .chat-input {
+      flex: 1;
+      border: 1px solid #e2e8f0;
+      border-radius: 30px;
+      padding: 10px 16px;
+      outline: none;
+      background: var(--surface);
+      color: var(--text);
+      transition: border-color 0.2s;
+    }
+
+    .chat-input:focus {
+      border-color: var(--accent);
+    }
+
+    .chat-send-btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .chat-send-btn:hover {
+      background: var(--navy);
+    }
+
+    .chat-send-btn:disabled {
+      background: var(--muted);
+      cursor: not-allowed;
+    }
+
+    .typing-indicator {
+      display: flex;
+      gap: 4px;
+      padding: 8px 12px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      border-bottom-left-radius: 4px;
+      width: fit-content;
+      align-self: flex-start;
+    }
+
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--muted);
+      border-radius: 50%;
+      animation: typing 1.4s infinite ease-in-out both;
+    }
+
+    .typing-dot:nth-child(1) {
+      animation-delay: -0.32s;
+    }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: -0.16s;
+    }
+
+    @keyframes typing {
+
+      0%,
+      80%,
+      100% {
+        transform: scale(0);
+      }
+
+      40% {
+        transform: scale(1);
+      }
+    }
+
+    .chat-suggestions {
+      padding: 10px 16px;
+      background: var(--surface);
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .chat-suggestions::-webkit-scrollbar {
+      display: none;
+    }
+
+    .suggestion-chip {
+      white-space: nowrap;
+      padding: 6px 12px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .suggestion-chip:hover {
+      border-color: var(--navy);
+      color: var(--navy);
+      background: var(--surface2);
+    }
+    .absence-row:hover:not(.abs-done) { background: #fdf2f2; border-color: #fecaca !important; }
+    .absence-row.abs-marked { background: #fff5f5; border-color: #fecaca !important; }
+    .absence-row.abs-done { opacity: 0.6; background: #f3f4f6; cursor: default; }
+  </style>
+</head>
+
+<body>
+
+  <!-- LOGIN -->
+  <div id="loginView">
+    <div class="lcard">
+      <div class="licon">🔐</div>
+      <h2>UniSchedule</h2>
+      <p class="lsub">University Timetable Management</p>
+      <div class="role-tabs">
+        <button class="role-tab" onclick="setRole(this,'admin')">👑 Admin</button>
+        <button class="role-tab active" onclick="setRole(this,'faculty')">👨‍🏫 Faculty</button>
+        <button class="role-tab" onclick="setRole(this,'student')">🎓 Student</button>
+      </div>
+      <div class="linner">
+        <div class="fg"><label>Email Address</label><input type="email" id="logEmail"
+            placeholder="arun.kumar@srmap.edu.in"></div>
+        <div class="fg"><label>Password</label><input type="password" id="logPass" placeholder="arun.kumar@123"
+            onkeydown="if(event.key==='Enter')doLogin()"></div>
+        <button class="lbtn" onclick="doLogin()">🚀 Sign In</button>
+      </div>
+      <div class="lforgot"><a href="#">Forgot Password?</a></div>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="appView">
+    <div class="wrap">
+      <nav class="sb" id="sidebar"></nav>
+      <div class="main">
+        <div class="topbar" id="topbar"></div>
+        <div id="mainArea"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-overlay" id="absenceModal">
+    <div class="modal-box">
+      <h3>⚠️ Are you sure?</h3>
+      <div id="absenceClassChecks" style="margin:12px 0;text-align:left"></div>
+      <div class="modal-actions">
+        <button class="btn btn-purple-o" onclick="hideAbsenceModal()">Cancel</button>
+        <button class="btn btn-red" onclick="confirmAbsence()">Yes, Mark Me Absent</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toastWrap"></div>
+  <input type="file" id="photoInput" accept="image/*" style="display:none">
+
+  <script>
+    /* ═══════════════════════════════════════
+       DATA — Single Source of Truth
+       ═══════════════════════════════════════ */
+    const DATA = {{ DATA | safe }};
+    const CURRENT_EMAIL = "{{ current_email }}";
+
+    /* ═══ GLOBALS ═══ */
+    let currentFaculty = null, currentRole = null, selectedLoginRole = 'faculty';
+    
+    // Auto-init based on session
+    if (CURRENT_EMAIL) {
+        currentFaculty = DATA.faculty.find(f => f.email.toLowerCase() === CURRENT_EMAIL.toLowerCase());
+        if (currentFaculty) {
+            currentRole = 'faculty';
+            window.addEventListener('DOMContentLoaded', initApp);
+        }
+    }
+    let attMarks = {};
+    const SLOTS = ["9-10", "10-11", "11-12", "12-1", "2-3", "3-4", "4-5"];
+    const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+    const $ = id => document.getElementById(id);
+
+    /* ═══ UTILS ═══ */
+    function getInitials(n) { return n.replace(/^Dr\.\s*/i, '').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) }
+    function getTodayKey() { 
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function getTomKey() {
+      const d = new Date(); d.setDate(d.getDate() + 1);
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function getTodayDay() { return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date().getDay()] }
+    function getSlotOrder(s) { return SLOTS.indexOf(s) }
+    function getSlotStatus(s) { const h = new Date().getHours(); const p = s.split('-'); let sh = +p[0], eh = +p[1]; if (sh < 8) sh += 12; if (eh < 8 || eh <= sh) eh += 12; if (h >= eh) return 'done'; if (h >= sh && h < eh) return 'ongoing'; return 'upcoming' }
+    function getGreeting() { const h = new Date().getHours(); return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening' }
+    function isFacultyAbsent(fid, d) { const c = DATA.facultyAbsence[fid] && DATA.facultyAbsence[fid][d]; return Array.isArray(c) && c.length > 0; }
+    function isSlotCancelled(fid, d, slot) { const c = DATA.facultyAbsence[fid] && DATA.facultyAbsence[fid][d]; return Array.isArray(c) && c.includes(slot); }
+    function formatDate(d) { return new Date(d || Date.now()).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }
+    function getDayFromDate(d) { return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(d).getDay()] }
+    function courseName(c) { const co = DATA.courses.find(x => x.code === c); return co ? co.name : c }
+    function facName(fid) { const f = DATA.faculty.find(x => x.id === fid); return f ? f.name : fid }
+    function avatarHtml(photo, name, size) {
+      const s = size || 44;
+      if (photo) return `<img src="${photo}?v=${Date.now()}" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:cover">`;
+      return `<div class="initials" style="width:${s}px;height:${s}px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f8ef7);color:#fff;font-size:${s * .35}px;font-weight:700;display:flex;align-items:center;justify-content:center">${getInitials(name)}</div>`;
+    }
+    function showToast(msg, type = 'default') {
+      const w = $('toastWrap'), t = document.createElement('div');
+      t.className = 'toast' + (type === 'success' ? ' ts' : type === 'error' ? ' te' : type === 'warning' ? ' tw' : type === 'faculty' ? ' tf' : '');
+      t.textContent = msg; w.appendChild(t);
+      setTimeout(() => { t.style.transition = 'opacity .3s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 300) }, 2800);
+    }
+    function myTimetable() { return DATA.timetable.filter(t => t.faculty === currentFaculty.id) }
+    function myTodayClasses() { return myClassesForDate(getTodayKey()) }
+    function myClassesForDate(dateStr) {
+      const d = getDayFromDate(dateStr);
+      const f = currentFaculty;
+      const currentlyAbsent = DATA.facultyAbsence[f.id]?.[dateStr] || [];
+      const hasAbsence = currentlyAbsent.length > 0;
+      return myTimetable().filter(t => t.day === d).sort((a, b) => getSlotOrder(a.slot) - getSlotOrder(b.slot));
+    }
+
+    /* ═══ LOGIN ═══ */
+    function setRole(btn, role) {
+      document.querySelectorAll('.role-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active'); selectedLoginRole = role;
+      const hints = { admin: ['admin@srmap.edu.in', 'admin123'], faculty: ['arun.kumar@srmap.edu.in', 'arun.kumar@123'], student: ['manish.singh@srmap.edu.in', 'student123'] };
+      $('logEmail').placeholder = hints[role][0]; $('logPass').placeholder = hints[role][1];
+    }
+    function doLogin() {
+      const e = $('logEmail').value.trim().toLowerCase(), p = $('logPass').value.trim();
+      if (!e || !p) { showToast('❌ Please fill in both fields', 'error'); return }
+      showToast('🔄 Redirecting...', 'faculty');
+      const form = document.createElement('form');
+      form.method = 'POST'; form.action = '/login'; form.style.display = 'none';
+      // CSRF token — required by Flask-WTF
+      const csrfIn = document.createElement('input'); csrfIn.name = 'csrf_token';
+      csrfIn.value = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : '';
+      form.appendChild(csrfIn);
+      const emailIn = document.createElement('input'); emailIn.name = 'email'; emailIn.value = e; form.appendChild(emailIn);
+      const passIn = document.createElement('input'); passIn.name = 'password'; passIn.value = p; form.appendChild(passIn);
+      document.body.appendChild(form);
+      setTimeout(() => form.submit(), 400);
+    }
+    function doLogout() { currentFaculty = currentRole = null; $('appView').style.display = 'none'; $('loginView').style.display = 'flex'; $('logEmail').value = ''; $('logPass').value = '' }
+
+    /* ═══ INIT ═══ */
+    async function initApp() {
+      $('loginView').style.display = 'none'; $('appView').style.display = 'block';
+      await fetchAbsences();
+      buildSidebar(); buildTopbar(); showPage('dashboard');
+    }
+
+    async function fetchAbsences() {
+      try {
+        const res = await fetch('/api/faculty-absences');
+        if (res.ok) {
+          const arr = await res.json();
+          const obj = {};
+          arr.forEach(a => {
+            if (!obj[a.faculty_id]) obj[a.faculty_id] = {};
+            // Support both 'day' and 'date' fields from DB
+            const d = a.day || a.date;
+            obj[a.faculty_id][d] = a.slots;
+          });
+          DATA.facultyAbsence = obj;
+        }
+      } catch (e) { console.error("Sync error:", e); }
+    }
+
+    /* ═══ SIDEBAR ═══ */
+    function buildSidebar() {
+      const f = currentFaculty;
+      $('sidebar').innerHTML = `
+  <div class="sb-brand"><span class="sb-icon">📅</span><span class="sb-title">UniSchedule</span><span class="sb-sub">Faculty Portal</span></div>
+  <div class="sb-section">OVERVIEW</div>
+  <ul class="sb-nav">
+    <li><a class="active" data-page="dashboard" onclick="showPage('dashboard')">🏠 Dashboard</a></li>
+  </ul>
+  <div class="sb-section">TIMETABLE</div>
+  <ul class="sb-nav">
+    <li><a data-page="mytt" onclick="showPage('mytt')">📅 My Timetable</a></li>
+    <li><a data-page="fulltt" onclick="showPage('fulltt')">📆 Full Timetable</a></li>
+  </ul>
+  <div class="sb-section">MY SECTIONS</div>
+  <ul class="sb-nav">
+    <li><a data-page="sections" onclick="showPage('sections')">👥 My Sections</a></li>
+  </ul>
+  <div class="sb-section">ATTENDANCE</div>
+  <ul class="sb-nav">
+    <li><a data-page="markatt" onclick="showPage('markatt')">📝 Mark Attendance</a></li>
+  </ul>
+  <div class="sb-section">SMART ATTENDANCE</div>
+  <ul class="sb-nav">
+    <li><a href="/attendance/faculty-qr" style="background:linear-gradient(90deg,rgba(124,58,237,.18),transparent)">📲 QR Live Session</a></li>
+  </ul>
+  <div class="sb-section">ABSENCE</div>
+  <ul class="sb-nav">
+    <li><a data-page="absence" onclick="showPage('absence')">🚫 Report Absence</a></li>
+  </ul>
+  <div class="sb-footer" id="sbFooter">
+    <div class="sb-footer-avatar" id="sbAvatar">${f.photo ? `<img src="${f.photo}">` : `<div class="initials">${getInitials(f.name)}</div>`}</div>
+    <div class="sb-footer-info">
+      <div class="sb-fn">${f.name}</div>
+      <div class="sb-desig">${f.designation}</div>
+      <div class="sb-dept-pill">${f.dept}</div>
+    </div>
+  </div>`;
+    }
+    function buildTopbar() {
+      const f = currentFaculty;
+      $('topbar').innerHTML = `
+  <input class="tb-search" placeholder="🔍 Search resources, students...">
+  <div class="tb-right">
+     <span class="tb-bell">🔔</span>
+    <div class="tb-user">
+      <div class="tb-user-av" id="tbAvatar">${f.photo ? `<img src="${f.photo}">` : `<div class="initials">${getInitials(f.name)}</div>`}</div>
+      <span>${f.name} <small>(Faculty)</small></span>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">🚪 Logout</button>
+  </div>`;
+    }
+
+    /* ═══ PAGE ROUTING ═══ */
+    let currentPageArgs = {};
+    async function showPage(page, args) {
+      currentPageArgs = args || {};
+      if (page === 'absence' || page === 'dashboard') await fetchAbsences();
+      
+      document.querySelectorAll('.sb-nav a').forEach(a => { a.classList.toggle('active', a.dataset.page === page) });
+      const m = $('mainArea');
+      switch (page) {
+        case 'dashboard': m.innerHTML = `<div class="page">${pgDashboard()}</div>`; break;
+        case 'mytt': m.innerHTML = `<div class="page">${pgMyTimetable()}</div>`; break;
+        case 'fulltt': m.innerHTML = `<div class="page">${pgFullTimetable()}</div>`; break;
+        case 'sections': m.innerHTML = `<div class="page">${pgSections()}</div>`; setTimeout(() => renderSectionStudents(currentPageArgs.secId), 50); break;
+        case 'stutt': m.innerHTML = `<div class="page">${pgStudentTimetable()}</div>`; break;
+        case 'markatt': m.innerHTML = `<div class="page">${pgMarkAttendance()}</div>`; break;
+        case 'absence': m.innerHTML = `<div class="page">${pgAbsence()}</div>`; break;
+      }
+    }
+
+    function rerenderPhotoEverywhere() {
+      const f = currentFaculty; const img = f.photo ? `<img src="${f.photo}">` : `<div class="initials">${getInitials(f.name)}</div>`;
+      const sa = $('sbAvatar'); if (sa) sa.innerHTML = img;
+      const ta = $('tbAvatar'); if (ta) ta.innerHTML = img;
+      const hc = document.getElementById('heroPhotoCircle'); if (hc) hc.innerHTML = f.photo ? `<img src="${f.photo}">` : `<div class="initials" style="font-size:40px">${getInitials(f.name)}</div>`;
+    }
+
+    /* ═══════════════════════════════════════
+       PAGE 0 — DASHBOARD
+       ═══════════════════════════════════════ */
+    function pgDashboard() {
+      const f = currentFaculty, tt = myTimetable(), today = myTodayClasses();
+      const absent = isFacultyAbsent(f.id, getTodayKey());
+      const mySecs = f.assignedSections.map(sid => DATA.sections.find(s => s.id === sid)).filter(Boolean);
+      return `
+  <!-- HERO -->
+  <div class="hero-card">
+    <div class="hero-photo">
+      <div class="photo-circle" id="heroPhotoCircle">
+        ${f.photo ? `<img src="${f.photo}">` : `<div class="initials" style="font-size:40px">${getInitials(f.name)}</div>`}
+      </div>
+    </div>
+    <div class="hero-info">
+      <h1>${f.name}</h1>
+      <span class="hero-id">${f.id}</span>
+      <div class="hero-sub">${f.designation} · ${f.dept}</div>
+      <div class="hero-spec">Specialization: ${f.specialization}</div>
+      <div class="hero-contact"><span>📧 ${f.email}</span><span>📞 ${f.phone}</span><span>🚪 ${f.cabinNo}</span></div>
+    </div>
+    <div class="hero-stats">
+      <div class="hstat"><div class="hv">${tt.length}</div><div class="hl">📅 Classes/Week</div></div>
+      <div class="hstat"><div class="hv">${f.canTeach.length}</div><div class="hl">📚 Courses</div></div>
+      <div class="hstat"><div class="hv">${f.assignedSections.length}</div><div class="hl">👥 Sections</div></div>
+      <div class="hstat"><div class="hv">${absent ? '—' : today.length}</div><div class="hl">⚡ Today</div></div>
+    </div>
+    ${absent ? '<div class="absent-banner">🚫 You are marked absent today — Classes cancelled for students</div>' : ''}
+  </div>
+
+  <!-- DETAILS -->
+  <div class="det-grid">
+    <div class="det-card">
+      <h3>👤 Personal Information</h3>
+      ${[['Full Name', f.name], ['Faculty ID', f.id], ['Designation', f.designation], ['Email', f.email], ['Phone', f.phone], ['Cabin', f.cabinNo], ['Joining Date', f.joiningDate], ['Experience', f.experience]].map(r => `<div class="det-row"><span class="det-l">${r[0]}</span><span class="det-v">${r[1]}</span></div>`).join('')}
+    </div>
+    <div class="det-card">
+      <h3>🎓 Academic Information</h3>
+      <div class="det-row"><span class="det-l">Department</span><span class="det-v">${f.dept}</span></div>
+      <div class="det-row"><span class="det-l">Specialization</span><span class="det-v">${f.specialization}</span></div>
+      <div class="det-row"><span class="det-l">Courses Teaching</span><span class="det-v">${f.canTeach.map(c => `<span class="pill pill-purple">${c}</span>`).join('')}</span></div>
+      <div class="det-row"><span class="det-l">Assigned Sections</span><span class="det-v">${mySecs.map(s => `<span class="pill pill-gold" style="cursor:pointer" onclick="showPage('sections',{secId:'${s.id}'})">${s.name}</span>`).join('')}</span></div>
+    </div>
+  </div>
+
+  <!-- ASSIGNED SECTIONS -->
+  <div class="section-title">👥 My Assigned Sections</div>
+  ${mySecs.map(sec => {
+        const stuList = sec.students.map(sid => DATA.students.find(s => s.id === sid)).filter(Boolean);
+        const myClassesHere = DATA.timetable.filter(t => t.section === sec.id && t.faculty === f.id);
+        const myCourses = [...new Set(myClassesHere.map(t => t.course))];
+        return `<div class="sec-card">
+      <div class="sec-card-top">
+        <h3>${sec.name}</h3><span class="pill pill-purple">${sec.dept}</span><span class="pill pill-gold">Sem ${sec.semester} · Year ${sec.year}</span>
+      </div>
+      <div class="sec-stats">
+        <span class="sec-stat">👥 <strong>${stuList.length}</strong> Students</span>
+        <span class="sec-stat">📚 <strong>${sec.courses.length}</strong> Courses</span>
+        <span class="sec-stat">⚡ <strong>${myClassesHere.length}</strong> My Classes/Week</span>
+      </div>
+      <div class="sec-courses"><div class="sec-courses-label">Courses you teach here:</div>${myCourses.map(c => `<span class="pill pill-purple">${c} — ${courseName(c)}</span>`).join('')}</div>
+      <div style="margin: 10px 0; padding: 10px; background: var(--surface2); border-radius: 8px;">
+        <div style="font-size: 0.75rem; font-weight: 700; margin-bottom: 6px; color: var(--navy);">📈 Class-wise Attendance</div>
+        ${myCourses.map(c => {
+          const att = DATA.attendance[`${c}_${sec.id}`];
+          const pct = att ? att.pct : 0;
+          const color = pct < 75 ? 'var(--danger)' : 'var(--success)';
+          return `<div style="display:flex; justify-content:space-between; font-size: 0.75rem; padding: 4px 0;">
+                <span>${c}</span>
+                <span style="color: ${color}; font-weight: 700;">${pct}%</span>
+            </div>`;
+        }).join('') || '<div style="font-size:0.75rem; color:var(--muted);">No attendance data</div>'}
+      </div>
+      <div class="sec-avatars">${stuList.slice(0, 3).map(s => `<div class="sec-av">${getInitials(s.name)}</div>`).join('')}${stuList.length > 3 ? `<div class="sec-av sec-av-more">+${stuList.length - 3}</div>` : ''}</div>
+      <div class="sec-actions">
+        <button class="btn btn-purple-o" onclick="showPage('sections',{secId:'${sec.id}'})">👥 View Students →</button>
+        <button class="btn btn-purple" onclick="showPage('markatt',{secId:'${sec.id}'})">📝 Mark Attendance →</button>
+        <button class="btn btn-gold-o" onclick="showPage('stutt',{secId:'${sec.id}'})">🎓 Student Timetable →</button>
+      </div>
+    </div>`;
+      }).join('')}
+
+  <!-- TODAY'S SCHEDULE -->
+  <div class="card">
+    <div class="card-title">📅 Today's Schedule — ${getTodayDay()}</div>
+    <div style="font-size:.8rem;color:var(--muted);margin-bottom:14px">${formatDate()}</div>
+    ${today.length === 0 || getTodayDay() === 'Sun' || getTodayDay() === 'Sat' ?
+          `<div class="empty-state" style="border:2px dashed var(--gold);border-radius:14px"><span class="es-icon">🎉</span>No classes scheduled today. Enjoy your day!</div>` :
+          `<div style="display:flex;gap:10px;flex-wrap:wrap">${today.map(t => {
+            const st = getSlotStatus(t.slot), sec = DATA.sections.find(s => s.id === t.section);
+            const slotCancel = isSlotCancelled(f.id, getTodayKey(), t.slot);
+            const cls = slotCancel ? 'cancelled' : '';
+            return `<div class="tl-card ${cls}" style="min-width:200px;flex:1">
+          <div style="font-weight:700;font-size:.85rem">${t.slot.replace('-', ' – ')}</div>
+          <div><span class="pill pill-purple">${t.course}</span> <span class="pill pill-gold">${sec?.name || t.section}</span></div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:4px">📍 ${t.room}</div>
+          <span class="tl-status ${slotCancel ? 'cancel' : st}">${slotCancel ? '🚫 CANCELLED' : st === 'ongoing' ? '🟢 ONGOING' : st === 'done' ? '✅ DONE' : '🔵 UPCOMING'}</span>
+        </div>`;
+          }).join('')}</div>`}
+  </div>`;
+    }
+
+    /* ═══════════════════════════════════════
+       PAGE 1 — MY TIMETABLE (today view)
+       ═══════════════════════════════════════ */
+    function pgMyTimetable() {
+      const f = currentFaculty, today = myTodayClasses(), d = getTodayDay(), absent = isFacultyAbsent(f.id, getTodayKey());
+      const firstName = f.name.replace(/^Dr\.\s*/i, '').split(' ')[0];
+      let html = `<h2 style="margin-bottom:4px">Good ${getGreeting()}, ${firstName}! 👋</h2>
+  <div style="font-size:.88rem;color:var(--muted);margin-bottom:18px">${formatDate()}</div>`;
+      if (absent) html += `<div style="background:#fee2e2;border:1px solid rgba(239,68,68,.3);border-radius:14px;padding:14px 20px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+    <span style="font-size:.85rem;color:#dc2626;font-weight:600">🚫 You have declared absence for today. All classes cancelled.</span>
+    <button class="btn btn-purple-o" onclick="undoFacultyAbsence()">↩️ Undo — I Am Coming</button></div>`;
+      if (today.length === 0 || d === 'Sun' || d === 'Sat') {
+        html += `<div class="card"><div class="empty-state" style="border:2px dashed var(--gold);border-radius:14px"><span class="es-icon">🎉</span>No classes today! Enjoy your day off.</div></div>`;
+      } else {
+        html += `<div class="timeline">`;
+        const morning = today.filter(t => getSlotOrder(t.slot) < 3), afternoon = today.filter(t => getSlotOrder(t.slot) >= 4);
+        [morning, afternoon].forEach((group, gi) => {
+          if (gi === 1 && morning.length > 0) html += `<div class="lunch-card">🍽️ Lunch Break · 12:00 – 1:00 PM</div>`;
+          group.forEach(t => {
+            const st = getSlotStatus(t.slot), sec = DATA.sections.find(s => s.id === t.section), stuCount = sec ? sec.students.length : 0;
+            const slotCancel = isSlotCancelled(f.id, getTodayKey(), t.slot);
+            const cls = slotCancel ? 'cancelled' : '';
+            html += `<div class="tl-item"><div class="tl-dot"></div>
+          <div class="tl-time">${t.slot.replace('-', ' – ')} · 1 hr</div>
+          <div class="tl-card ${cls}">
+            <span class="tl-status ${slotCancel ? 'cancel' : st}">${slotCancel ? '🚫 CANCELLED' : st === 'ongoing' ? '🟢 ONGOING' : st === 'done' ? '✅ DONE' : '🔵 UPCOMING'}</span>
+            <div><span class="pill pill-purple">${t.course}</span> <strong style="font-size:.88rem">${courseName(t.course)}</strong></div>
+            <div style="margin-top:6px"><span class="pill pill-gold">${sec?.name || t.section}</span> <span style="font-size:.78rem;color:var(--muted)">📍 ${t.room}</span></div>
+            <div style="font-size:.75rem;color:var(--muted);margin-top:4px">👥 ${stuCount} students</div>
+            ${slotCancel ? '<div style="background:#fee2e2;border-radius:8px;padding:6px 10px;margin-top:8px;font-size:.75rem;color:#dc2626;font-weight:600">Class cancelled — Faculty absent</div>' : ''}
+          </div></div>`;
+          });
+        });
+        html += `</div>`;
+      }
+      html += `<div style="margin-top:18px"><button class="btn btn-purple" onclick="showPage('fulltt')">📆 View Full Week Timetable →</button></div>`;
+      return html;
+    }
+
+    /* ═══════════════════════════════════════
+       PAGE 2 — FULL TIMETABLE (week grid)
+       ═══════════════════════════════════════ */
+    function pgFullTimetable() {
+      const f = currentFaculty, tt = myTimetable(), d = getTodayDay();
+      const totalStudents = [...new Set(f.assignedSections.flatMap(sid => { const s = DATA.sections.find(x => x.id === sid); return s ? s.students : [] }))].length;
+      let html = `<div class="section-title">📆 My Full Timetable</div>
+  <div style="font-size:.82rem;color:var(--muted);margin-bottom:16px">You teach <strong>${totalStudents}</strong> students across <strong>${f.assignedSections.length}</strong> sections</div>
+  <div class="tt-grid">`;
+      html += `<div class="tt-hdr"></div>`;
+      DAYS.forEach(day => html += `<div class="tt-hdr ${day === d ? 'today-col' : ''}">${day}</div>`);
+      SLOTS.forEach(slot => {
+        if (slot === '12-1') {
+          html += `<div class="tt-time">12–1</div>`;
+          DAYS.forEach(day => html += `<div class="tt-cell lunch ${day === d ? 'today-col' : ''}">🍽️ Lunch</div>`);
+          return;
+        }
+        html += `<div class="tt-time">${slot}</div>`;
+        DAYS.forEach(day => {
+          const entry = tt.find(t => t.day === day && t.slot === slot);
+          const isToday = day === d;
+          if (entry) {
+            const sec = DATA.sections.find(s => s.id === entry.section);
+            const cancelled = isSlotCancelled(f.id, getTodayKey(), slot) && isToday;
+            html += `<div class="tt-cell ${isToday ? 'today-col' : ''} ${cancelled ? 'cancelled' : ''}">
+          <div class="cc">${entry.course}</div>
+          <div class="cn">${courseName(entry.course)}</div>
+          <div><span class="pill pill-gold" style="font-size:.55rem;padding:1px 6px">${sec?.name || entry.section}</span></div>
+          <div class="cr">📍 ${entry.room}</div>
+          ${cancelled ? '<div style="color:var(--danger);font-size:.6rem;font-weight:700">🚫 Cancelled</div>' : ''}
+        </div>`;
+          } else {
+            html += `<div class="tt-cell empty ${isToday ? 'today-col' : ''}">—</div>`;
+          }
+        });
+      });
+      html += `</div>`;
+      return html;
+    }
+
+    /* ═══════════════════════════════════════
+       PAGE 3 — MY SECTIONS
+       ═══════════════════════════════════════ */
+    function pgSections() {
+      const f = currentFaculty, secs = f.assignedSections.map(sid => DATA.sections.find(s => s.id === sid)).filter(Boolean);
+      const selSecId = currentPageArgs.secId;
+      
+      let html = `<div class="section-title">👥 My Sections</div>`;
+      
+      if (selSecId) {
+        const sec = DATA.sections.find(s => s.id == selSecId);
+        html += `<div style="display:flex;align-items:center;gap:15px;margin-bottom:20px">
+          <h2 style="margin:0;font-size:1.1rem;color:var(--faculty-purple)">Section: ${sec?.name || selSecId}</h2>
+        </div>
+        <div id="secStudentList"></div>`;
+        return html;
+      } else {
+        html += `<div style="font-size:.82rem;color:var(--muted);margin-bottom:20px">Choose a section to view student list and timetables</div>
+        <div class="sec-list-container" style="display:grid;gap:12px">
+          ${secs.map(s => `
+            <div class="sec-list-item" onclick="showPage('sections',{secId:'${s.id}'})" style="cursor:pointer;background:#fff;padding:16px 20px;border-radius:12px;border:1px solid #eee;display:flex;align-items:center;justify-content:space-between;transition:all .2s;box-shadow:0 2px 5px rgba(0,0,0,0.02)">
+              <div style="display:flex;align-items:center;gap:15px">
+                <div style="width:40px;height:40px;border-radius:10px;background:rgba(124,58,237,0.1);color:var(--faculty-purple);display:flex;align-items:center;justify-content:center;font-weight:700">${s.name}</div>
+                <div>
+                  <div style="font-weight:600;color:#1a1a2e">${s.dept} · Semester ${s.semester}</div>
+                  <div style="font-size:.75rem;color:var(--muted)">${s.students.length} Students · ${s.courses.length} Courses</div>
+                </div>
+              </div>
+              <div style="color:var(--faculty-purple);font-size:1.2rem">→</div>
+            </div>
+          `).join('')}
+        </div>`;
+        return html;
+      }
+    }
+    function renderSectionStudents(secId) {
+      if (!secId) return;
+      const sec = DATA.sections.find(s => s.id == secId);
+      const list = $('secStudentList');
+      if (!sec || !list) return;
+      
+      const stuList = sec.students.map(sid => DATA.students.find(s => s.student_uid == sid || s.id == sid)).filter(Boolean);
+      
+      list.innerHTML = `
+        <div class="card" style="padding:0;overflow:hidden;animation:fadeUp .4s">
+          <table class="simple-table" style="width:100%;border-collapse:collapse">
+            <thead style="background:#f9fafb;border-bottom:1px solid #eee">
+              <tr>
+                <th style="text-align:left;padding:12px 20px;font-size:.75rem;color:var(--muted);font-weight:600">STUDENT ID</th>
+                <th style="text-align:left;padding:12px 20px;font-size:.75rem;color:var(--muted);font-weight:600">NAME</th>
+                <th style="text-align:right;padding:12px 20px;font-size:.75rem;color:var(--muted);font-weight:600">ACTION</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${stuList.map(s => `
+                <tr style="border-bottom:1px solid #f3f4f6;transition:background .2s">
+                  <td style="padding:12px 20px;font-size:.85rem;color:var(--faculty-purple);font-weight:600">${s.regNo}</td>
+                  <td style="padding:12px 20px;font-size:.85rem;color:#1a1a2e;font-weight:500">${s.name}</td>
+                  <td style="padding:12px 20px;text-align:right">
+                    <button class="btn btn-navy-o btn-sm" onclick="showPage('stutt',{secId:'${sec.id}',stuId:'${s.id}'})" title="View Timetable">
+                      🎓 Timetable
+                    </button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          ${stuList.length === 0 ? '<div class="empty-state">No students found in this section.</div>' : ''}
+        </div>`;
+    }
+    // Remove unused search/filter functions
+    function switchSecTab() {}
+    function filterSectionStudents() {}
+
+    /* ═══════════════════════════════════════
+       PAGE 4 — STUDENT TIMETABLE VIEWER
+       ═══════════════════════════════════════ */
+    function pgStudentTimetable() {
+      const f = currentFaculty, secs = f.assignedSections.map(sid => DATA.sections.find(s => s.id == sid)).filter(Boolean);
+      const defSec = currentPageArgs.secId || '', defStu = currentPageArgs.stuId || '';
+      
+      let html = '';
+      
+      if (defStu) {
+        const stu = DATA.students.find(s => s.id == defStu);
+        const sec = DATA.sections.find(s => s.id == defSec);
+        
+        html += `<div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+          <button class="btn btn-navy-o btn-sm" onclick="showPage('sections',{secId:'${defSec}'})">← Back to Students</button>
+          <div style="font-size:1rem;font-weight:600;color:var(--faculty-purple)">Timetable: ${stu?.name || defStu}</div>
+        </div>`;
+
+        if (stu && sec) {
+            html += renderRealTimetable(sec.id, stu);
+        } else {
+            html += `<div class="card"><div class="empty-state">Student or Section not found.</div></div>`;
+        }
+      } else {
+        html += `<div class="section-title">🎓 Student Timetable Viewer</div>
+        <div style="font-size:.82rem;color:var(--muted);margin-bottom:18px">View any student's timetable from your sections</div>
+        <div class="step-card">
+          <div class="step-label">Step 1: Choose Section</div>
+          <select class="sel" id="stvSecSel" onchange="stvLoadStudents()">
+            <option value="">— Select Section —</option>
+            ${secs.map(s => `<option value="${s.id}" ${s.id == defSec ? 'selected' : ''}>${s.name}</option>`).join('')}
+          </select>
+        </div>
+        <div id="stvStep2"></div>
+        <div id="stvStep3"></div>`;
+      }
+      return html;
+    }
+
+    function renderRealTimetable(secId, stu) {
+      const sec = DATA.sections.find(s => s.id == secId);
+      const entries = DATA.timetable.filter(t => t.section == secId);
+      const d = getTodayDay();
+      
+      let html = `<div class="stv-student-banner" style="animation:fadeIn .5s">
+        <div class="stv-av">${avatarHtml(stu.photo, stu.name, 60)}</div>
+        <div class="stv-info"><h3>${stu.name}</h3><span class="stv-reg">${stu.regNo}</span><p>${sec?.name || ''} · ${stu.dept} · Semester ${stu.semester}</p></div>
+      </div>`;
+      
+      // Grid
+      html += `<div class="tt-grid" style="animation:fadeUp .6s">`;
+      html += `<div class="tt-hdr"></div>`;
+      DAYS.forEach(day => html += `<div class="tt-hdr ${day === d ? 'today-col' : ''}">${day}</div>`);
+      SLOTS.forEach(slot => {
+        if (slot === '12-1') {
+          html += `<div class="tt-time">12–1</div>`;
+          DAYS.forEach(day => html += `<div class="tt-cell lunch ${day === d ? 'today-col' : ''}">🍽️ Lunch</div>`);
+          return;
+        }
+        html += `<div class="tt-time">${slot}</div>`;
+        DAYS.forEach(day => {
+          const entry = entries.find(t => t.day === day && t.slot === slot);
+          const isToday = day === d;
+          if (entry) {
+            const co = DATA.courses.find(c => c.code === entry.course);
+            const cancelled = isSlotCancelled(entry.faculty, getTodayKey(), slot) && isToday;
+            const cellType = co && co.type === 'Lab' ? 'background:rgba(124,58,237,.04)' : 'background:rgba(79,142,247,.04)';
+            html += `<div class="tt-cell ${isToday ? 'today-col' : ''} ${cancelled ? 'cancelled' : ''}" style="${cancelled ? '' : cellType}">
+              <div class="cc">${entry.course}</div>
+              <div class="cn">${facName(entry.faculty)}</div>
+              <div class="cr">📍 ${entry.room}</div>
+              ${cancelled ? '<div style="color:var(--danger);font-size:.58rem;font-weight:700">🚫</div>' : ''}
+            </div>`;
+          } else {
+            html += `<div class="tt-cell empty ${isToday ? 'today-col' : ''}">—</div>`;
+          }
+        });
+      });
+      html += `</div>`;
+      
+      // Table
+      html += `<div class="card" style="margin-top:20px;padding:0;overflow:hidden;animation:fadeUp .7s">
+        <div style="padding:15px 20px;background:#f9fafb;border-bottom:1px solid #eee;font-weight:600;font-size:.85rem;color:#1a1a2e">📋 Class Details</div>
+        <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+          <thead style="background:#f9fafb;border-bottom:1px solid #eee">
+            <tr>
+              <th style="text-align:left;padding:10px 15px;color:var(--muted)">DAY</th>
+              <th style="text-align:left;padding:10px 15px;color:var(--muted)">TIME</th>
+              <th style="text-align:left;padding:10px 15px;color:var(--muted)">COURSE</th>
+              <th style="text-align:left;padding:10px 15px;color:var(--muted)">FACULTY</th>
+              <th style="text-align:left;padding:10px 15px;color:var(--muted)">ROOM</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${entries.sort((a,b)=>DAYS.indexOf(a.day)-DAYS.indexOf(b.day) || SLOTS.indexOf(a.slot)-SLOTS.indexOf(b.slot)).map(e => `
+              <tr style="border-bottom:1px solid #f3f4f6">
+                <td style="padding:10px 15px;font-weight:600;color:var(--faculty-purple)">${e.day}</td>
+                <td style="padding:10px 15px"><span class="pill pill-purple" style="font-size:.65rem">${e.slot}</span></td>
+                <td style="padding:10px 15px;font-weight:500">${courseName(e.course)}</td>
+                <td style="padding:10px 15px">${facName(e.faculty)}</td>
+                <td style="padding:10px 15px">📍 ${e.room}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>`;
+      return html;
+    }
+    // Auto-trigger if pre-selected
+    function stvAutoLoad() { setTimeout(() => { if ($('stvSecSel') && $('stvSecSel').value) stvLoadStudents() }, 100) }
+    function stvLoadStudents() {
+      const secId = $('stvSecSel')?.value || currentPageArgs.secId;
+      const step2 = $('stvStep2'), step3 = $('stvStep3');
+      if (step3) step3.innerHTML = '';
+      if (!secId) { if(step2) step2.innerHTML = ''; return }
+      
+      const sec = DATA.sections.find(s => s.id === secId);
+      if (!sec) { if(step2) step2.innerHTML = ''; return }
+      
+      const stuList = sec.students.map(sid => DATA.students.find(s => s.id === sid)).filter(Boolean);
+      const defStu = currentPageArgs.stuId || '';
+      
+      if (defStu) {
+        stvShowTimetable(secId, defStu);
+        return;
+      }
+
+      if (step2) {
+        step2.innerHTML = `<div class="step-card" style="animation:slideUp .4s">
+          <div class="step-label">Step 2: Choose Student</div>
+          <select class="sel" id="stvStuSel" onchange="stvShowTimetable()">
+            <option value="">— Select Student —</option>
+            ${stuList.map(s => `<option value="${s.id}" ${s.id === defStu ? 'selected' : ''}>${s.regNo} — ${s.name}</option>`).join('')}
+          </select>
+        </div>`;
+      }
+    }
+    function stvShowTimetable(sId, stId) {
+      const secId = sId || $('stvSecSel')?.value || currentPageArgs.secId;
+      const stuId = stId || $('stvStuSel')?.value || currentPageArgs.stuId;
+      const step3 = $('stvStep3');
+      if (!stuId || !step3) return;
+      
+      const stu = DATA.students.find(s => s.id == stuId);
+      const sec = DATA.sections.find(s => s.id == secId);
+      if (!stu || !sec) { step3.innerHTML = ''; return }
+      const entries = DATA.timetable.filter(t => t.section == secId);
+      const d = getTodayDay();
+
+      let html = `<div class="stv-student-banner" style="animation:fadeIn .5s">
+    <div class="stv-av">${avatarHtml(stu.photo, stu.name, 60)}</div>
+    <div class="stv-info"><h3>${stu.name}</h3><span class="stv-reg">${stu.regNo}</span><p>${sec.name} · ${stu.dept} · Semester ${stu.semester}</p></div>
+  </div>`;
+      // Grid
+      html += `<div class="tt-grid" style="animation:fadeUp .6s">`;
+      html += `<div class="tt-hdr"></div>`;
+      DAYS.forEach(day => html += `<div class="tt-hdr ${day === d ? 'today-col' : ''}">${day}</div>`);
+      SLOTS.forEach(slot => {
+        if (slot === '12-1') {
+          html += `<div class="tt-time">12–1</div>`;
+          DAYS.forEach(day => html += `<div class="tt-cell lunch ${day === d ? 'today-col' : ''}">🍽️ Lunch</div>`);
+          return;
+        }
+        html += `<div class="tt-time">${slot}</div>`;
+        DAYS.forEach(day => {
+          const entry = entries.find(t => t.day === day && t.slot === slot);
+          const isToday = day === d;
+          if (entry) {
+            const co = DATA.courses.find(c => c.code === entry.course);
+            const cancelled = isSlotCancelled(entry.faculty, getTodayKey(), slot) && isToday;
+            const cellType = co && co.type === 'Lab' ? 'background:rgba(124,58,237,.04)' : 'background:rgba(79,142,247,.04)';
+            html += `<div class="tt-cell ${isToday ? 'today-col' : ''} ${cancelled ? 'cancelled' : ''}" style="${cancelled ? '' : cellType}">
+          <div class="cc">${entry.course}</div>
+          <div class="cn">${facName(entry.faculty)}</div>
+          <div class="cr">📍 ${entry.room}</div>
+          ${cancelled ? '<div style="color:var(--danger);font-size:.58rem;font-weight:700">🚫</div>' : ''}
+        </div>`;
+          } else {
+            html += `<div class="tt-cell empty ${isToday ? 'today-col' : ''}">—</div>`;
+          }
+        });
+      });
+      html += `</div>`;
+      
+      // Add Class Details Table (Real student view)
+      html += `<div class="card" style="margin-top:20px;padding:0;overflow:hidden;animation:fadeUp .7s">
+        <div style="padding:15px 20px;background:#f9fafb;border-bottom:1px solid #eee;font-weight:600;font-size:.85rem;color:#1a1a2e">📋 Class Details</div>
+        <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+          <thead style="background:#f9fafb;border-bottom:1px solid #eee">
+            <tr>
+              <th style="text-align:left;padding:10px 15px;color:var(--muted)">DAY</th>
+              <th style="text-align:left;padding:10px 15px;color:var(--muted)">TIME</th>
+              <th style="text-align:left;padding:10px 15px;color:var(--muted)">COURSE</th>
+              <th style="text-align:left;padding:10px 15px;color:var(--muted)">FACULTY</th>
+              <th style="text-align:left;padding:10px 15px;color:var(--muted)">ROOM</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${entries.sort((a,b)=>DAYS.indexOf(a.day)-DAYS.indexOf(b.day) || SLOTS.indexOf(a.slot)-SLOTS.indexOf(b.slot)).map(e => `
+              <tr style="border-bottom:1px solid #f3f4f6">
+                <td style="padding:10px 15px;font-weight:600;color:var(--faculty-purple)">${e.day}</td>
+                <td style="padding:10px 15px"><span class="pill pill-purple" style="font-size:.65rem">${e.slot}</span></td>
+                <td style="padding:10px 15px;font-weight:500">${courseName(e.course)}</td>
+                <td style="padding:10px 15px">${facName(e.faculty)}</td>
+                <td style="padding:10px 15px">📍 ${e.room}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>`;
+
+      step3.innerHTML = html;
+      // We don't clear currentPageArgs here because it might be needed for the back button
+    }
+
+    /* ═══════════════════════════════════════
+       PAGE 5 — MARK ATTENDANCE
+       ═══════════════════════════════════════ */
+    function pgMarkAttendance() {
+      const f = currentFaculty, secs = f.assignedSections.map(sid => DATA.sections.find(s => s.id === sid)).filter(Boolean);
+      const defSec = currentPageArgs.secId || '';
+      return `<div class="section-title">📝 Mark Attendance</div>
+  <div style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Call students by name and mark their attendance</div>
+  <div class="card">
+    <div class="ctrl-grid">
+      <div><div class="step-label">Select Section</div><select class="sel" id="attSecSel" onchange="attUpdateSlots()" style="width:100%">
+        <option value="">— Section —</option>
+        ${secs.map(s => `<option value="${s.id}" ${s.id === defSec ? 'selected' : ''}>${s.name}</option>`).join('')}
+      </select></div>
+      <div><div class="step-label">Date</div><input type="date" class="sel" id="attDate" value="${getTodayKey()}" max="${getTodayKey()}" onchange="attUpdateSlots()" style="width:100%"></div>
+      <div><div class="step-label">Select Class Slot</div><select class="sel" id="attSlotSel" style="width:100%"><option value="">— select section first —</option></select></div>
+    </div>
+    <button class="btn btn-purple btn-full btn-lg" id="loadRollBtn" onclick="loadAttendanceRollCall()" style="margin-top:8px" disabled>📋 Load Students</button>
+  </div>
+  <div id="attBanner"></div>
+  <div id="attRollArea"></div>`;
+    }
+    function attUpdateSlots() {
+      const secId = $('attSecSel').value, dateStr = $('attDate').value;
+      const slotSel = $('attSlotSel'), loadBtn = $('loadRollBtn');
+      slotSel.innerHTML = '<option value="">— no slots —</option>';
+      loadBtn.disabled = true;
+      if (!secId || !dateStr) return;
+      const day = getDayFromDate(dateStr);
+      if (day === 'Sun' || day === 'Sat') { slotSel.innerHTML = '<option value="">No classes on weekends</option>'; return }
+      // Use == for comparison to handle string/number IDs
+      const slots = DATA.timetable.filter(t => t.section == secId && t.faculty === currentFaculty.id && t.day === day).sort((a, b) => getSlotOrder(a.slot) - getSlotOrder(b.slot));
+      if (slots.length === 0) { slotSel.innerHTML = '<option value="">No classes for this section on ' + day + '</option>'; return }
+      slotSel.innerHTML = '<option value="">— Select Slot —</option>' + slots.map(s => `<option value="${s.slot}" data-course="${s.course}">${s.slot.replace('-', ' – ')} — ${courseName(s.course)}</option>`).join('');
+      slotSel.onchange = () => { loadBtn.disabled = !slotSel.value };
+    }
+    async function loadAttendanceRollCall() {
+      const secId = $('attSecSel').value, dateStr = $('attDate').value, slot = $('attSlotSel').value;
+      if (!secId || !dateStr || !slot) return;
+      const courseOpt = $('attSlotSel').selectedOptions[0];
+      const courseCode = courseOpt.dataset.course;
+      const sec = DATA.sections.find(s => s.id == secId);
+      if (!sec) return;
+      const entry = DATA.timetable.find(t => t.section == secId && t.faculty === currentFaculty.id && t.day === getDayFromDate(dateStr) && t.slot === slot);
+      if (!entry) return;
+      const stuList = sec.students.map(sid => DATA.students.find(s => s.id == sid || s.regNo == sid)).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+      
+      // Fetch fresh attendance from server (Sync with Smart Attendance)
+      let serverMarks = {};
+      try {
+        const res = await fetch(`/api/attendance/get-roll?section_id=${secId}&course_id=${DATA.courses.find(c=>c.code===courseCode).id}&date=${dateStr}`);
+        if (res.ok) {
+          const d = await res.json();
+          serverMarks = d.marks || {};
+        }
+      } catch(e) { console.warn("Failed to fetch server attendance", e); }
+
+      attMarks = serverMarks;
+      const hasExisting = Object.keys(attMarks).length > 0;
+
+      const banner = $('attBanner');
+      banner.innerHTML = `<div class="att-header">
+    <div class="att-icon">📝</div>
+    <div class="att-header-info"><h3>${courseName(courseCode)} (${courseCode})</h3><p>${sec.name} · ${formatDate(dateStr)} · ${slot.replace('-', ' – ')} · 📍 ${entry.room}</p></div>
+    <span class="att-badge ${hasExisting ? 'existing' : 'new'}">${hasExisting ? '🔄 Syncing with Database' : '✨ New Session'}</span>
+  </div>
+  ${hasExisting ? '<div style="background:#f0f9ff;border:1px solid rgba(59,130,246,.3);border-radius:12px;padding:10px 16px;margin-bottom:12px;font-size:.78rem;color:#1e40af">🔄 Found existing records (from Smart QR or previous manual save). You can edit them below.</div>' : ''}
+  <div class="progress-label" id="progLabel">0 of ${stuList.length} students marked</div>
+  <div class="progress-bar"><div class="progress-fill" id="progFill" style="width:0%"></div></div>`;
+      const area = $('attRollArea');
+      area.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <button class="btn btn-green" onclick="markAll('P')">✅ Mark All Present</button>
+    <button class="btn btn-red-o" onclick="markAll('A')">❌ Mark All Absent</button>
+  </div>
+  <input class="search-input" id="rollSearch" placeholder="🔍 Search student..." oninput="filterRoll()">
+  <div id="rollList">${stuList.map((s, i) => {
+        const m = attMarks[s.id] || attMarks[s.regNo] || '';
+        return `<div class="roll-row" id="roll-${s.id}" data-name="${s.name.toLowerCase()}" data-reg="${s.regNo.toLowerCase()}">
+      <div class="roll-num">${i + 1}</div>
+      <div class="stu-av">${avatarHtml(s.photo, s.name, 44)}</div>
+      <div class="roll-info"><div class="rn">${s.name}</div><div class="rr">${s.regNo}</div></div>
+      <div class="roll-btns">
+        <button class="att-btn ${m === 'P' ? 'sel-p' : ''}" onclick="setMark('${s.id}','P',this)">✅ Present</button>
+        <button class="att-btn ${m === 'A' ? 'sel-a' : ''}" onclick="setMark('${s.id}','A',this)">❌ Absent</button>
+        <button class="att-btn ${m === 'OD' ? 'sel-od' : ''}" onclick="setMark('${s.id}','OD',this)">📋 OD/ML</button>
+      </div>
+    </div>`;
+      }).join('')}</div>
+  <div class="sticky-save" id="stickyBar">
+    <div class="save-summary" id="saveSummary"></div>
+    <button class="btn btn-save" id="saveBtn" onclick="saveAttendance()">💾 Save Attendance</button>
+  </div>`;
+      area.dataset.secId = secId; area.dataset.date = dateStr; area.dataset.course = courseCode; area.dataset.count = stuList.length;
+      updateProgressBar();
+    }
+    function setMark(stuId, mark, btn) {
+      if (attMarks[stuId] === mark) { delete attMarks[stuId] } else { attMarks[stuId] = mark }
+      const row = document.getElementById('roll-' + stuId);
+      if (row) {
+        row.querySelectorAll('.att-btn').forEach(b => { b.className = 'att-btn' });
+        if (attMarks[stuId]) {
+          btn.className = 'att-btn sel-' + (mark === 'P' ? 'p' : mark === 'A' ? 'a' : 'od');
+        }
+        row.classList.remove('unmarked-highlight');
+      }
+      updateProgressBar();
+    }
+    function markAll(mark) {
+      const area = $('attRollArea');
+      const sec = DATA.sections.find(s => s.id === area.dataset.secId);
+      if (!sec) return;
+      sec.students.forEach(sid => { attMarks[sid] = mark });
+      document.querySelectorAll('.roll-row').forEach(row => {
+        const sid = row.id.replace('roll-', '');
+        row.querySelectorAll('.att-btn').forEach(b => b.className = 'att-btn');
+        const sel = mark === 'P' ? 0 : mark === 'A' ? 1 : 2;
+        row.querySelectorAll('.att-btn')[sel].className = 'att-btn sel-' + (mark === 'P' ? 'p' : mark === 'A' ? 'a' : 'od');
+        row.classList.remove('unmarked-highlight');
+      });
+      updateProgressBar();
+    }
+    function updateProgressBar() {
+      const area = $('attRollArea'); if (!area.dataset.count) return;
+      const total = +area.dataset.count;
+      let p = 0, a = 0, od = 0;
+      Object.values(attMarks).forEach(v => { if (v === 'P') p++; else if (v === 'A') a++; else if (v === 'OD') od++ });
+      const marked = p + a + od, unmarked = total - marked;
+      const pct = total > 0 ? Math.round(marked / total * 100) : 0;
+      const fill = $('progFill'); if (fill) fill.style.width = pct + '%';
+      const label = $('progLabel'); if (label) label.textContent = `${marked} of ${total} students marked`;
+      const summary = $('saveSummary');
+      if (summary) summary.innerHTML = `<span>✅ <span class="sc sc-p">${p}</span> Present</span>
+    <span>❌ <span class="sc sc-a">${a}</span> Absent</span>
+    <span>📋 <span class="sc sc-od">${od}</span> OD/ML</span>
+    <span>⬜ <span class="sc sc-u">${unmarked}</span> Unmarked</span>`;
+    }
+    async function saveAttendance() {
+      const area = $('attRollArea'), secId = area.dataset.secId, dateStr = area.dataset.date, courseCode = area.dataset.course;
+      const sec = DATA.sections.find(s => s.id == secId); if (!sec) return;
+      
+      const unmarkedCount = sec.students.length - Object.keys(attMarks).length;
+      if (unmarkedCount > 0) {
+        showToast(`⚠️ Please mark all ${sec.students.length} students!`, 'warning'); return;
+      }
+
+      const btn = $('saveBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner" style="display:inline-block"></div> Saving…';
+
+      try {
+        const courseId = DATA.courses.find(c => c.code === courseCode).id;
+        const res = await fetch('/api/attendance/manual-save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': $('csrf-token')?.content || '' },
+          body: JSON.stringify({ section_id: secId, course_id: courseCode, date: dateStr, marks: attMarks })
+        });
+        
+        if (res.ok) {
+          btn.className = 'btn btn-save saved'; btn.innerHTML = '✅ Saved Successfully!';
+          setTimeout(() => { btn.className = 'btn btn-save'; btn.innerHTML = '💾 Save Attendance'; btn.disabled = false; }, 2500);
+          showToast(`✅ Attendance saved to database!`, 'success');
+        } else {
+          throw new Error('Server error');
+        }
+      } catch(e) {
+        showToast('❌ Failed to save to database', 'error');
+        btn.disabled = false; btn.innerHTML = '💾 Save Attendance';
+      }
+    }
+    function filterRoll() {
+      const q = $('rollSearch').value.toLowerCase();
+      document.querySelectorAll('.roll-row').forEach(r => {
+        r.style.display = (r.dataset.name.includes(q) || r.dataset.reg.includes(q)) ? 'flex' : 'none';
+      });
+    }
+
+    /* ═══════════════════════════════════════
+       PAGE 6 — REPORT ABSENCE
+       ═══════════════════════════════════════ */
+    function pgAbsence() {
+      const f = currentFaculty;
+      const tKey = getTodayKey();
+      const tomKey = getTomKey();
+      
+      const selKey = currentPageArgs.date || tKey;
+      const isTom = selKey === tomKey;
+      
+      const todayClasses = myClassesForDate(selKey);
+      const currentlyAbsent = DATA.facultyAbsence[f.id]?.[selKey] || [];
+      
+      let html = `<div class="section-title">🚫 Report My Absence</div>
+      <div style="display:flex;gap:10px;margin-bottom:20px">
+        <button class="btn ${!isTom ? 'btn-navy' : 'btn-navy-o'}" onclick="showPage('absence',{date:'${tKey}'})">📅 Today</button>
+        <button class="btn ${isTom ? 'btn-navy' : 'btn-navy-o'}" onclick="showPage('absence',{date:'${tomKey}'})">📆 Tomorrow</button>
+      </div>
+      <div style="font-size:.82rem;color:var(--muted);margin-bottom:18px">Reporting absence for <strong>${formatDate(selKey)}</strong></div>`;
+
+      if (todayClasses.length === 0 || getDayFromDate(selKey) === 'Sun' || getDayFromDate(selKey) === 'Sat') {
+        html += `<div class="card"><div class="empty-state"><span class="es-icon">🎉</span>No classes scheduled for this day.</div></div>`;
+      } else {
+        html += `<div class="card" style="padding:0;overflow:hidden">
+          <div style="padding:15px 20px;background:#f9fafb;border-bottom:1px solid #eee;font-weight:600;font-size:.85rem">📅 Classes on ${getDayFromDate(selKey)}</div>
+          <div style="padding:10px">`;
+        
+        todayClasses.forEach(t => {
+          const st = isTom ? 'upcoming' : getSlotStatus(t.slot);
+          const sec = DATA.sections.find(s => s.id === t.section);
+          const isMarked = currentlyAbsent.includes(t.slot);
+          const isDone = st === 'done';
+          
+          html += `
+          <label class="absence-row ${isDone ? 'abs-done' : ''} ${isMarked ? 'abs-marked' : ''}" style="display:flex;align-items:center;padding:12px;border-radius:10px;margin-bottom:8px;border:1px solid #eee;cursor:${isDone ? 'default' : 'pointer'};transition:all .2s">
+            <input type="checkbox" class="abs-chk-v2" value="${t.slot}" ${isMarked ? 'checked' : ''} ${isDone ? 'disabled' : ''} style="width:18px;height:18px;accent-color:var(--danger);margin-right:15px">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+                <span class="pill pill-amber">${t.slot}</span>
+                <strong style="font-size:.9rem">${courseName(t.course)}</strong>
+                <span class="pill pill-gold">${sec?.name || t.section}</span>
+              </div>
+              <div style="font-size:.76rem;color:var(--muted)">📍 ${t.room} · ${st === 'done' ? '✅ Already completed' : st === 'ongoing' ? '🟢 Class in progress' : '🔵 Upcoming'}</div>
+            </div>
+            ${isDone ? '<span style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase">Done</span>' : ''}
+            ${isMarked && !isDone ? '<span style="font-size:.7rem;font-weight:700;color:var(--danger);text-transform:uppercase">Marked Absent</span>' : ''}
+          </label>`;
+        });
+        
+        html += `</div>
+          <div style="padding:15px 20px;background:#fff5f5;border-top:1px solid #fee2e2;display:flex;justify-content:space-between;align-items:center;gap:15px">
+            <div style="font-size:.78rem;color:#991b1b;flex:1">Confirming will notify students and update their timetable for <strong>${isTom ? 'Tomorrow' : 'Today'}</strong>.</div>
+            <div style="display:flex;gap:10px">
+              ${currentlyAbsent.length > 0 ? `<button class="btn btn-navy-o" onclick="undoDateAbsence('${selKey}')">🔄 Undo All</button>` : ''}
+              <button class="btn btn-red btn-lg" onclick="confirmAbsenceV2('${selKey}')" style="padding:12px 24px">🚫 Report My Absent</button>
+            </div>
+          </div>
+        </div>`;
+      }
+      return html;
+    }
+
+    async function undoDateAbsence(dateKey) {
+      const f = currentFaculty;
+      try {
+        const res = await fetch('/api/faculty/report-absence', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content },
+          body: JSON.stringify({ faculty_id: f.id, date: dateKey, slots: [] })
+        });
+        if (!res.ok) throw new Error('Undo failed');
+
+        if (!DATA.facultyAbsence[f.id]) DATA.facultyAbsence[f.id] = {};
+        DATA.facultyAbsence[f.id][dateKey] = [];
+        
+        const existing = JSON.parse(localStorage.getItem(`absence_notif_${dateKey}`) || '[]');
+        localStorage.setItem(`absence_notif_${dateKey}`, JSON.stringify(existing.filter(n => n.facultyId !== f.id)));
+        
+        showToast(`✅ Absences cleared persistently.`, 'success');
+        showPage('absence', { date: dateKey });
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    async function confirmAbsenceV2(dateKey) {
+      const f = currentFaculty;
+      const selKey = dateKey || getTodayKey();
+      const checked = [...document.querySelectorAll('.abs-chk-v2:checked')].map(c => c.value);
+      const disabled = [...document.querySelectorAll('.abs-chk-v2:disabled')].map(c => c.value);
+      
+      const currentlyAbsent = DATA.facultyAbsence[f.id]?.[selKey] || [];
+      const pastAbsent = currentlyAbsent.filter(s => disabled.includes(s));
+      const finalSelection = [...new Set([...pastAbsent, ...checked])];
+      
+      try {
+          const res = await fetch('/api/faculty/report-absence', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content },
+              body: JSON.stringify({ faculty_id: f.id, date: selKey, slots: finalSelection })
+          });
+          if (!res.ok) throw new Error('Database update failed');
+
+          if (!DATA.facultyAbsence[f.id]) DATA.facultyAbsence[f.id] = {};
+          DATA.facultyAbsence[f.id][selKey] = finalSelection;
+          
+          if (checked.length > 0) {
+              const notifiedSections = [];
+              myClassesForDate(selKey).forEach(t => {
+                  if (checked.includes(t.slot)) {
+                      if (!notifiedSections.includes(t.section)) notifiedSections.push(t.section);
+                  }
+              });
+              
+              const notif = {
+                  facultyId: f.id,
+                  facultyName: f.name,
+                  dateKey: selKey,
+                  slots: checked,
+                  sections: notifiedSections,
+                  message: `⚠️ Absence Report: ${f.name} will be absent for [${checked.join(', ')}] on ${formatDate(selKey)}.`,
+                  timestamp: new Date().getTime()
+              };
+              
+              const existing = JSON.parse(localStorage.getItem(`absence_notif_${selKey}`) || '[]');
+              localStorage.setItem(`absence_notif_${selKey}`, JSON.stringify([...existing.filter(n => n.facultyId !== f.id), notif]));
+              showToast(`✅ Absence record saved to database!`, 'success');
+          } else {
+              showToast(`✅ Schedule updated (all cleared).`, 'success');
+          }
+          showPage('absence', { date: selKey });
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+    function undoFacultyAbsence() {
+      DATA.facultyAbsence[currentFaculty.id][getTodayKey()] = [];
+      showToast('✅ Absence undone! You are back on duty.', 'success');
+      showPage('absence');
+    }
+
+    /* ═══ AUTO INIT ═══ */
+    // If page args need auto-load after render
+    const origShowPage = showPage;
+    showPage = function (page, args) {
+      origShowPage(page, args);
+      if (page === 'stutt') setTimeout(stvLoadStudents, 100);
+      if (page === 'markatt') setTimeout(() => { if ($('attSecSel') && $('attSecSel').value) attUpdateSlots() }, 100);
+    };
+
+    /* ═══ AUTO-LOGIN FROM FLASK ═══ */
+    (function () {
+      const autoEmail = "{{ current_email }}";
+      if (autoEmail) {
+        const fac = DATA.faculty.find(f => f.email === autoEmail.toLowerCase());
+        if (fac) {
+          currentFaculty = fac;
+          currentRole = 'faculty';
+          initApp();
+          return;
+        }
+      }
+    })();
+  </script>
+  <!-- Faculty AI Chatbot Widget -->
+  <button class="chat-fab" id="facChatFab" onclick="toggleFacChat()" title="Ask Faculty AI">
+    <span>🤖</span>
+  </button>
+
+  <div class="chat-panel" id="facChatPanel">
+    <div class="chat-header">
+      <h3><span class="icon">🤖</span> Faculty Assistant</h3>
+      <button class="chat-close" onclick="toggleFacChat()">✕</button>
+    </div>
+    <div class="chat-messages" id="facChatMessages">
+      <div class="chat-msg bot">
+        <div class="chat-bubble">
+          👋 Hi! I'm your Faculty Assistant. I can help you with your schedule, student lists, and attendance.
+        </div>
+      </div>
+    </div>
+    <div class="chat-suggestions" id="facChatSuggestions">
+      <div class="suggestion-chip" onclick="sendFacChat('What are my classes today?')">Today's Classes</div>
+      <div class="suggestion-chip" onclick="sendFacChat('Show attendance for my courses')">Attendance Summary</div>
+      <div class="suggestion-chip" onclick="sendFacChat('Which students are below 75%?')">At-risk Students</div>
+      <div class="suggestion-chip" onclick="sendFacChat('Show my full week schedule')">Full Week</div>
+    </div>
+    <form class="chat-input-area" onsubmit="handleFacChat(event)">
+      <input type="text" id="facChatInput" class="chat-input" placeholder="Ask about schedule..." autocomplete="off">
+      <button type="submit" class="chat-send-btn" id="facChatSend">➤</button>
+    </form>
+  </div>
+
+  <script>
+    let facChatHistory = [];
+    let facChatOpen = false;
+
+    function toggleFacChat() {
+      facChatOpen = !facChatOpen;
+      document.getElementById('facChatPanel').classList.toggle('open', facChatOpen);
+      if (facChatOpen) document.getElementById('facChatInput').focus();
+    }
+
+    async function handleFacChat(e) {
+      e.preventDefault();
+      const input = document.getElementById('facChatInput');
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      sendFacChat(msg);
+      input.value = '';
+    }
+
+    async function sendFacChat(msg) {
+      appendFacMsg('user', msg);
+      facChatHistory.push({ role: 'user', content: msg });
+
+      const typing = document.createElement('div');
+      typing.className = 'chat-msg bot';
+      typing.id = 'facTyping';
+      typing.innerHTML = `<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+      document.getElementById('facChatMessages').appendChild(typing);
+      scrollFacChat();
+
+      try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const res = await fetch('/api/chatbot/faculty', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          },
+          body: JSON.stringify({ messages: facChatHistory.slice(-10) })
+        });
+        const data = await res.json();
+        const typingEl = document.getElementById('facTyping');
+        if (typingEl) typingEl.remove();
+
+        if (data.reply) {
+          const actionMatch = data.reply.match(/```action\s*\n([\s\S]*?)```/);
+          let displayText = data.reply;
+          let actionHtml = '';
+
+          if (actionMatch) {
+            try {
+              const actionJson = JSON.parse(actionMatch[1]);
+              displayText = data.reply.replace(actionMatch[0], '');
+              actionHtml = `<div class="action-overlay" style="background:rgba(124,58,237,0.1);border:1px solid var(--faculty-purple);padding:12px;border-radius:8px;margin-top:8px;">
+                        <strong style="color:var(--faculty-purple)">⚡ AI Suggestion:</strong> ${actionJson.action}
+                        <button class="lbtn" style="padding:8px;margin-top:8px;font-size:0.8rem;background:var(--faculty-purple);color:#fff" onclick="executeFacAction('${encodeURIComponent(JSON.stringify(actionJson))}')">Execute Action</button>
+                    </div>`;
+            } catch (e) { console.error(e); }
+          }
+
+          appendFacMsg('bot', displayText, actionHtml);
+          facChatHistory.push({ role: 'assistant', content: data.reply });
+        } else {
+          appendFacMsg('bot', 'Error: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        const typingEl = document.getElementById('facTyping');
+        if (typingEl) typingEl.remove();
+        appendFacMsg('bot', '❌ Connection error.');
+      }
+    }
+
+    async function executeFacAction(encoded) {
+      const action = JSON.parse(decodeURIComponent(encoded));
+      if (!confirm(`Do you want to execute ${action.action}?`)) return;
+
+      showToast(`AI is executing ${action.action}...`, 'info');
+
+      try {
+        if (action.action === 'get_my_schedule') {
+          showPage('timetable');
+        } else if (action.action === 'mark_attendance') {
+          const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+          const res = await fetch('/api/attendance/mark', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify(action)
+          });
+          const data = await res.json();
+          showToast(data.message || 'Attendance marked!', 'success');
+          sendFacChat(`Result of marking attendance: ${data.message || 'Success'}`);
+        } else if (action.action === 'get_section_students') {
+          showPage('stutt', { section_id: action.section_id });
+        } else if (action.action === 'get_attendance_summary' || action.action === 'get_students_below_threshold') {
+          showPage('dashboard');
+        } else {
+          showToast(`Action ${action.action} handled.`, 'success');
+        }
+      } catch (e) {
+        showToast('Action execution failed', 'error');
+      }
+    }
+
+    function appendFacMsg(role, text, extraHtml = '') {
+      const container = document.getElementById('facChatMessages');
+      const div = document.createElement('div');
+      div.className = `chat-msg ${role}`;
+
+      let html = text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/### (.*?)<br>/g, '<h4>$1</h4>')
+        .replace(/## (.*?)<br>/g, '<h3>$1</h3>');
+
+      if (text.includes('|')) {
+        const lines = text.split('\n');
+        let inTable = false;
+        let tableHtml = '<table>';
+        let newHtml = '';
+
+        lines.forEach(line => {
+          if (line.trim().startsWith('|')) {
+            if (!inTable) { inTable = true; tableHtml = '<table>'; }
+            const cells = line.split('|').filter(c => c.trim() !== '' || line.indexOf(c) > 0 && line.indexOf(c) < line.length - 1);
+            if (line.includes('---')) return;
+            tableHtml += '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
+          } else {
+            if (inTable) { inTable = false; tableHtml += '</table>'; newHtml += tableHtml; }
+            newHtml += line + '<br>';
+          }
+        });
+        if (inTable) { tableHtml += '</table>'; newHtml += tableHtml; }
+        html = newHtml;
+      }
+
+      div.innerHTML = `<div class="chat-bubble">${html}${extraHtml}</div>`;
+      container.appendChild(div);
+      scrollFacChat();
+    }
+
+    function scrollFacChat() {
+      const el = document.getElementById('facChatMessages');
+      el.scrollTop = el.scrollHeight;
+    }
+  </script>
+</body>
+
+</html>

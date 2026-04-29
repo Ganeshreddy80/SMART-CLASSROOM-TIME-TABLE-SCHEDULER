@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Room Utilization – UniSchedule{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>🚪 Room Utilization View</h2>
+    <p>See which rooms are occupied at each time slot</p>
+</div>
+
+<div class="card no-print">
+    <div class="filter-bar">
+        <select id="filterBlock" onchange="loadRoomTimetable()">
+            <option value="">All Blocks</option>
+        </select>
+        <select id="filterRoom" onchange="showRoomGrid()">
+            <option value="">All Rooms</option>
+        </select>
+        <button class="btn btn-outline" onclick="exportPrint()">🖨️ Print / PDF</button>
+    </div>
+</div>
+
+<div id="roomArea"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let university = {}, classrooms = [], allEntries = [];
+
+    async function init() {
+        [university, classrooms] = await Promise.all([
+            api('/api/university'),
+            api('/api/classrooms')
+        ]);
+
+        const blocks = [...new Set(classrooms.map(r => r.block))].sort();
+        const blockSel = document.getElementById('filterBlock');
+        blocks.forEach(b => {
+            const opt = document.createElement('option');
+            opt.value = b;
+            opt.textContent = `Block ${b}`;
+            blockSel.appendChild(opt);
+        });
+
+        loadRoomTimetable();
+    }
+
+    async function loadRoomTimetable() {
+        const block = document.getElementById('filterBlock').value;
+        let url = '/api/timetable/rooms';
+        if (block) url += `?block=${block}`;
+        allEntries = await api(url);
+
+        // Update room filter
+        const filteredRooms = block ? classrooms.filter(r => r.block == block) : classrooms;
+        populateSelect('filterRoom', filteredRooms, r => r.id, r => r.room_number, 'All Rooms');
+
+        showRoomGrid();
+    }
+
+    function showRoomGrid() {
+        const roomId = document.getElementById('filterRoom').value;
+        const block = document.getElementById('filterBlock').value;
+        const days = university.days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        const timeslots = university.timeslots || [];
+
+        const area = document.getElementById('roomArea');
+        let filteredRooms = classrooms;
+        if (block) filteredRooms = filteredRooms.filter(r => r.block == block);
+        if (roomId) filteredRooms = filteredRooms.filter(r => r.id == roomId);
+
+        if (filteredRooms.length === 0) {
+            area.innerHTML = '<div class="card"><div class="empty-state"><div class="icon">🚪</div><p>No rooms found</p></div></div>';
+            return;
+        }
+
+        let html = '';
+        filteredRooms.forEach(room => {
+            const roomEntries = allEntries.filter(e => e.classroom_id === room.id);
+
+            // Calculate utilization
+            const totalSlots = days.length * timeslots.length;
+            const usedSlots = roomEntries.length;
+            const utilPct = totalSlots > 0 ? Math.round((usedSlots / totalSlots) * 100) : 0;
+            const utilColor = utilPct > 75 ? 'var(--danger)' : utilPct > 40 ? 'var(--warning)' : 'var(--success)';
+
+            html += `
+        <div class="card">
+            <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+                <span>🚪 ${room.room_number} (Block ${room.block})</span>
+                <span class="badge" style="background:${utilColor}22;color:${utilColor}">${utilPct}% utilized</span>
+            </div>
+            <div class="timetable-grid" id="roomGrid-${room.id}"></div>
+        </div>`;
+        });
+
+        area.innerHTML = html;
+
+        // Render each room's grid
+        filteredRooms.forEach(room => {
+            const roomEntries = allEntries.filter(e => e.classroom_id === room.id);
+            // Modify entries to show section as faculty_name for display
+            const modEntries = roomEntries.map(e => ({
+                ...e,
+                faculty_name: e.section_name
+            }));
+            renderTimetableGrid(`roomGrid-${room.id}`, modEntries, days, timeslots, 'room');
+        });
+    }
+
+    init();
+</script>
+{% endblock %}

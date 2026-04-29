@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}University Timetable{% endblock %}</title>
+    <meta name="description"
+        content="University Timetable Management System — manage departments, courses, faculty, students, and auto-generate conflict-free schedules.">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    {% if session.get('role') %}
+    <button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <h1><span class="brand-icon">📚</span> UniSchedule</h1>
+            <div class="subtitle">Timetable Management System</div>
+        </div>
+
+        {% if session.get('role') == 'admin' %}
+        <div class="nav-section">
+            <div class="nav-section-title">Overview</div>
+            <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">
+                <span class="icon">📊</span> Dashboard
+            </a>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">Setup</div>
+            <a href="/university" class="nav-link {% if request.path == '/university' %}active{% endif %}">
+                <span class="icon">🏛️</span> University
+            </a>
+            <a href="/departments" class="nav-link {% if request.path == '/departments' %}active{% endif %}">
+                <span class="icon">🏢</span> Departments
+            </a>
+            <a href="/courses" class="nav-link {% if request.path == '/courses' %}active{% endif %}">
+                <span class="icon">📖</span> Courses
+            </a>
+            <a href="/faculty" class="nav-link {% if request.path == '/faculty' %}active{% endif %}">
+                <span class="icon">👨‍🏫</span> Faculty
+            </a>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">Enrollment</div>
+            <a href="/students" class="nav-link {% if request.path == '/students' %}active{% endif %}">
+                <span class="icon">🎓</span> Students
+            </a>
+            <a href="/sections" class="nav-link {% if request.path == '/sections' %}active{% endif %}">
+                <span class="icon">👥</span> Sections
+            </a>
+        </div>
+        {% endif %}
+
+        <div class="nav-section">
+            <div class="nav-section-title">Timetable</div>
+            {% if session.get('role') == 'admin' %}
+            <a href="/timetable/generate"
+                class="nav-link {% if request.path == '/timetable/generate' %}active{% endif %}">
+                <span class="icon">⚡</span> Generate
+            </a>
+            {% endif %}
+            
+            <a href="/timetable/section"
+                class="nav-link {% if request.path == '/timetable/section' %}active{% endif %}">
+                <span class="icon">📅</span> Section View
+            </a>
+
+            {% if session.get('role') in ['admin', 'faculty'] %}
+            <a href="/timetable/faculty"
+                class="nav-link {% if request.path == '/timetable/faculty' %}active{% endif %}">
+                <span class="icon">👤</span> Faculty View
+            </a>
+            {% endif %}
+            
+            {% if session.get('role') in ['admin', 'student'] %}
+            <a href="/timetable/student"
+                class="nav-link {% if request.path == '/timetable/student' %}active{% endif %}">
+                <span class="icon">🎓</span> Student View
+            </a>
+            {% endif %}
+
+            {% if session.get('role') == 'admin' %}
+            <a href="/timetable/rooms" class="nav-link {% if request.path == '/timetable/rooms' %}active{% endif %}">
+                <span class="icon">🚪</span> Room View
+            </a>
+            <a href="/room-utilization" class="nav-link {% if request.path == '/room-utilization' %}active{% endif %}">
+                <span class="icon">📈</span> Room Utilization
+            </a>
+            {% endif %}
+
+            {% if session.get('role') == 'student' %}
+            <a href="/attendance/student" class="nav-link {% if request.path == '/attendance/student' %}active{% endif %}">
+                <span class="icon">📋</span> Attendance
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar Footer -->
+        <div class="sidebar-footer">
+            <div class="footer-avatar">{{ session.get('user_name', 'U')[0] }}</div>
+            <div class="footer-info">
+                <div class="footer-name">{{ session.get('user_name', 'User') }}</div>
+                <div class="footer-role">{{ session.get('role', 'user') }}</div>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <main class="main" {% if not session.get('role') %}style="margin-left: 0;"{% endif %}>
+        {% if session.get('role') %}
+        <header class="topbar">
+            <div class="search-bar">
+                <span class="search-icon">🔍</span>
+                <input type="text" placeholder="Search resources, students...">
+            </div>
+            <div class="topbar-actions">
+                <button class="icon-btn" title="Toggle Dark Mode" onclick="toggleDarkMode()" id="darkModeBtn">
+                    🌙
+                </button>
+                <button class="icon-btn" title="Notifications">
+                    🔔
+                    <span class="notif-dot"></span>
+                </button>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="profile-btn" style="pointer-events: none;">
+                        <span class="avatar">{{ session.get('user_name', 'U')[0] }}</span>
+                        <span class="profile-name">{{ session.get('user_name', 'User') }} <small>({{ session.get('role').title() }})</small></span>
+                    </button>
+                    <a href="/logout" class="btn-logout">🚪 Logout</a>
+                </div>
+            </div>
+        </header>
+        {% endif %}
+
+        <div class="content-wrapper">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    {% if session.get('role') == 'admin' %}
+    <!-- Admin AI Chatbot Widget -->
+    <button class="chat-fab" id="chatFab" onclick="toggleChat()" title="Ask Admin AI">
+        <span id="chatFabIcon">🤖</span>
+    </button>
+
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+            <div class="chat-header-info">
+                <span class="chat-avatar">🤖</span>
+                <div>
+                    <div class="chat-header-title">Admin Assistant</div>
+                    <div class="chat-header-subtitle">Powered by Claude</div>
+                </div>
+            </div>
+            <button class="chat-close" onclick="toggleChat()">✕</button>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="chat-msg bot">
+                <div class="chat-bubble bot">
+                    👋 Hi! I'm your UniSchedule AI assistant. I can help you with:
+                    <ul style="margin:8px 0 0 16px;font-size:0.85rem">
+                        <li>Data queries about departments, students, faculty</li>
+                        <li>Timetable insights and room utilization</li>
+                        <li>Scheduling suggestions and optimization</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-suggestions" id="chatSuggestions">
+            <button onclick="sendSuggestion('Show me department summary')">📊 Department Summary</button>
+            <button onclick="sendSuggestion('Which faculty is most overloaded?')">👨‍🏫 Faculty Workload</button>
+            <button onclick="sendSuggestion('Any scheduling suggestions?')">💡 Suggestions</button>
+        </div>
+
+        <form class="chat-input-area" onsubmit="sendChat(event)">
+            <input type="text" id="chatInput" placeholder="Ask anything about your timetable..." autocomplete="off">
+            <button type="submit" class="chat-send">➤</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        {% if session.get('role') == 'admin' %}
+        let chatHistory = [];
+        let chatOpen = false;
+
+        function toggleChat() {
+            chatOpen = !chatOpen;
+            document.getElementById('chatPanel').classList.toggle('open', chatOpen);
+            document.getElementById('chatFabIcon').textContent = chatOpen ? '✕' : '🤖';
+            if (chatOpen) document.getElementById('chatInput').focus();
+        }
+
+        function sendSuggestion(text) {
+            document.getElementById('chatInput').value = text;
+            sendChat(new Event('submit'));
+            document.getElementById('chatSuggestions').style.display = 'none';
+        }
+
+        async function sendChat(e) {
+            e.preventDefault();
+            const input = document.getElementById('chatInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+            input.value = '';
+
+            // Add user message to history
+            chatHistory.push({ role: 'user', content: msg });
+            appendMsg('user', msg);
+
+            // Show typing indicator
+            const typing = document.createElement('div');
+            typing.className = 'chat-msg bot';
+            typing.id = 'typing';
+            typing.innerHTML = '<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
+            document.getElementById('chatMessages').appendChild(typing);
+            scrollChat();
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                // Only send last 10 messages
+                const payload = chatHistory.slice(-10);
+                
+                const res = await fetch('/api/chatbot/admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ messages: payload })
+                });
+                const data = await res.json();
+                typing.remove();
+
+                const reply = data.reply || 'Sorry, no response.';
+                
+                // Parse for actions
+                const actionMatch = reply.match(/```action\s*\n([\s\S]*?)```/);
+                let displayText = reply;
+                if (actionMatch) {
+                    try {
+                        const actionJson = JSON.parse(actionMatch[1]);
+                        displayText = reply.replace(actionMatch[0], `<div class="action-overlay">
+                            <strong>⚡ Suggested Action:</strong> ${actionJson.action}
+                            <button class="btn btn-navy action-overlay-btn" onclick="executeAdminAction('${encodeURIComponent(JSON.stringify(actionJson))}')">Execute Action</button>
+                        </div>`);
+                    } catch (e) {
+                        console.error('Failed to parse action JSON', e);
+                    }
+                }
+
+                appendMsg('bot', displayText);
+                chatHistory.push({ role: 'assistant', content: reply });
+
+                // Hide suggestions after first message
+                const sugg = document.getElementById('chatSuggestions');
+                if(sugg) sugg.style.display = 'none';
+            } catch (err) {
+                console.error(err);
+                const typingEl = document.getElementById('typing');
+                if(typingEl) typingEl.remove();
+                appendMsg('bot', '❌ Connection error. Make sure the server is running.');
+            }
+        }
+        
+        async function executeAdminAction(encodedAction) {
+            const actionObj = JSON.parse(decodeURIComponent(encodedAction));
+            if (!confirm(`Are you sure you want to execute action: ${actionObj.action}?`)) return;
+            
+            showToast(`Executing ${actionObj.action}...`, 'info');
+            
+            // Basic frontend simulation of action execution
+            if(actionObj.action === 'generate_timetable') {
+                window.location.href = '/timetable/generate';
+            } else if(actionObj.action === 'get_room_utilization') {
+                window.location.href = '/room-utilization';
+            } else if(actionObj.action === 'get_students_below_attendance') {
+                window.location.href = '/'; // It's on dashboard
+            } else {
+                showToast(`Action ${actionObj.action} requires backend implementation!`, 'warning');
+            }
+        }
+
+        function appendMsg(role, text) {
+            const messages = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = `chat-msg ${role}`;
+
+            let html = text
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/`(.*?)`/g, '<code>$1</code>')
+                .replace(/\n/g, '<br>');
+
+            div.innerHTML = `<div class="chat-bubble ${role}">${html}</div>`;
+            messages.appendChild(div);
+            scrollChat();
+        }
+
+        function scrollChat() {
+            const el = document.getElementById('chatMessages');
+            el.scrollTop = el.scrollHeight;
+        }
+
+        // Dark Mode Logic
+        function toggleDarkMode() {
+            const isDark = document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            document.getElementById('darkModeBtn').innerHTML = isDark ? '☀️' : '🌙';
+        }
+        
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+            const btn = document.getElementById('darkModeBtn');
+            if(btn) btn.innerHTML = '☀️';
+        }
+
+        {% endif %}
+    </script>
+    
+    <!-- jQuery and DataTables JS -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

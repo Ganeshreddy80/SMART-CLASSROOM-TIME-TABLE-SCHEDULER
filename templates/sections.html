@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Sections – UniSchedule{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>👥 Section Management</h2>
+    <p>Auto-generate sections from enrollment data (max 60 students per section)</p>
+</div>
+
+<div class="card">
+    <div class="card-title">Generate Sections</div>
+    <p style="color:var(--text-secondary);font-size:0.87rem;margin-bottom:16px">
+        Click below to automatically divide students into sections. Each section will have a maximum of 60 students.
+        Existing sections will be replaced.
+    </p>
+    <button class="btn btn-primary" onclick="generateSections()">⚡ Generate Sections</button>
+    <div id="genResult" style="margin-top:16px"></div>
+</div>
+
+<div class="card">
+    <div class="card-title">All Sections</div>
+    <div class="stats-grid" id="sectionStats"></div>
+    <div class="table-wrapper" style="margin-top:16px">
+        <table id="secDataTable" class="data-table">
+            <thead>
+                <tr>
+                    <th>Section</th>
+                    <th>Department</th>
+                    <th>Students</th>
+                </tr>
+            </thead>
+            <tbody id="sectionTable"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadSections() {
+        const sections = await api('/api/sections');
+        const tbody = document.getElementById('sectionTable');
+        const stats = document.getElementById('sectionStats');
+
+        if (sections.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No sections generated yet</td></tr>';
+            stats.innerHTML = '';
+            return;
+        }
+
+        // Stats by department
+        const deptMap = {};
+        sections.forEach(s => {
+            if (!deptMap[s.department_code]) deptMap[s.department_code] = { name: s.department_name, count: 0, students: 0 };
+            deptMap[s.department_code].count++;
+            deptMap[s.department_code].students += s.student_count;
+        });
+
+        stats.innerHTML = Object.entries(deptMap).map(([code, d]) => `
+        <div class="stat-card">
+            <div class="stat-icon">🏢</div>
+            <div class="stat-value">${d.count}</div>
+            <div class="stat-label">${code} – ${d.students} Students</div>
+        </div>
+    `).join('');
+
+        tbody.innerHTML = sections.map(s => `
+        <tr>
+            <td><span class="badge badge-purple">${s.department_code}-${s.name}</span></td>
+            <td>${s.department_name}</td>
+            <td>${s.student_count}</td>
+        </tr>
+    `).join('');
+    
+        if ($.fn.DataTable) {
+            if ($.fn.DataTable.isDataTable('#secDataTable')) {
+                $('#secDataTable').DataTable().destroy();
+            }
+            if (sections.length > 0) {
+                $('#secDataTable').DataTable({ pageLength: 25 });
+            }
+        }
+    }
+
+    async function generateSections() {
+        const result = await api('/api/sections/generate', 'POST');
+        document.getElementById('genResult').innerHTML = `<div class="alert alert-success">${result.message}</div>`;
+        showToast(result.message);
+        loadSections();
+    }
+
+    loadSections();
+</script>
+{% endblock %}

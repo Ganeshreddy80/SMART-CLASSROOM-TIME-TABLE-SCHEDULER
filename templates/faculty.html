@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% block title %}Faculty – UniSchedule{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>👨‍🏫 Faculty Management</h2>
+    <p>Add faculty members and assign courses</p>
+</div>
+
+<div class="card">
+    <div class="card-title" id="formTitle">Add New Faculty</div>
+    <form id="facForm" onsubmit="saveFaculty(event)">
+        <input type="hidden" id="editId" value="">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Faculty ID</label>
+                <input type="text" id="facUid" required placeholder="e.g. FAC001">
+            </div>
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="facName" required placeholder="e.g. Dr. Smith">
+            </div>
+            <div class="form-group">
+                <label>Department</label>
+                <select id="facDept" required onchange="filterCourses()"></select>
+            </div>
+            <div class="form-group">
+                <label>Courses Can Teach</label>
+                <select id="facCourses" multiple></select>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-top:16px">
+            <label>Available Days & Slots (leave unchecked = available all)</label>
+            <div id="availabilityGrid"></div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💾 Save</button>
+            <button type="button" class="btn btn-outline" onclick="resetForm()">Cancel</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-title">All Faculty</div>
+    <div class="table-wrapper">
+        <table id="facDataTable" class="data-table">
+            <thead>
+                <tr>
+                    <th>Photo</th>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Courses</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="facTable"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let facultyList = [], departments = [], allCourses = [], university = {};
+
+    async function init() {
+        departments = await api('/api/departments');
+        allCourses = await api('/api/courses');
+        university = await api('/api/university');
+        populateSelect('facDept', departments, d => d.id, d => `${d.code} – ${d.name}`, 'Select Department');
+        filterCourses();
+        buildAvailabilityGrid();
+        loadFaculty();
+    }
+
+    function filterCourses() {
+        const deptId = document.getElementById('facDept').value;
+        const filtered = deptId ? allCourses.filter(c => c.department_id == deptId) : allCourses;
+        populateSelect('facCourses', filtered, c => c.id, c => `${c.code} – ${c.name}`);
+    }
+
+    function buildAvailabilityGrid() {
+        const days = university.days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        const container = document.getElementById('availabilityGrid');
+        container.innerHTML = '';
+        days.forEach(day => {
+            const dayDiv = document.createElement('div');
+            dayDiv.style.marginBottom = '8px';
+            dayDiv.innerHTML = `<strong style="font-size:0.82rem;color:var(--text-secondary)">${day}</strong>`;
+            const grid = document.createElement('div');
+            grid.className = 'checkbox-grid';
+            const timeslots = university.timeslots || [];
+            timeslots.forEach(ts => {
+                grid.innerHTML += `<label><input type="checkbox" class="avail-cb" data-day="${day}" data-slot="${ts}"> ${ts}</label>`;
+            });
+            dayDiv.appendChild(grid);
+            container.appendChild(dayDiv);
+        });
+    }
+
+    function getAvailability() {
+        const result = {};
+        document.querySelectorAll('.avail-cb:checked').forEach(cb => {
+            const day = cb.dataset.day;
+            const slot = cb.dataset.slot;
+            if (!result[day]) result[day] = [];
+            result[day].push(slot);
+        });
+        return result;
+    }
+
+    async function loadFaculty() {
+        facultyList = await api('/api/faculty');
+        const tbody = document.getElementById('facTable');
+        if (facultyList.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No faculty yet</td></tr>';
+            return;
+        }
+        tbody.innerHTML = facultyList.map(f => `
+        <tr>
+            <td>
+                ${f.photo_url 
+                    ? `<img src="${f.photo_url}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid #e5e7eb;">` 
+                    : `<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f8ef7);color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;">${f.name.replace(/^Dr\.\s*/i,'').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)}</div>`
+                }
+            </td>
+            <td><span class="badge badge-purple">${f.faculty_uid}</span></td>
+            <td>${f.name}</td>
+            <td>${f.department_name}</td>
+            <td>${(f.courses_can_teach_names || []).join(', ') || '—'}</td>
+            <td class="actions-cell">
+                <button class="btn btn-outline btn-sm" title="View Timetable" onclick="window.location.href='/timetable/faculty?id=${f.id}'">📅</button>
+                <button class="btn btn-outline btn-sm" title="Upload Photo" onclick="uploadPhoto(${f.id}, '${f.name}')">📷</button>
+                <button class="btn btn-outline btn-sm" onclick="editFac(${f.id})">✏️</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteFac(${f.id})">🗑️</button>
+            </td>
+        </tr>
+    `).join('');
+    
+        if ($.fn.DataTable) {
+            if ($.fn.DataTable.isDataTable('#facDataTable')) {
+                $('#facDataTable').DataTable().destroy();
+            }
+            if (facultyList.length > 0) {
+                $('#facDataTable').DataTable({ pageLength: 25 });
+            }
+        }
+    }
+
+    async function saveFaculty(e) {
+        e.preventDefault();
+        const id = document.getElementById('editId').value;
+        const data = {
+            faculty_uid: document.getElementById('facUid').value,
+            name: document.getElementById('facName').value,
+            department_id: document.getElementById('facDept').value,
+            courses_can_teach: getSelectedValues('facCourses'),
+            available_slots: getAvailability()
+        };
+        if (id) {
+            await api(`/api/faculty/${id}`, 'PUT', data);
+            showToast('Faculty updated!');
+        } else {
+            const result = await api('/api/faculty', 'POST', data);
+            showToast(`Faculty added! Login: ${result.email} / ${result.default_password}`);
+        }
+        resetForm();
+        loadFaculty();
+    }
+
+    function editFac(id) {
+        const f = facultyList.find(x => x.id === id);
+        if (!f) return;
+        document.getElementById('editId').value = f.id;
+        document.getElementById('facUid').value = f.faculty_uid;
+        document.getElementById('facName').value = f.name;
+        document.getElementById('facDept').value = f.department_id;
+        filterCourses();
+        setTimeout(() => {
+            const sel = document.getElementById('facCourses');
+            Array.from(sel.options).forEach(o => {
+                o.selected = f.courses_can_teach.includes(parseInt(o.value));
+            });
+        }, 100);
+        // Set availability checkboxes
+        document.querySelectorAll('.avail-cb').forEach(cb => cb.checked = false);
+        const avail = f.available_slots || {};
+        Object.keys(avail).forEach(day => {
+            avail[day].forEach(slot => {
+                const cb = document.querySelector(`.avail-cb[data-day="${day}"][data-slot="${slot}"]`);
+                if (cb) cb.checked = true;
+            });
+        });
+        document.getElementById('formTitle').textContent = 'Edit Faculty';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.getElementById('facUid').focus();
+    }
+
+    async function deleteFac(id) {
+        if (!confirmAction('Delete this faculty member?')) return;
+        await api(`/api/faculty/${id}`, 'DELETE');
+        showToast('Faculty deleted!', 'danger');
+        loadFaculty();
+    }
+
+    function resetForm() {
+        document.getElementById('editId').value = '';
+        document.getElementById('facForm').reset();
+        document.getElementById('formTitle').textContent = 'Add New Faculty';
+        document.querySelectorAll('.avail-cb').forEach(cb => cb.checked = false);
+    }
+
+    init();
+
+    function uploadPhoto(id, name) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        document.body.appendChild(input);
+        input.style.display = 'none';
+        input.onchange = async () => {
+            const file = input.files[0];
+            if (!file) return;
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.onload = async () => {
+                const MAX = 300;
+                let w = img.width, h = img.height;
+                if (w > h) { h = h * MAX / w; w = MAX; }
+                else { w = w * MAX / h; h = MAX; }
+                canvas.width = w;
+                canvas.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+                const base64 = canvas.toDataURL('image/jpeg', 0.7);
+                try {
+                    const res = await fetch(`/api/faculty/${id}/photo`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ photo: base64 })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        showToast(`Photo uploaded for ${name}!`);
+                        loadFaculty();
+                    } else {
+                        showToast(`Failed: ${data.error || 'Unknown error'}`, 'danger');
+                    }
+                } catch(e) {
+                    showToast('Upload failed: ' + e.message, 'danger');
+                }
+            };
+            img.src = URL.createObjectURL(file);
+        };
+        input.click();
+    }
+    function getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+</script>
+
+
+
+{% endblock %}

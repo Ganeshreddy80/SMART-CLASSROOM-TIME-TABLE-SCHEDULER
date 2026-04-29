@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – UniSchedule{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>📊 Dashboard</h2>
+    <p>Overview of your university timetable system</p>
+</div>
+
+<div class="stats-grid" id="statsGrid">
+    <div class="stat-card" onclick="location.href='/departments'">
+        <div class="stat-icon icon-blue">🏢</div>
+        <div class="stat-details">
+            <div class="stat-value" data-target="0" id="statDepartments">0</div>
+            <div class="stat-label">Departments</div>
+            <div class="stat-trend up">↑ Active</div>
+        </div>
+    </div>
+    <div class="stat-card" onclick="location.href='/students'">
+        <div class="stat-icon icon-green">🎓</div>
+        <div class="stat-details">
+            <div class="stat-value" data-target="0" id="statStudents">0</div>
+            <div class="stat-label">Students</div>
+            <div class="stat-trend up">↑ Enrolled</div>
+        </div>
+    </div>
+    <div class="stat-card" onclick="location.href='/faculty'">
+        <div class="stat-icon icon-amber">👨‍🏫</div>
+        <div class="stat-details">
+            <div class="stat-value" data-target="0" id="statFaculty">0</div>
+            <div class="stat-label">Faculty</div>
+            <div class="stat-trend up">↑ Active</div>
+        </div>
+    </div>
+    <div class="stat-card" onclick="location.href='/courses'">
+        <div class="stat-icon icon-purple">📖</div>
+        <div class="stat-details">
+            <div class="stat-value" data-target="0" id="statCourses">0</div>
+            <div class="stat-label">Courses</div>
+            <div class="stat-trend up">↑ Offered</div>
+        </div>
+    </div>
+    <div class="stat-card" onclick="location.href='/sections'">
+        <div class="stat-icon icon-navy">👥</div>
+        <div class="stat-details">
+            <div class="stat-value" data-target="0" id="statSections">0</div>
+            <div class="stat-label">Sections</div>
+            <div class="stat-trend up">↑ Generated</div>
+        </div>
+    </div>
+    <div class="stat-card" onclick="location.href='/timetable/section'">
+        <div class="stat-icon icon-gold">📅</div>
+        <div class="stat-details">
+            <div class="stat-value" data-target="0" id="statTimetable">0</div>
+            <div class="stat-label">Total Classes of All Sections</div>
+            <div class="stat-trend up">↑ Scheduled</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">⚡ Quick Links</div>
+    <div class="quick-links">
+        <a href="/university" class="quick-link">
+            <span class="icon">🏛️</span>
+            <span>University Setup</span>
+            <span class="link-desc">Configure blocks & rooms</span>
+        </a>
+        <a href="/departments" class="quick-link">
+            <span class="icon">🏢</span>
+            <span>Manage Departments</span>
+            <span class="link-desc">Add or edit departments</span>
+        </a>
+        <a href="/courses" class="quick-link">
+            <span class="icon">📖</span>
+            <span>Manage Courses</span>
+            <span class="link-desc">Define course catalog</span>
+        </a>
+        <a href="/timetable/generate" class="quick-link">
+            <span class="icon">⚡</span>
+            <span>Generate Timetable</span>
+            <span class="link-desc">Auto-schedule all sections</span>
+        </a>
+    </div>
+</div>
+
+<div class="dashboard-bottom">
+    <div class="card">
+        <div class="card-title">📋 Recent Activity</div>
+        <div id="activityFeed">
+            <div class="activity-item">
+                <span class="activity-dot gold"></span>
+                <span class="activity-text">System initialized</span>
+                <span class="activity-time">Just now</span>
+            </div>
+            <div class="activity-item">
+                <span class="activity-dot blue"></span>
+                <span class="activity-text">Dashboard loaded</span>
+                <span class="activity-time">1s ago</span>
+            </div>
+            <div class="activity-item">
+                <span class="activity-dot green"></span>
+                <span class="activity-text">Data synchronized</span>
+                <span class="activity-time">2s ago</span>
+            </div>
+            <div class="activity-item">
+                <span class="activity-dot purple"></span>
+                <span class="activity-text">Ready for operations</span>
+                <span class="activity-time">3s ago</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📈 Enrollment Progress</div>
+        <div id="progressBars">
+            <div class="progress-item">
+                <div class="progress-label">
+                    <span>Students Enrolled</span>
+                    <span id="progStudents">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill gold" id="progStudentsBar" style="--w: 0%;"></div>
+                </div>
+            </div>
+            <div class="progress-item">
+                <div class="progress-label">
+                    <span>Faculty Assigned</span>
+                    <span id="progFaculty">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill blue" id="progFacultyBar" style="--w: 0%;"></div>
+                </div>
+            </div>
+            <div class="progress-item">
+                <div class="progress-label">
+                    <span>Timetable Completion</span>
+                    <span id="progTimetable">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill green" id="progTimetableBar" style="--w: 0%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-title" style="color: #c62828;">⚠ Low Attendance Warning</div>
+        <div id="lowAttendanceList" style="max-height: 250px; overflow-y: auto;">
+            <div class="empty-state" style="padding: 10px;"><p>Loading...</p></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    /* ─── Animated Counter (easeOutCubic) ─────────────────────── */
+    function animateCounter(el, target) {
+        const duration = 1200;
+        const start = performance.now();
+        const initial = 0;
+        
+        function update(now) {
+            const elapsed = now - start;
+            const t = Math.min(elapsed / duration, 1);
+            const progress = 1 - Math.pow(1 - t, 3); // easeOutCubic
+            const current = Math.floor(initial + (target - initial) * progress);
+            el.textContent = current.toLocaleString();
+            if (t < 1) requestAnimationFrame(update);
+        }
+        requestAnimationFrame(update);
+    }
+
+    async function loadDashboard() {
+        const data = await api('/api/dashboard');
+        
+        // Set targets and animate
+        const counters = [
+            { el: 'statDepartments', val: data.departments || 0 },
+            { el: 'statStudents',    val: data.students || 0 },
+            { el: 'statFaculty',     val: data.faculty || 0 },
+            { el: 'statCourses',     val: data.courses || 0 },
+            { el: 'statSections',    val: data.sections || 0 },
+            { el: 'statTimetable',   val: data.timetable_entries || 0 },
+        ];
+
+        counters.forEach(c => {
+            const el = document.getElementById(c.el);
+            if (el) animateCounter(el, c.val);
+        });
+
+        // Animate progress bars
+        const maxStudents = 500;
+        const maxFaculty = 50;
+        const maxEntries = 200;
+
+        const studentPct = Math.min(100, Math.round((data.students || 0) / maxStudents * 100));
+        const facultyPct = Math.min(100, Math.round((data.faculty || 0) / maxFaculty * 100));
+        const ttPct = Math.min(100, Math.round((data.timetable_entries || 0) / maxEntries * 100));
+
+        // Set progress bars after a brief delay for animation
+        setTimeout(() => {
+            const sBar = document.getElementById('progStudentsBar');
+            const fBar = document.getElementById('progFacultyBar');
+            const tBar = document.getElementById('progTimetableBar');
+
+            if (sBar) { sBar.style.setProperty('--w', studentPct + '%'); }
+            if (fBar) { fBar.style.setProperty('--w', facultyPct + '%'); }
+            if (tBar) { tBar.style.setProperty('--w', ttPct + '%'); }
+
+            document.getElementById('progStudents').textContent = studentPct + '%';
+            document.getElementById('progFaculty').textContent = facultyPct + '%';
+            document.getElementById('progTimetable').textContent = ttPct + '%';
+        }, 300);
+
+        // Update activity feed with dynamic data
+        const feed = document.getElementById('activityFeed');
+        feed.innerHTML = `
+            <div class="activity-item">
+                <span class="activity-dot blue"></span>
+                <span class="activity-text"><strong>${data.departments || 0}</strong> departments configured</span>
+                <span class="activity-time">Active</span>
+            </div>
+            <div class="activity-item">
+                <span class="activity-dot green"></span>
+                <span class="activity-text"><strong>${data.students || 0}</strong> students enrolled</span>
+                <span class="activity-time">Current</span>
+            </div>
+            <div class="activity-item">
+                <span class="activity-dot gold"></span>
+                <span class="activity-text"><strong>${data.faculty || 0}</strong> faculty members active</span>
+                <span class="activity-time">Current</span>
+            </div>
+            <div class="activity-item">
+                <span class="activity-dot purple"></span>
+                <span class="activity-text"><strong>${data.timetable_entries || 0}</strong> timetable entries scheduled</span>
+                <span class="activity-time">Latest</span>
+            </div>
+        `;
+        
+        // Load Low Attendance Warnings
+        try {
+            const lowAtt = await api('/api/attendance/low');
+            const lowContainer = document.getElementById('lowAttendanceList');
+            if (lowAtt.length === 0) {
+                lowContainer.innerHTML = '<div class="empty-state" style="padding:10px;"><p>No students below 75% attendance!</p></div>';
+            } else {
+                let html = '<div style="display:flex; flex-direction:column; gap:8px; padding:10px 0;">';
+                lowAtt.forEach(s => {
+                    html += `
+                    <div style="border-left: 3px solid #f44336; background: rgba(244,67,54,0.05); padding: 8px 12px; border-radius: 4px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <strong>${s.name}</strong> (${s.uid})<br>
+                            <small>${s.department}</small>
+                        </div>
+                        <div style="color: #d32f2f; font-weight: bold;">${s.percentage}%</div>
+                    </div>`;
+                });
+                html += '</div>';
+                lowContainer.innerHTML = html;
+            }
+        } catch (e) {
+            console.error('Failed to load low attendance', e);
+        }
+    }
+    loadDashboard();
+    
+    // Live Polling every 60 seconds
+    setInterval(loadDashboard, 60000);
+</script>
+{% endblock %}

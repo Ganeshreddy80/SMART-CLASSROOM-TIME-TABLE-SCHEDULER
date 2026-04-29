@@ -1,0 +1,24 @@
+# Environment variables
+.env
+
+# Database
+instance/
+*.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Credential files (never commit plaintext passwords)
+student_credentials.txt
+*_credentials.txt

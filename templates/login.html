@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Login – UniSchedule</title>
+<meta name="description" content="UniSchedule — University Timetable Management System. Login to access your dashboard.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#1e2a5e;--navy-deep:#141d42;--navy-darker:#0f1a3e;
+  --gold:#f5c518;--gold-dark:#c9a200;--gold-light:#fff3b0;
+  --surface:#f7f8fc;--text:#1a1a2e;--muted:#6b7280;
+  --accent:#4f8ef7;--danger:#ef4444;--success:#10b981;
+  --faculty-purple:#7c3aed;
+}
+body{
+  font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  background:linear-gradient(135deg,#0f1a3e 0%,#1e2a5e 40%,#2d1b69 100%);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;color:var(--text);
+}
+
+/* Animated background orbs */
+body::before{
+  content:'';position:absolute;width:600px;height:600px;
+  background:radial-gradient(circle,rgba(245,197,24,.08),transparent 70%);
+  top:-150px;right:-120px;border-radius:50%;
+  animation:float 8s ease-in-out infinite;
+}
+body::after{
+  content:'';position:absolute;width:500px;height:500px;
+  background:radial-gradient(circle,rgba(124,58,237,.1),transparent 70%);
+  bottom:-100px;left:-80px;border-radius:50%;
+  animation:float 10s ease-in-out infinite reverse;
+}
+.orb-3{
+  position:absolute;width:300px;height:300px;
+  background:radial-gradient(circle,rgba(79,142,247,.06),transparent 70%);
+  top:40%;left:50%;border-radius:50%;
+  animation:float 12s ease-in-out infinite 2s;
+}
+
+@keyframes float{
+  0%,100%{transform:translate(0,0) scale(1)}
+  25%{transform:translate(30px,-20px) scale(1.05)}
+  50%{transform:translate(-15px,25px) scale(0.95)}
+  75%{transform:translate(20px,10px) scale(1.02)}
+}
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(30px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes shimmer{
+  0%{background-position:-200% 0}
+  100%{background-position:200% 0}
+}
+@keyframes pulseGold{
+  0%,100%{box-shadow:0 0 0 0 rgba(245,197,24,.3)}
+  50%{box-shadow:0 0 20px 4px rgba(245,197,24,.12)}
+}
+@keyframes shake{
+  0%,100%{transform:translateX(0)}
+  20%,60%{transform:translateX(-6px)}
+  40%,80%{transform:translateX(6px)}
+}
+@keyframes lockBounce{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-6px)}
+}
+
+/* Card */
+.login-card{
+  background:#fff;border-radius:24px;padding:44px 40px;
+  width:440px;max-width:92vw;
+  box-shadow:0 25px 80px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.05);
+  animation:fadeUp .6s cubic-bezier(.34,1.56,.64,1);
+  position:relative;z-index:10;text-align:center;
+}
+
+/* Border shimmer effect */
+.login-card::before{
+  content:'';position:absolute;inset:-2px;border-radius:26px;z-index:-1;
+  background:linear-gradient(135deg,var(--gold),transparent 40%,transparent 60%,var(--faculty-purple));
+  opacity:.3;
+}
+
+/* Lock icon */
+.lock-icon{
+  font-size:2.8rem;margin-bottom:8px;display:inline-block;
+  animation:lockBounce 3s ease-in-out infinite;
+}
+
+.login-card h2{
+  font-size:1.7rem;font-weight:800;color:var(--navy);margin-bottom:4px;
+  letter-spacing:-.02em;
+}
+.login-subtitle{
+  color:var(--muted);font-size:.85rem;margin-bottom:22px;font-weight:500;
+}
+
+/* Role Tabs */
+.role-tabs{
+  display:flex;gap:8px;justify-content:center;margin-bottom:24px;
+}
+.role-tab{
+  padding:10px 22px;border:2px solid #e5e7eb;border-radius:14px;
+  background:#fff;cursor:pointer;font-size:.84rem;font-weight:600;
+  color:var(--muted);transition:all .25s cubic-bezier(.34,1.56,.64,1);
+  font-family:inherit;display:flex;align-items:center;gap:6px;
+}
+.role-tab:hover{
+  border-color:var(--gold);color:var(--gold-dark);
+  transform:translateY(-1px);
+}
+.role-tab.active{
+  border-color:var(--gold);color:var(--gold-dark);
+  background:var(--gold-light);
+  box-shadow:0 2px 12px rgba(245,197,24,.2);
+  transform:translateY(-1px);
+}
+.role-tab .tab-emoji{font-size:1rem}
+
+/* Error */
+.login-error{
+  background:#fee2e2;border:1px solid rgba(239,68,68,.25);
+  border-radius:12px;padding:12px 16px;margin-bottom:16px;
+  font-size:.82rem;color:#dc2626;font-weight:500;
+  display:flex;align-items:center;gap:8px;
+  animation:shake .4s;text-align:left;
+}
+
+/* Form */
+.login-form{text-align:left}
+.form-group{margin-bottom:16px}
+.form-group label{
+  display:block;font-size:.72rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);margin-bottom:6px;
+}
+.form-group input{
+  width:100%;padding:13px 18px;
+  border:2px solid #e8eaf0;border-radius:14px;
+  font-size:.9rem;font-family:inherit;
+  background:#f8f9fc;
+  transition:all .25s;color:var(--text);
+}
+.form-group input::placeholder{color:#b0b8c8}
+.form-group input:focus{
+  outline:none;border-color:var(--gold);
+  box-shadow:0 0 0 4px rgba(245,197,24,.12);
+  background:#fff;
+}
+
+/* Submit Button */
+.sign-in-btn{
+  width:100%;padding:15px;margin-top:4px;
+  background:linear-gradient(135deg,var(--gold),var(--gold-dark));
+  border:none;border-radius:14px;
+  font-size:1.05rem;font-weight:700;color:var(--navy);
+  cursor:pointer;font-family:inherit;
+  transition:all .2s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  animation:pulseGold 3s infinite;
+}
+.sign-in-btn:hover{
+  transform:translateY(-2px);
+  box-shadow:0 8px 25px rgba(245,197,24,.35);
+  animation:none;
+}
+.sign-in-btn:active{transform:translateY(0)}
+
+/* Forgot link */
+.forgot-link{
+  margin-top:18px;text-align:center;
+}
+.forgot-link a{
+  color:var(--accent);font-size:.82rem;text-decoration:none;
+  font-weight:600;transition:color .2s;
+}
+.forgot-link a:hover{color:var(--faculty-purple)}
+
+/* Footer credit */
+.login-footer{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  color:rgba(255,255,255,.2);font-size:.7rem;font-weight:500;
+  z-index:5;text-align:center;
+}
+
+/* Responsive */
+@media(max-width:480px){
+  .login-card{padding:32px 24px;border-radius:20px}
+  .role-tabs{flex-wrap:wrap}
+  .role-tab{padding:8px 16px;font-size:.78rem}
+}
+</style>
+</head>
+<body>
+
+<div class="orb-3"></div>
+
+<div class="login-card">
+  <div class="lock-icon">🔐</div>
+  <h2>UniSchedule</h2>
+  <p class="login-subtitle">University Timetable Management</p>
+
+  <div class="role-tabs" id="roleTabs">
+    <button class="role-tab active" data-role="admin" onclick="switchRole('admin')">
+      <span class="tab-emoji">👑</span> Admin
+    </button>
+    <button class="role-tab" data-role="faculty" onclick="switchRole('faculty')">
+      <span class="tab-emoji">👨‍🏫</span> Faculty
+    </button>
+    <button class="role-tab" data-role="student" onclick="switchRole('student')">
+      <span class="tab-emoji">🎓</span> Student
+    </button>
+  </div>
+
+  {% if error %}
+  <div class="login-error">
+    <span style="font-size:1.1rem">⚠️</span> {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="POST" action="/login" class="login-form" id="loginForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="login_role" id="loginRole" value="admin">
+    <div class="form-group">
+      <label>EMAIL ADDRESS</label>
+      <input type="email" name="email" id="emailInput" required
+             placeholder="admin@srmap.edu.in" autocomplete="email">
+    </div>
+
+    <div class="form-group">
+      <label>PASSWORD</label>
+      <input type="password" name="password" id="passInput" required
+             placeholder="Enter your password" autocomplete="current-password">
+    </div>
+
+    <button type="submit" class="sign-in-btn">
+      🚀 Sign In
+    </button>
+  </form>
+
+  <div class="forgot-link">
+    <a href="/forgot-password">Forgot Password?</a>
+  </div>
+</div>
+
+<div class="login-footer">UniSchedule &copy; 2026 — SRM AP University</div>
+
+<script>
+const roleHints = {
+  admin:   { email: 'admin@srmap.edu.in',           pass: 'Enter admin password' },
+  faculty: { email: 'firstname.lastname@srmap.edu.in', pass: 'Enter faculty password' },
+  student: { email: 'firstname.lastname@srmap.edu.in', pass: 'Enter student password' }
+};
+
+function switchRole(role) {
+  // Update tabs
+  document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.role-tab[data-role="${role}"]`).classList.add('active');
+  
+  // Update hidden field
+  document.getElementById('loginRole').value = role;
+
+  // Update placeholders
+  const hints = roleHints[role];
+  document.getElementById('emailInput').placeholder = hints.email;
+  document.getElementById('passInput').placeholder = hints.pass;
+}
+
+// Default to admin
+switchRole('admin');
+</script>
+</body>
+</html>
