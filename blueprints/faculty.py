@@ -275,3 +275,72 @@ def faculty_absences():
 def faculty_attendance_management():
     """Attendance management page — select course/section/date, toggle present/absent, save."""
     return render_template('attendance_management.html')
+
+
+@faculty_bp.route('/api/faculty/performance-insights')
+@login_required
+@role_required('faculty')
+def performance_insights():
+    import requests, os
+    from datetime import date, timedelta
+    from collections import defaultdict
+
+    faculty_id = session.get('user_id')
+    today = date.today()
+    week_ago = today - timedelta(days=7)
+
+    records = Attendance.query.filter(
+        Attendance.faculty_id == faculty_id,
+        Attendance.date >= week_ago
+    ).all()
+
+    if not records:
+        return jsonify({'insight': 'No attendance data found for this week.', 'stats': {}})
+
+    course_stats = defaultdict(lambda: {'present': 0, 'total': 0, 'name': ''})
+    for r in records:
+        key = r.course_id
+        course_stats[key]['total'] += 1
+        if r.status == 'present':
+            course_stats[key]['present'] += 1
+        if r.course:
+            course_stats[key]['name'] = r.course.name
+
+    stats_summary = []
+    for cid, s in course_stats.items():
+        pct = round(s['present'] / s['total'] * 100, 1) if s['total'] else 0
+        stats_summary.append(f"{s['name']}: {pct}% attendance ({s['present']}/{s['total']})")
+
+    prompt = f"""
+    You are analyzing a university faculty member's weekly attendance data.
+
+    This week's class attendance rates:
+    {chr(10).join(stats_summary)}
+
+    Write a 3-sentence professional weekly insight report for the faculty member.
+    Mention: overall trend, best performing class, any concern, and one actionable tip.
+    Be encouraging but honest. No bullet points, just flowing sentences.
+    """
+
+    try:
+        response = requests.post(
+            'https://openrouter.ai/api/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {os.environ.get("OPENROUTER_API_KEY","")}',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'model': 'anthropic/claude-3-haiku',
+                'messages': [{'role': 'user', 'content': prompt}],
+                'max_tokens': 200
+            },
+            timeout=10
+        )
+        insight = response.json()['choices'][0]['message']['content']
+        return jsonify({
+            'insight': insight,
+            'stats': {str(k): v for k, v in course_stats.items()},
+            'week': str(week_ago) + ' to ' + str(today)
+        })
+    except Exception:
+        return jsonify({'insight': 'AI insight unavailable right now.', 'stats': {}})

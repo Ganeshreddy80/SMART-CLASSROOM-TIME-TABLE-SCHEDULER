@@ -200,3 +200,56 @@ def analyze_complaint():
         pass
 
     return jsonify({'error': 'Analysis failed'})
+
+
+@complaints_bp.route('/api/complaints/<int:id>/suggest-reply', methods=['GET'])
+@login_required
+@role_required('admin')
+def suggest_reply(id):
+    import requests, os
+    complaint = Complaint.query.get_or_404(id)
+
+    prompt = f"""
+    You are a university admin responding to a student complaint.
+
+    Complaint Title: {complaint.title}
+    Category: {complaint.category}
+    Priority: {complaint.priority}
+    Description: {complaint.description}
+
+    Generate exactly 3 different reply options as JSON array.
+    Each option has a "tone" and "reply" field.
+    Tones: "formal", "empathetic", "action_oriented"
+    Keep each reply under 60 words. Professional university language.
+
+    Return ONLY valid JSON array, nothing else:
+    [
+        {{"tone": "formal", "reply": "..."}},
+        {{"tone": "empathetic", "reply": "..."}},
+        {{"tone": "action_oriented", "reply": "..."}}
+    ]
+    """
+
+    try:
+        response = requests.post(
+            'https://openrouter.ai/api/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {os.environ.get("OPENROUTER_API_KEY","")}',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'model': 'anthropic/claude-3-haiku',
+                'messages': [{'role': 'user', 'content': prompt}],
+                'max_tokens': 400
+            },
+            timeout=10
+        )
+        import json, re
+        result = response.json()['choices'][0]['message']['content']
+        arr_match = re.search(r'\[.*\]', result, re.DOTALL)
+        if arr_match:
+            return jsonify(json.loads(arr_match.group()))
+    except Exception:
+        pass
+
+    return jsonify([])

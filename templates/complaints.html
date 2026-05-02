@@ -601,6 +601,19 @@
           </div>
           <div class="form-group">
             <label class="form-label">Resolution Note</label>
+            <div style="margin-bottom:12px;">
+              <button type="button" onclick="loadReplySuggestions(${c.id})" style="
+                background:rgba(167,139,250,0.15); color:#a78bfa;
+                border:1px solid rgba(167,139,250,0.3); border-radius:8px;
+                padding:8px 16px; cursor:pointer; font-size:0.85rem; font-weight:600;
+              ">✨ Generate AI Reply Suggestions</button>
+            </div>
+            <div id="replySuggestions" style="display:none; margin-bottom:14px;">
+              <div style="color:#9ca3af; font-size:0.8rem; margin-bottom:8px;">
+                Click a suggestion to use it:
+              </div>
+              <div id="suggestionCards" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
             <textarea class="form-control" id="adminResolution" rows="3" placeholder="Describe how the issue was resolved…">${esc(c.resolution_note||'')}</textarea>
           </div>
           <div class="form-group">
@@ -626,6 +639,50 @@
   }
 
   function closeDetailModal() { document.getElementById('detailModal').classList.add('hidden'); }
+
+  const toneColors = {
+    formal:          {bg:'rgba(59,130,246,0.1)',  border:'#3b82f6', label:'📋 Formal'},
+    empathetic:      {bg:'rgba(16,185,129,0.1)',  border:'#10b981', label:'💚 Empathetic'},
+    action_oriented: {bg:'rgba(245,158,11,0.1)',  border:'#f59e0b', label:'⚡ Action'}
+  };
+
+  async function loadReplySuggestions(id) {
+    if (!id) return;
+    const btn = event.target;
+    btn.textContent = '⏳ Generating...';
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/api/complaints/${id}/suggest-reply`);
+      const suggestions = await res.json();
+      const cards = document.getElementById('suggestionCards');
+      cards.innerHTML = '';
+      suggestions.forEach(s => {
+        const c = toneColors[s.tone] || toneColors.formal;
+        const escaped = s.reply.replace(/"/g, '&quot;');
+        cards.innerHTML += `
+        <div onclick="useReply(this)" data-reply="${escaped}" style="
+            background:${c.bg}; border-left:3px solid ${c.border};
+            border-radius:8px; padding:12px; cursor:pointer;
+            transition:opacity 0.2s;
+        " onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+          <div style="color:${c.border}; font-size:0.75rem; font-weight:700; margin-bottom:5px;">${c.label}</div>
+          <div style="color:#1e293b; font-size:0.85rem; line-height:1.5;">${s.reply}</div>
+        </div>`;
+      });
+      document.getElementById('replySuggestions').style.display = 'block';
+      btn.textContent = '🔄 Regenerate';
+      btn.disabled = false;
+    } catch(e) {
+      btn.textContent = '✨ Generate AI Reply Suggestions';
+      btn.disabled = false;
+    }
+  }
+
+  function useReply(el) {
+    const reply = el.getAttribute('data-reply');
+    document.getElementById('adminResolution').value = reply;
+    document.getElementById('replySuggestions').style.display = 'none';
+  }
 
   async function saveAdminUpdate(id) {
     const status     = document.getElementById('adminStatus').value;
