@@ -254,31 +254,18 @@ def faculty_attendance_api():
 @faculty_bp.route('/api/faculty-absences')
 @login_required
 def faculty_absences():
-    from models import Timetable, Attendance, Faculty
-    from sqlalchemy import func
-    import datetime
+    from models import TimetableEntry
 
-    today = datetime.date.today()
-    thirty_days_ago = today - datetime.timedelta(days=30)
+    results = db.session.query(
+        TimetableEntry.faculty_id,
+        TimetableEntry.day,
+        db.func.count(TimetableEntry.id).label('slots')
+    ).group_by(TimetableEntry.faculty_id, TimetableEntry.day).all()
 
-    results = db.session.execute(db.text("""
-        SELECT 
-            t.faculty_id,
-            t.day_of_week,
-            COUNT(t.id) as slots
-        FROM timetable t
-        WHERE t.faculty_id IS NOT NULL
-        GROUP BY t.faculty_id, t.day_of_week
-    """)).fetchall()
-
-    data = []
-    for row in results:
-        data.append({
-            'faculty_id': row[0],
-            'day': row[1],
-            'slots': row[2]
-        })
-
+    data = [
+        {'faculty_id': row.faculty_id, 'day': row.day, 'slots': row.slots}
+        for row in results
+    ]
     return jsonify(data)
 
 
