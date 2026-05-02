@@ -1,0 +1,54 @@
+I have a Flask university timetable management system. Fix these problems professionally:
+Problem 1 — Timezone (Critical)
+In blueprints/attendance.py, find every place that uses date.today() or datetime.today() and replace with IST timezone:
+pythonfrom datetime import datetime
+import pytz
+IST = pytz.timezone('Asia/Kolkata')
+today = datetime.now(IST).date()
+Also add pytz to requirements.txt
+Problem 2 — Attendance not showing in student dashboard
+In blueprints/student.py, find student_attendance_api function and make sure it queries Attendance model correctly by student_id, course_id and returns real data with correct date filtering.
+Problem 3 — Attendance not showing in faculty dashboard
+In blueprints/faculty.py, find or create a route /faculty/api/attendance that returns attendance records for courses taught by that faculty — grouped by course, section and date.
+Problem 4 — Manual attendance
+In blueprints/attendance.py, create a new route:
+POST /api/attendance/manual
+That accepts:
+json{
+  "course_id": 1,
+  "section_id": 1,
+  "date": "2026-05-02",
+  "present_student_ids": [1, 2, 3]
+}
+And saves attendance for all students in that section — present for those in the list, absent for the rest. Delete existing records for same course+section+date before saving.
+Problem 5 — Faculty remove specific student attendance
+In blueprints/attendance.py, create a new route:
+PUT /api/attendance/update-student
+That accepts:
+json{
+  "student_id": 1,
+  "course_id": 1,
+  "date": "2026-05-02",
+  "status": "absent"
+}
+And updates that specific student's attendance status.
+Problem 6 — QR session forbidden (Critical)
+In blueprints/attendance.py, the ACTIVE_SESSIONS dictionary is stored in memory. When faculty starts a session and then polls /api/attendance/session/qr/<token> and /api/attendance/session/live/<token> and /api/attendance/session/stop, it returns 403 because Flask session cookie gets overwritten when student logs in on same browser.
+Fix this by storing session ownership by token only — remove the faculty_id ownership check completely from get_rolling_qr, live_session, and stop_session functions. Any logged-in faculty or admin can access any session token they know.
+Problem 7 — Attendance reflect after QR scan
+After student scans QR and faculty stops session, the attendance must immediately reflect in:
+
+Student dashboard attendance percentage
+Faculty dashboard attendance view
+Make sure the student attendance API at /student/api/attendance queries fresh data every time with no caching.
+
+Problem 8 — Add attendance management page for faculty
+Create a new route in blueprints/faculty.py:
+GET /faculty/attendance-management
+That renders a page where faculty can:
+
+Select course and section and date
+See list of all students with present/absent toggle
+Save changes
+This works for both manual attendance and editing saved QR attendance
+

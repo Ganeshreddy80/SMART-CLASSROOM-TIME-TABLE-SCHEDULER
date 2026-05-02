@@ -102,6 +102,15 @@
                 <span class="icon">📋</span> Attendance
             </a>
             {% endif %}
+
+            {% if session.get('role') in ['admin', 'faculty'] %}
+            <a href="/attendance/faculty-qr" class="nav-link {% if request.path == '/attendance/faculty-qr' %}active{% endif %}">
+                <span class="icon">📲</span> QR Live Session
+            </a>
+            <a href="/faculty/attendance-management" class="nav-link {% if request.path == '/faculty/attendance-management' %}active{% endif %}">
+                <span class="icon">📋</span> Attendance Mgmt
+            </a>
+            {% endif %}
         </div>
 
         <!-- Sidebar Footer -->

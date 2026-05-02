@@ -1,10 +1,10 @@
 """
 Student blueprint — student dashboard, timetable, attendance, marks pages + APIs.
 """
-from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, make_response
 
 import json
-from models import (db, Student, TimetableEntry, FacultyAbsence)
+from models import (db, Student, TimetableEntry, FacultyAbsence, Attendance)
 from blueprints.utils import login_required, role_required
 
 student_bp = Blueprint('student_bp', __name__)
@@ -110,7 +110,7 @@ def student_timetable():
             slot_str = f"{s1}-{s2}"
 
         res.append({
-            'day': e.day[:3],  # Mon, Tue...
+            'day': e.day[:3],
             'slot': slot_str,
             'course': e.course.code if e.course else '',
             'faculty': e.faculty.name if e.faculty else '',
@@ -125,24 +125,50 @@ def student_timetable():
 def student_attendance_api():
     if session.get('role') != 'student':
         return jsonify({'error': 'Unauthorized'}), 403
-    from models import Attendance
+
     s = Student.query.get(session.get('user_id'))
     if not s:
-        return jsonify({})
+        resp = make_response(jsonify({}))
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        resp.headers['Pragma'] = 'no-cache'
+        return resp
+
     res = {}
     for c in s.courses_enrolled:
-        records = Attendance.query.filter_by(student_id=s.id, course_id=c.id).all()
+        records = Attendance.query.filter_by(
+            student_id=s.id,
+            course_id=c.id
+        ).order_by(Attendance.date).all()
+
         total = len(records)
         present = sum(1 for r in records if r.status == 'present')
-        absent = total - present
+        absent = sum(1 for r in records if r.status == 'absent')
+        od = sum(1 for r in records if r.status == 'od')
         pct = round((present / total) * 100, 1) if total > 0 else 0
+
+        history = [
+            {
+                'date': r.date.isoformat(),
+                'status': r.status
+            }
+            for r in records
+        ]
+
         res[c.code] = {
+            'course_id': c.id,
+            'course_name': c.name,
             'total': total,
             'present': present,
             'absent': absent,
-            'pct': pct
+            'od': od,
+            'pct': pct,
+            'history': history
         }
-    return jsonify(res)
+
+    resp = make_response(jsonify(res))
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    resp.headers['Pragma'] = 'no-cache'
+    return resp
 
 
 @student_bp.route('/student/api/today-attendance')
@@ -182,6 +208,7 @@ def student_faculty_absence():
     for a in absences:
         f_id = a.faculty_id
         d_str = a.date.isoformat()
-        if f_id not in res: res[f_id] = {}
+        if f_id not in res:
+            res[f_id] = {}
         res[f_id][d_str] = json.loads(a.slots) if a.slots else []
     return jsonify(res)
