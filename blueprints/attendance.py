@@ -331,15 +331,29 @@ def stop_session():
     course_id = sess['course_id']
     section_id = sess['section_id']
 
-    Attendance.query.filter_by(
+    # Collect student IDs already marked present/od by manual saves for today.
+    # These must be preserved — QR results are merged on top, not a replacement.
+    existing_records = Attendance.query.filter_by(
         section_id=section_id,
         course_id=course_id,
         date=today
-    ).delete()
+    ).all()
+    manually_present_ids = {
+        r.student_id for r in existing_records
+        if r.status in ('present', 'od')
+    }
+
+    # Delete all existing records so we can write the merged set cleanly.
+    for r in existing_records:
+        db.session.delete(r)
     db.session.flush()
 
     verified_ids = {int(sid) for sid, sub in sess['submissions'].items()
                     if sub['status'] == 'verified'}
+
+    # Merged present set: QR-verified OR already manually present/od
+    merged_present_ids = verified_ids | manually_present_ids
+
     all_students = sec.students
     total = len(all_students)
     present_count = 0
@@ -347,7 +361,7 @@ def stop_session():
     flagged_count = sum(1 for sub in sess['submissions'].values() if sub['flagged'])
 
     for student in all_students:
-        status = 'present' if student.id in verified_ids else 'absent'
+        status = 'present' if student.id in merged_present_ids else 'absent'
         if status == 'present':
             present_count += 1
         else:
