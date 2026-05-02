@@ -1,0 +1,514 @@
+{% extends "base.html" %}
+{% block title %}AI Anomaly Detection — UniSchedule{% endblock %}
+{% block content %}
+<style>
+  /* ── Page Header ── */
+  .page-header { margin-bottom: 24px; }
+  .page-header h2 { font-size: 1.5rem; font-weight: 800; color: var(--navy, #1e2a5e); display: flex; align-items: center; gap: 10px; }
+  .page-header p { color: #6b7280; font-size: .88rem; margin-top: 4px; }
+
+  /* ── Stats Strip ── */
+  .anomaly-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 24px; }
+  .a-stat { background: #fff; border-radius: 12px; padding: 18px 20px; box-shadow: 0 2px 12px rgba(30,42,94,.10); display: flex; flex-direction: column; gap: 4px; border-left: 4px solid #d1d5db; }
+  .a-stat.total  { border-color: #6366f1; }
+  .a-stat.critical { border-color: #ef4444; }
+  .a-stat.high   { border-color: #f97316; }
+  .a-stat.warning{ border-color: #eab308; }
+  .a-stat.dismissed { border-color: #9ca3af; }
+  .a-stat-num  { font-size: 2rem; font-weight: 800; line-height: 1; }
+  .a-stat.total .a-stat-num   { color: #6366f1; }
+  .a-stat.critical .a-stat-num { color: #ef4444; }
+  .a-stat.high .a-stat-num   { color: #f97316; }
+  .a-stat.warning .a-stat-num { color: #eab308; }
+  .a-stat.dismissed .a-stat-num { color: #9ca3af; }
+  .a-stat-label { font-size: .73rem; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #6b7280; }
+
+  /* ── Filter Bar ── */
+  .filter-bar { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(30,42,94,.08); padding: 14px 18px; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .filter-bar select, .filter-bar input[type="date"] {
+    background: #f8faff; border: 1.5px solid #e2e8f0; border-radius: 8px;
+    padding: 7px 11px; font-size: .82rem; color: #1a1a2e; cursor: pointer; outline: none;
+    transition: border-color .2s;
+  }
+  .filter-bar select:focus, .filter-bar input[type="date"]:focus { border-color: #4f8ef7; }
+  .filter-date-label { font-size: .78rem; font-weight: 600; color: #6b7280; white-space: nowrap; }
+  .filter-bar .spacer { flex: 1; }
+  .btn-refresh { background: linear-gradient(135deg, #1e2a5e, #4f8ef7); color: #fff; border: none; border-radius: 9px; padding: 8px 18px; font-size: .83rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all .2s; }
+  .btn-refresh:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(79,142,247,.4); }
+
+  /* ── Table Card ── */
+  .table-card { background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(30,42,94,.10); overflow: hidden; }
+  .table-card-header { padding: 16px 22px; border-bottom: 1px solid #eef0f8; display: flex; align-items: center; justify-content: space-between; }
+  .table-card-title { font-size: 1rem; font-weight: 700; color: #1e2a5e; }
+  .count-label { font-size: .78rem; color: #6b7280; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+  thead th { background: #141d42; color: rgba(255,255,255,.85); font-weight: 700; padding: 11px 14px; text-align: left; white-space: nowrap; font-size: .75rem; letter-spacing: .4px; text-transform: uppercase; }
+  tbody td { padding: 13px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: #f8faff; cursor: pointer; }
+  .empty-state { text-align: center; padding: 52px 20px; color: #9ca3af; }
+  .empty-icon { font-size: 2.8rem; display: block; margin-bottom: 10px; }
+
+  /* ── Severity Badges ── */
+  .sev { display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: 20px; font-size: .70rem; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; }
+  .sev-critical { background: #fee2e2; color: #dc2626; }
+  .sev-high     { background: #ffedd5; color: #c2410c; }
+  .sev-warning  { background: #fef3c7; color: #b45309; }
+  .sev-info     { background: #dbeafe; color: #1d4ed8; }
+
+  /* ── Status Badges ── */
+  .status-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .3px; }
+  .sb-open            { background: #fee2e2; color: #dc2626; }
+  .sb-investigating   { background: #dbeafe; color: #1d4ed8; }
+  .sb-dismissed       { background: #f1f5f9; color: #64748b; }
+  .sb-confirmed_fraud { background: #fce7f3; color: #9d174d; }
+
+  /* ── Type Chip ── */
+  .type-chip { font-size: .72rem; background: #f0f4ff; color: #3730a3; padding: 3px 9px; border-radius: 20px; font-weight: 600; white-space: nowrap; }
+
+  /* ── Action Buttons ── */
+  .btn-sm { border: none; border-radius: 7px; padding: 5px 11px; font-size: .76rem; font-weight: 700; cursor: pointer; transition: all .15s; }
+  .btn-dismiss { background: rgba(107,114,128,.15); color: #6b7280; }
+  .btn-dismiss:hover { background: rgba(107,114,128,.25); }
+  .btn-flag { background: rgba(239,68,68,.1); color: #ef4444; border: 1px solid rgba(239,68,68,.25); }
+  .btn-flag:hover { background: rgba(239,68,68,.2); }
+  .btn-view { background: rgba(79,142,247,.12); color: #1d4ed8; }
+  .btn-view:hover { background: rgba(79,142,247,.22); }
+
+  /* ── AI Analysis Preview ── */
+  .ai-preview { font-size: .75rem; color: #7c3aed; font-style: italic; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .entity-cell { font-size: .76rem; color: #6b7280; }
+
+  /* ── Pulse animation for critical ── */
+  .pulse-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #ef4444; margin-right: 5px; animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.5)} }
+
+  /* ── Modal ── */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(14,20,40,.6); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal-backdrop.hidden { display: none; }
+  .modal-box { background: #fff; border-radius: 16px; width: 100%; max-width: 680px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,.28); animation: slideUp .22s ease; }
+  @keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:none;opacity:1} }
+  .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid #eef0f8; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: #fff; z-index: 1; }
+  .modal-title { font-size: 1.05rem; font-weight: 800; color: #1e2a5e; }
+  .modal-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #9ca3af; padding: 2px 8px; border-radius: 6px; transition: background .15s; line-height: 1; }
+  .modal-close:hover { background: #f1f5f9; color: #374151; }
+  .modal-body { padding: 22px 24px; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid #eef0f8; display: flex; justify-content: flex-end; gap: 10px; position: sticky; bottom: 0; background: #fff; }
+
+  /* ── Modal Detail Sections ── */
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+  .detail-item { background: #f8faff; border-radius: 9px; padding: 11px 13px; }
+  .detail-item-label { font-size: .70rem; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: #9ca3af; margin-bottom: 4px; }
+  .detail-item-value { font-size: .86rem; font-weight: 600; color: #1a1a2e; }
+  .ai-analysis-box { background: linear-gradient(135deg, #faf5ff, #ede9fe); border: 1.5px solid #c4b5fd; border-radius: 10px; padding: 14px 16px; font-size: .86rem; line-height: 1.65; color: #4c1d95; white-space: pre-wrap; word-break: break-word; }
+  .ai-analysis-label { font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: #7c3aed; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .raw-data-box { background: #f0f4ff; border-radius: 9px; padding: 12px 14px; font-family: 'Courier New', monospace; font-size: .78rem; color: #1e3a8a; line-height: 1.6; white-space: pre-wrap; word-break: break-all; overflow-x: auto; }
+  .section-title { font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: #9ca3af; margin: 18px 0 8px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9; }
+
+  /* ── Note Input ── */
+  .note-input { width: 100%; border: 1.5px solid #e2e8f0; border-radius: 9px; padding: 9px 12px; font-size: .84rem; resize: vertical; min-height: 72px; outline: none; font-family: inherit; transition: border-color .2s; margin-top: 12px; }
+  .note-input:focus { border-color: #4f8ef7; }
+  .btn-modal { border: none; border-radius: 9px; padding: 9px 20px; font-size: .84rem; font-weight: 700; cursor: pointer; transition: all .2s; }
+  .btn-close-modal { background: #f1f5f9; color: #374151; }
+  .btn-close-modal:hover { background: #e2e8f0; }
+  .btn-do-dismiss { background: rgba(107,114,128,.2); color: #374151; }
+  .btn-do-dismiss:hover { background: rgba(107,114,128,.3); }
+  .btn-do-flag { background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; }
+  .btn-do-flag:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(239,68,68,.4); }
+
+  /* ── Toast ── */
+  #aToast { position: fixed; bottom: 28px; right: 28px; background: #141d42; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: .86rem; font-weight: 600; box-shadow: 0 4px 20px rgba(0,0,0,.25); z-index: 9999; transform: translateY(80px); opacity: 0; transition: all .3s; }
+  #aToast.show { transform: none; opacity: 1; }
+  #aToast.success { background: linear-gradient(135deg, #059669, #10b981); }
+  #aToast.error { background: linear-gradient(135deg, #dc2626, #ef4444); }
+
+  @media (max-width: 768px) {
+    .anomaly-stats { grid-template-columns: repeat(3, 1fr); }
+    .detail-grid { grid-template-columns: 1fr; }
+    .filter-bar { flex-direction: column; align-items: flex-start; }
+  }
+  @media (max-width: 480px) {
+    .anomaly-stats { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+
+<div class="page-header">
+  <h2>🚨 AI Anomaly Detection</h2>
+  <p>Real-time attendance fraud and pattern analysis powered by Claude AI</p>
+</div>
+
+<!-- ── Stats Strip ── -->
+<div class="anomaly-stats">
+  <div class="a-stat total">
+    <span class="a-stat-num" id="statTotal">—</span>
+    <span class="a-stat-label">Open Alerts</span>
+  </div>
+  <div class="a-stat critical">
+    <span class="a-stat-num" id="statCritical">—</span>
+    <span class="a-stat-label">⚡ Critical</span>
+  </div>
+  <div class="a-stat high">
+    <span class="a-stat-num" id="statHigh">—</span>
+    <span class="a-stat-label">🔴 High</span>
+  </div>
+  <div class="a-stat warning">
+    <span class="a-stat-num" id="statWarning">—</span>
+    <span class="a-stat-label">⚠️ Warning</span>
+  </div>
+  <div class="a-stat dismissed">
+    <span class="a-stat-num" id="statDismissed">—</span>
+    <span class="a-stat-label">✓ Dismissed</span>
+  </div>
+</div>
+
+<!-- ── Filter Bar ── -->
+<div class="filter-bar">
+  <select id="fSeverity" onchange="applyFilters()">
+    <option value="">All Severities</option>
+    <option value="critical">⚡ Critical</option>
+    <option value="high">🔴 High</option>
+    <option value="warning">⚠️ Warning</option>
+    <option value="info">ℹ️ Info</option>
+  </select>
+  <select id="fType" onchange="applyFilters()">
+    <option value="">All Types</option>
+    <option value="speed_fraud">Speed Fraud</option>
+    <option value="sudden_drop">Sudden Drop</option>
+    <option value="mass_absent">Mass Absent</option>
+    <option value="ghost_attendance">Ghost Attendance</option>
+    <option value="buddy_punching">Buddy Punching</option>
+    <option value="off_hours">Off Hours</option>
+  </select>
+  <select id="fStatus" onchange="applyFilters()">
+    <option value="all">All Statuses</option>
+    <option value="open" selected>Open</option>
+    <option value="investigating">Investigating</option>
+    <option value="dismissed">Dismissed</option>
+    <option value="confirmed_fraud">Confirmed Fraud</option>
+  </select>
+  <span class="filter-date-label">From</span>
+  <input type="date" id="fDateFrom" onchange="applyFilters()">
+  <span class="filter-date-label">To</span>
+  <input type="date" id="fDateTo" onchange="applyFilters()">
+  <div class="spacer"></div>
+  <button class="btn-refresh" onclick="loadAll()">🔄 Refresh</button>
+</div>
+
+<!-- ── Table ── -->
+<div class="table-card">
+  <div class="table-card-header">
+    <span class="table-card-title">Anomaly Log</span>
+    <span class="count-label" id="countLabel"></span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Severity</th>
+          <th>Title</th>
+          <th>Type</th>
+          <th>AI Analysis Preview</th>
+          <th>Affected</th>
+          <th>Date Detected</th>
+          <th>Att. Date</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="anomalyBody">
+        <tr><td colspan="9" class="empty-state"><span class="empty-icon">⏳</span>Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Detail Modal ── -->
+<div class="modal-backdrop hidden" id="detailModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Anomaly Details</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="aToast"></div>
+
+<script>
+let allAnomalies = [];
+let currentId = null;
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', () => {
+  loadAll();
+});
+
+async function loadAll() {
+  await Promise.all([loadStats(), loadAnomalies()]);
+}
+
+/* ── Stats ── */
+async function loadStats() {
+  try {
+    const r = await fetch('/api/anomalies/stats');
+    if (!r.ok) return;
+    const d = await r.json();
+    document.getElementById('statTotal').textContent    = d.total ?? '—';
+    document.getElementById('statCritical').textContent = d.critical ?? '—';
+    document.getElementById('statHigh').textContent     = d.high ?? '—';
+    document.getElementById('statWarning').textContent  = d.warning ?? '—';
+    // dismissed count via separate query
+    const rd = await fetch('/api/anomalies?status=dismissed');
+    if (rd.ok) {
+      const dd = await rd.json();
+      document.getElementById('statDismissed').textContent = dd.length;
+    }
+  } catch(e) {}
+}
+
+/* ── Load Anomalies ── */
+async function loadAnomalies() {
+  const status = document.getElementById('fStatus').value || 'all';
+  const url = `/api/anomalies?status=${status}`;
+  const tbody = document.getElementById('anomalyBody');
+  tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><span class="empty-icon">⏳</span>Loading…</td></tr>';
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('Failed');
+    allAnomalies = await r.json();
+    applyFilters();
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><span class="empty-icon">⚠️</span>Failed to load anomalies.</td></tr>';
+  }
+}
+
+/* ── Client-side Filters ── */
+function applyFilters() {
+  const sev      = document.getElementById('fSeverity').value;
+  const type     = document.getElementById('fType').value;
+  const dateFrom = document.getElementById('fDateFrom').value;
+  const dateTo   = document.getElementById('fDateTo').value;
+
+  let list = allAnomalies.filter(a => {
+    if (sev  && a.severity     !== sev)  return false;
+    if (type && a.anomaly_type !== type) return false;
+    if (dateFrom && a.attendance_date && a.attendance_date < dateFrom) return false;
+    if (dateTo   && a.attendance_date && a.attendance_date > dateTo)   return false;
+    return true;
+  });
+
+  renderTable(list);
+}
+
+/* ── Render Table ── */
+const TYPE_LABEL = {
+  speed_fraud: 'Speed Fraud', sudden_drop: 'Sudden Drop',
+  mass_absent: 'Mass Absent', ghost_attendance: 'Ghost Attendance',
+  buddy_punching: 'Buddy Punching', off_hours: 'Off Hours',
+  consistent_pattern: 'Pattern', impossible_pattern: 'Impossible Pattern'
+};
+
+function sevBadge(s) {
+  const icons = { critical: '⚡', high: '🔴', warning: '⚠️', info: 'ℹ️' };
+  return `<span class="sev sev-${s}">${icons[s]||''}${s.charAt(0).toUpperCase()+s.slice(1)}</span>`;
+}
+function statusBadge(s) {
+  const labels = { open:'Open', investigating:'Investigating', dismissed:'Dismissed', confirmed_fraud:'Fraud Confirmed' };
+  return `<span class="status-badge sb-${s}">${labels[s]||s}</span>`;
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+}
+function fmtDateTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) + ' ' +
+         d.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function affectedCell(a) {
+  const parts = [];
+  if (a.affected_student_id)  parts.push(`Student #${a.affected_student_id}`);
+  if (a.affected_faculty_id)  parts.push(`Faculty #${a.affected_faculty_id}`);
+  if (a.affected_section_id)  parts.push(`Section #${a.affected_section_id}`);
+  if (a.affected_course_id)   parts.push(`Course #${a.affected_course_id}`);
+  return parts.join('<br>') || '—';
+}
+
+function renderTable(list) {
+  const tbody = document.getElementById('anomalyBody');
+  document.getElementById('countLabel').textContent = `${list.length} anomal${list.length!==1?'ies':'y'}`;
+
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><span class="empty-icon">✅</span>No anomalies found — all clear!</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = list.map(a => {
+    const pulse = a.severity === 'critical' ? '<span class="pulse-dot"></span>' : '';
+    const typeLabel = TYPE_LABEL[a.anomaly_type] || a.anomaly_type;
+    const aiPreview = a.ai_analysis ? esc(a.ai_analysis.substring(0, 80)) + (a.ai_analysis.length > 80 ? '…' : '') : '<span style="color:#d1d5db">No AI analysis</span>';
+    const isDone = a.status === 'dismissed' || a.status === 'confirmed_fraud';
+    return `
+      <tr onclick="openModal(${a.id})" title="Click for full details">
+        <td>${pulse}${sevBadge(a.severity)}</td>
+        <td>
+          <div style="font-weight:700;font-size:.85rem;color:#1e2a5e;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(a.title)}</div>
+          <div style="font-size:.74rem;color:#6b7280;margin-top:2px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(a.description)}</div>
+        </td>
+        <td><span class="type-chip">${esc(typeLabel)}</span></td>
+        <td><div class="ai-preview">${aiPreview}</div></td>
+        <td class="entity-cell">${affectedCell(a)}</td>
+        <td style="font-size:.78rem;color:#6b7280;white-space:nowrap">${fmtDateTime(a.date_detected)}</td>
+        <td style="font-size:.78rem;color:#6b7280;white-space:nowrap">${fmtDate(a.attendance_date)}</td>
+        <td>${statusBadge(a.status)}</td>
+        <td onclick="event.stopPropagation()" style="white-space:nowrap">
+          <button class="btn-sm btn-view" onclick="openModal(${a.id})">👁 View</button>
+          ${!isDone ? `
+          <button class="btn-sm btn-dismiss" onclick="quickDismiss(${a.id})" style="margin-left:4px">✓</button>
+          <button class="btn-sm btn-flag" onclick="quickFlag(${a.id})" style="margin-left:4px">⚠️</button>
+          ` : ''}
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+/* ── Modal ── */
+function openModal(id) {
+  const a = allAnomalies.find(x => x.id === id);
+  if (!a) return;
+  currentId = id;
+
+  document.getElementById('modalTitle').textContent = a.title;
+
+  const isDone = a.status === 'dismissed' || a.status === 'confirmed_fraud';
+  const typeLabel = TYPE_LABEL[a.anomaly_type] || a.anomaly_type;
+
+  document.getElementById('modalBody').innerHTML = `
+    <div class="detail-grid">
+      <div class="detail-item">
+        <div class="detail-item-label">Severity</div>
+        <div class="detail-item-value">${sevBadge(a.severity)}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-item-label">Status</div>
+        <div class="detail-item-value">${statusBadge(a.status)}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-item-label">Type</div>
+        <div class="detail-item-value"><span class="type-chip">${esc(typeLabel)}</span></div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-item-label">Detected At</div>
+        <div class="detail-item-value">${fmtDateTime(a.date_detected)}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-item-label">Attendance Date</div>
+        <div class="detail-item-value">${fmtDate(a.attendance_date)}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-item-label">Affected Entities</div>
+        <div class="detail-item-value" style="font-size:.82rem">${affectedCell(a)}</div>
+      </div>
+    </div>
+
+    <div class="section-title">Description</div>
+    <div style="background:#f8faff;border-radius:9px;padding:12px 14px;font-size:.86rem;line-height:1.6;color:#1a1a2e;margin-bottom:16px;">${esc(a.description)}</div>
+
+    ${a.ai_analysis ? `
+    <div class="section-title">🤖 AI Analysis</div>
+    <div class="ai-analysis-label">Claude AI Interpretation</div>
+    <div class="ai-analysis-box">${esc(a.ai_analysis)}</div>
+    ` : ''}
+
+    ${a.raw_data ? `
+    <div class="section-title">Raw Detection Data</div>
+    <div class="raw-data-box">${esc(JSON.stringify(a.raw_data, null, 2))}</div>
+    ` : ''}
+
+    ${a.admin_note ? `
+    <div class="section-title">Admin Note</div>
+    <div style="background:#fefce8;border:1px solid #fde68a;border-radius:9px;padding:12px 14px;font-size:.84rem;color:#78350f;">${esc(a.admin_note)}</div>
+    ` : ''}
+
+    ${!isDone ? `
+    <div class="section-title">Action</div>
+    <textarea class="note-input" id="adminNote" placeholder="Optional note before taking action…"></textarea>
+    ` : ''}
+  `;
+
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn-modal btn-close-modal" onclick="closeModal()">Close</button>
+    ${!isDone ? `
+    <button class="btn-modal btn-do-dismiss" onclick="doAction('dismiss')">✓ Dismiss</button>
+    <button class="btn-modal btn-do-flag" onclick="doAction('flag')">⚠️ Confirm Fraud</button>
+    ` : ''}
+  `;
+
+  document.getElementById('detailModal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('detailModal').classList.add('hidden');
+  currentId = null;
+}
+
+/* Close modal on backdrop click */
+document.getElementById('detailModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+/* ── Actions ── */
+async function doAction(type) {
+  if (!currentId) return;
+  const note = document.getElementById('adminNote')?.value || '';
+  const url  = type === 'dismiss'
+    ? `/api/anomalies/${currentId}/dismiss`
+    : `/api/anomalies/${currentId}/confirm`;
+
+  try {
+    const r = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note })
+    });
+    if (!r.ok) throw new Error('Failed');
+    showToast(type === 'dismiss' ? 'Anomaly dismissed.' : '⚠️ Marked as confirmed fraud.', 'success');
+    closeModal();
+    await loadAll();
+  } catch(e) {
+    showToast('Action failed. Please try again.', 'error');
+  }
+}
+
+async function quickDismiss(id) {
+  currentId = id;
+  await doAction('dismiss');
+}
+
+async function quickFlag(id) {
+  currentId = id;
+  await doAction('flag');
+}
+
+/* ── Toast ── */
+function showToast(msg, type='') {
+  const t = document.getElementById('aToast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  setTimeout(() => t.className = '', 3000);
+}
+
+/* ── Reload anomalies when status filter changes ── */
+document.getElementById('fStatus').addEventListener('change', () => {
+  loadAnomalies();
+});
+</script>
+{% endblock %}

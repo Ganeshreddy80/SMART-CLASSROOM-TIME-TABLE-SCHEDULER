@@ -53,6 +53,13 @@ def dismiss_anomaly(id):
     return jsonify({'message': 'Dismissed'})
 
 
+@anomalies_bp.route('/anomalies')
+@login_required
+@role_required('admin')
+def anomalies_page():
+    return render_template('anomalies.html')
+
+
 @anomalies_bp.route('/api/anomalies/<int:id>/confirm', methods=['PUT'])
 @login_required
 @role_required('admin')
