@@ -1,0 +1,254 @@
+Build these 3 AI features back to back without stopping.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FEATURE 1 — Complaint Auto-Categorizer
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+In templates/complaints.html, find the complaint submission form.
+When user finishes typing in the description textarea (on blur event),
+call this new API endpoint to auto-fill category and priority:
+
+Add to blueprints/complaints.py:
+
+@complaints_bp.route('/api/complaints/analyze', methods=['POST'])
+@login_required
+def analyze_complaint():
+    import requests, os
+    data = request.json or {}
+    text = data.get('text', '').strip()
+    if len(text) < 20:
+        return jsonify({'error': 'Too short'})
+    
+    prompt = f"""
+    Analyze this university complaint and respond ONLY with JSON.
+    Complaint: "{text}"
+    
+    Return exactly this JSON format, nothing else:
+    {{
+        "category": one of [infrastructure, faculty_issue, course_content, hostel, transport, academic, other],
+        "priority": one of [low, medium, high, urgent],
+        "summary": "one sentence summary under 15 words",
+        "reason": "one sentence explaining why this category and priority"
+    }}
+    """
+    
+    try:
+        response = requests.post(
+            'https://openrouter.ai/api/v1/chat/completions',
+            headers={{
+                'Authorization': f'Bearer {os.environ.get("OPENROUTER_API_KEY","")}',
+                'Content-Type': 'application/json'
+            }},
+            json={{
+                'model': 'anthropic/claude-3-haiku',
+                'messages': [{{'role': 'user', 'content': prompt}}],
+                'max_tokens': 150
+            }},
+            timeout=8
+        )
+        result = response.json()['choices'][0]['message']['content']
+        import json, re
+        json_match = re.search(r'\{.*\}', result, re.DOTALL)
+        if json_match:
+            parsed = json.loads(json_match.group())
+            return jsonify(parsed)
+    except Exception as e:
+        pass
+    
+    return jsonify({'error': 'Analysis failed'})
+
+In templates/complaints.html add this JS on the description field blur:
+document.getElementById('complaintDescription').addEventListener('blur', async function() {
+    const text = this.value.trim();
+    if (text.length < 20) return;
+    
+    const aiHint = document.getElementById('aiCategoryHint');
+    aiHint.innerHTML = '🤖 Analyzing...';
+    aiHint.style.display = 'block';
+    
+    try {
+        const res = await fetch('/api/complaints/analyze', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({text})
+        });
+        const data = await res.json();
+        if (data.category) {
+            document.getElementById('complaintCategory').value = data.category;
+            document.getElementById('complaintPriority').value = data.priority;
+            aiHint.innerHTML = `✨ AI suggested: <b>${data.category}</b> · <b>${data.priority}</b> priority — ${data.reason}`;
+            aiHint.style.color = '#a78bfa';
+        }
+    } catch(e) {
+        aiHint.style.display = 'none';
+    }
+});
+
+Add this div below the description textarea in the form:
+<div id="aiCategoryHint" style="
+    display:none; margin-top:8px; padding:10px 14px;
+    background:rgba(167,139,250,0.1); border-radius:8px;
+    border-left:3px solid #a78bfa; color:#a78bfa;
+    font-size:0.85rem;
+"></div>
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FEATURE 2 — Attendance Risk Predictor
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Add this route to blueprints/student.py:
+
+@student_bp.route('/api/student/attendance-risk')
+@login_required
+@role_required('student')
+def attendance_risk():
+    import requests, os
+    student_id = session.get('user_id')
+    
+    records = Attendance.query.filter_by(
+        student_id=student_id
+    ).order_by(Attendance.date.desc()).all()
+    
+    if not records:
+        return jsonify([])
+    
+    from collections import defaultdict
+    course_stats = defaultdict(lambda: {'present': 0, 'total': 0, 'course_name': ''})
+    
+    for r in records:
+        key = r.course_id
+        course_stats[key]['total'] += 1
+        if r.status == 'present':
+            course_stats[key]['present'] += 1
+        if r.course:
+            course_stats[key]['course_name'] = r.course.name
+    
+    risks = []
+    for course_id, stats in course_stats.items():
+        if stats['total'] < 3:
+            continue
+        pct = (stats['present'] / stats['total']) * 100
+        
+        if pct < 75:
+            classes_needed = 0
+            p, t = stats['present'], stats['total']
+            while (p / t * 100) < 75 and t < 200:
+                p += 1
+                t += 1
+                classes_needed += 1
+            
+            risk_level = 'critical' if pct < 50 else 'high' if pct < 65 else 'warning'
+            
+            risks.append({
+                'course_id': course_id,
+                'course_name': stats['course_name'],
+                'current_pct': round(pct, 1),
+                'present': stats['present'],
+                'total': stats['total'],
+                'classes_needed': classes_needed,
+                'risk_level': risk_level,
+                'message': f"Attend {classes_needed} more consecutive classes to reach 75%"
+            })
+    
+    risks.sort(key=lambda x: x['current_pct'])
+    return jsonify(risks)
+
+In templates/student_dashboard.html, find the attendance section.
+Add this AI risk widget right above the attendance table:
+
+<div id="riskWidget" style="margin-bottom:20px;"></div>
+
+<script>
+async function loadAttendanceRisk() {
+    try {
+        const res = await fetch('/api/student/attendance-risk');
+        if (!res.ok) return;
+        const risks = await res.json();
+        if (!risks.length) return;
+        
+        const colors = {
+            critical: {bg:'rgba(239,68,68,0.1)', border:'#ef4444', text:'#ef4444', icon:'🚨'},
+            high: {bg:'rgba(249,115,22,0.1)', border:'#f97316', text:'#f97316', icon:'⚠️'},
+            warning: {bg:'rgba(234,179,8,0.1)', border:'#eab308', text:'#eab308', icon:'📉'}
+        };
+        
+        let html = `<div style="
+            background:rgba(255,255,255,0.03); border-radius:16px;
+            padding:20px; border:1px solid rgba(255,255,255,0.08);
+        ">
+        <div style="color:#fff; font-weight:700; margin-bottom:14px; font-size:1rem;">
+            🤖 AI Attendance Risk Analysis
+        </div>`;
+        
+        risks.forEach(r => {
+            const c = colors[r.risk_level];
+            html += `
+            <div style="
+                background:${c.bg}; border-left:4px solid ${c.border};
+                border-radius:10px; padding:14px 16px; margin-bottom:10px;
+            ">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <span style="font-size:1.1rem;">${c.icon}</span>
+                        <span style="color:#fff; font-weight:600; margin-left:8px;">${r.course_name}</span>
+                        <span style="
+                            background:${c.border}; color:#fff;
+                            border-radius:20px; padding:2px 10px;
+                            font-size:0.75rem; margin-left:8px;
+                        ">${r.current_pct}%</span>
+                    </div>
+                    <div style="color:${c.text}; font-size:0.85rem; font-weight:600;">
+                        ${r.risk_level.toUpperCase()}
+                    </div>
+                </div>
+                <div style="color:#9ca3af; font-size:0.82rem; margin-top:8px;">
+                    ${r.message} · ${r.present}/${r.total} classes attended
+                </div>
+            </div>`;
+        });
+        
+        html += '</div>';
+        document.getElementById('riskWidget').innerHTML = html;
+    } catch(e) {}
+}
+document.addEventListener('DOMContentLoaded', loadAttendanceRisk);
+</script>
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FEATURE 3 — Auto-refresh on Anomalies Page
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+In templates/anomalies.html, find the DOMContentLoaded script block.
+Add auto-refresh every 30 seconds:
+
+setInterval(() => {
+    loadAnomalies();
+    loadStats();
+}, 30000);
+
+Also add a live countdown timer in the filter bar:
+<span id="refreshTimer" style="color:#6b7280; font-size:0.8rem; margin-left:10px;">
+    Auto-refresh in <span id="countdown">30</span>s
+</span>
+
+<script>
+let countdown = 30;
+setInterval(() => {
+    countdown--;
+    if (countdown <= 0) countdown = 30;
+    const el = document.getElementById('countdown');
+    if (el) el.textContent = countdown;
+}, 1000);
+</script>
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AFTER ALL 3 — Run final checks
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+python3 -m py_compile blueprints/complaints.py blueprints/student.py templates/anomalies.html 2>/dev/null || true
+python3 -m py_compile blueprints/complaints.py blueprints/student.py && echo ALL OK
+
+Show me results of all 3 features and confirm ALL OK.

@@ -152,3 +152,51 @@ def complaint_stats():
         'resolved': resolved,
         'urgent': urgent,
     })
+
+
+@complaints_bp.route('/api/complaints/analyze', methods=['POST'])
+@login_required
+def analyze_complaint():
+    import requests, os
+    data = request.json or {}
+    text = data.get('text', '').strip()
+    if len(text) < 20:
+        return jsonify({'error': 'Too short'})
+
+    prompt = f"""
+    Analyze this university complaint and respond ONLY with JSON.
+    Complaint: "{text}"
+
+    Return exactly this JSON format, nothing else:
+    {{
+        "category": one of [infrastructure, faculty_issue, course_content, hostel, transport, academic, other],
+        "priority": one of [low, medium, high, urgent],
+        "summary": "one sentence summary under 15 words",
+        "reason": "one sentence explaining why this category and priority"
+    }}
+    """
+
+    try:
+        response = requests.post(
+            'https://openrouter.ai/api/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {os.environ.get("OPENROUTER_API_KEY","")}',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'model': 'anthropic/claude-3-haiku',
+                'messages': [{'role': 'user', 'content': prompt}],
+                'max_tokens': 150
+            },
+            timeout=8
+        )
+        result = response.json()['choices'][0]['message']['content']
+        import json, re
+        json_match = re.search(r'\{.*\}', result, re.DOTALL)
+        if json_match:
+            parsed = json.loads(json_match.group())
+            return jsonify(parsed)
+    except Exception:
+        pass
+
+    return jsonify({'error': 'Analysis failed'})

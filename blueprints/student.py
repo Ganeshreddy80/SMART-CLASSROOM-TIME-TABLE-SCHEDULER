@@ -212,3 +212,59 @@ def student_faculty_absence():
             res[f_id] = {}
         res[f_id][d_str] = json.loads(a.slots) if a.slots else []
     return jsonify(res)
+
+
+@student_bp.route('/api/student/attendance-risk')
+@login_required
+@role_required('student')
+def attendance_risk():
+    import requests as req_lib, os
+    student_id = session.get('user_id')
+
+    records = Attendance.query.filter_by(
+        student_id=student_id
+    ).order_by(Attendance.date.desc()).all()
+
+    if not records:
+        return jsonify([])
+
+    from collections import defaultdict
+    course_stats = defaultdict(lambda: {'present': 0, 'total': 0, 'course_name': ''})
+
+    for r in records:
+        key = r.course_id
+        course_stats[key]['total'] += 1
+        if r.status == 'present':
+            course_stats[key]['present'] += 1
+        if r.course:
+            course_stats[key]['course_name'] = r.course.name
+
+    risks = []
+    for course_id, stats in course_stats.items():
+        if stats['total'] < 3:
+            continue
+        pct = (stats['present'] / stats['total']) * 100
+
+        if pct < 75:
+            classes_needed = 0
+            p, t = stats['present'], stats['total']
+            while (p / t * 100) < 75 and t < 200:
+                p += 1
+                t += 1
+                classes_needed += 1
+
+            risk_level = 'critical' if pct < 50 else 'high' if pct < 65 else 'warning'
+
+            risks.append({
+                'course_id': course_id,
+                'course_name': stats['course_name'],
+                'current_pct': round(pct, 1),
+                'present': stats['present'],
+                'total': stats['total'],
+                'classes_needed': classes_needed,
+                'risk_level': risk_level,
+                'message': f"Attend {classes_needed} more consecutive classes to reach 75%"
+            })
+
+    risks.sort(key=lambda x: x['current_pct'])
+    return jsonify(risks)
