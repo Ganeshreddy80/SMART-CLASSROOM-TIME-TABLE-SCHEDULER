@@ -22,3 +22,4 @@ venv/
 # Credential files (never commit plaintext passwords)
 student_credentials.txt
 *_credentials.txt
+.replit
