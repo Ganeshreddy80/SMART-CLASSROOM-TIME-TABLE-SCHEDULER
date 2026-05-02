@@ -48,59 +48,72 @@ def already_flagged(anomaly_type, **kwargs):
 
 
 def detect_speed_fraud(section_id, course_id, attendance_date):
-    """Detect if too many students were marked present too quickly."""
+    """Detect if an unusually high proportion of students were marked present in one batch."""
     records = Attendance.query.filter_by(
         section_id=section_id,
         course_id=course_id,
         date=attendance_date,
         status='present'
-    ).order_by(Attendance.marked_at).all()
+    ).order_by(Attendance.id).all()
 
-    if len(records) < 5:
+    total = Attendance.query.filter_by(
+        section_id=section_id,
+        course_id=course_id,
+        date=attendance_date
+    ).count()
+
+    if len(records) < 10 or total == 0:
         return
 
-    for i in range(len(records) - 9):
-        if not records[i].marked_at or not records[i + 9].marked_at:
-            continue
-        time_diff = (records[i + 9].marked_at - records[i].marked_at).total_seconds()
-        if time_diff < 30:
-            if already_flagged('speed_fraud',
-                               affected_section_id=section_id,
-                               attendance_date=attendance_date):
-                return
+    # Check if IDs form a suspiciously tight consecutive cluster
+    # (suggests bulk/automated entry) — top-10 consecutive span
+    ids = [r.id for r in records]
+    min_span = float('inf')
+    for i in range(len(ids) - 9):
+        span = ids[i + 9] - ids[i]
+        if span < min_span:
+            min_span = span
 
-            ai_prompt = f"""
+    # If 10 records span fewer than 15 IDs, they were bulk-inserted
+    if min_span < 15:
+        if already_flagged('speed_fraud',
+                           affected_section_id=section_id,
+                           attendance_date=attendance_date):
+            return
+
+        pct = round(len(records) / total * 100)
+        ai_prompt = f"""
 Attendance anomaly detected in a university system.
-Type: Speed Fraud
-Details: {len(records)} students marked present,
-10 of them within {time_diff:.1f} seconds.
+Type: Speed Fraud (Bulk Entry)
+Details: {len(records)} students marked present ({pct}% of section),
+10 records have consecutive database IDs (span={min_span}), indicating bulk/automated entry.
 Section ID: {section_id}, Course ID: {course_id}
 Date: {attendance_date}
 
 Write a 2-sentence admin alert explaining why this is suspicious
 and what action to take. Be direct and professional.
 """
-            ai_text = call_claude(ai_prompt)
+        ai_text = call_claude(ai_prompt)
 
-            anomaly = AttendanceAnomaly(
-                anomaly_type='speed_fraud',
-                severity='critical',
-                title=f'⚡ Speed Fraud Detected — Section {section_id}',
-                description=f'{len(records)} students marked present, 10 within {time_diff:.0f} seconds',
-                ai_analysis=ai_text,
-                affected_section_id=section_id,
-                affected_course_id=course_id,
-                attendance_date=attendance_date,
-                raw_data={
-                    'total_present': len(records),
-                    'suspicious_window_seconds': time_diff,
-                    'section_id': section_id,
-                    'course_id': course_id
-                }
-            )
-            db.session.add(anomaly)
-            db.session.commit()
-            return
+        anomaly = AttendanceAnomaly(
+            anomaly_type='speed_fraud',
+            severity='critical',
+            title=f'⚡ Speed Fraud Detected — Section {section_id}',
+            description=f'{len(records)} students marked present, 10 with consecutive IDs (span={min_span})',
+            ai_analysis=ai_text,
+            affected_section_id=section_id,
+            affected_course_id=course_id,
+            attendance_date=attendance_date,
+            raw_data={
+                'total_present': len(records),
+                'consecutive_id_span': min_span,
+                'section_id': section_id,
+                'course_id': course_id
+            }
+        )
+        db.session.add(anomaly)
+        db.session.commit()
+        return
 
 
 def detect_sudden_drop(student_id, course_id):

@@ -289,8 +289,16 @@ def performance_insights():
     today = date.today()
     week_ago = today - timedelta(days=7)
 
+    entries = TimetableEntry.query.filter_by(faculty_id=faculty_id).all()
+    course_ids = list({e.course_id for e in entries})
+    section_ids = list({e.section_id for e in entries})
+
+    if not course_ids:
+        return jsonify({'insight': 'No attendance data found for this week.', 'stats': {}})
+
     records = Attendance.query.filter(
-        Attendance.faculty_id == faculty_id,
+        Attendance.course_id.in_(course_ids),
+        Attendance.section_id.in_(section_ids),
         Attendance.date >= week_ago
     ).all()
 
