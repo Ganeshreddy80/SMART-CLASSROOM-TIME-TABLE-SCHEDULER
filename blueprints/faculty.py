@@ -251,6 +251,37 @@ def faculty_attendance_api():
     return jsonify({'grouped': grouped, 'summary': summary})
 
 
+@faculty_bp.route('/api/faculty-absences')
+@login_required
+def faculty_absences():
+    from models import Timetable, Attendance, Faculty
+    from sqlalchemy import func
+    import datetime
+
+    today = datetime.date.today()
+    thirty_days_ago = today - datetime.timedelta(days=30)
+
+    results = db.session.execute(db.text("""
+        SELECT 
+            t.faculty_id,
+            t.day_of_week,
+            COUNT(t.id) as slots
+        FROM timetable t
+        WHERE t.faculty_id IS NOT NULL
+        GROUP BY t.faculty_id, t.day_of_week
+    """)).fetchall()
+
+    data = []
+    for row in results:
+        data.append({
+            'faculty_id': row[0],
+            'day': row[1],
+            'slots': row[2]
+        })
+
+    return jsonify(data)
+
+
 @faculty_bp.route('/faculty/attendance-management')
 @login_required
 @role_required('faculty', 'admin')
