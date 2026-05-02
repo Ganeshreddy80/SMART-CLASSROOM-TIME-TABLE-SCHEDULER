@@ -344,3 +344,65 @@ class FacultyAbsence(db.Model):
             'slots': json.loads(self.slots) if self.slots else [],
             'reason': self.reason
         }
+
+
+class Complaint(db.Model):
+    __tablename__ = 'complaint'
+
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(db.String(20), unique=True, nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(50), nullable=False)
+
+    priority = db.Column(db.String(20), default='medium')
+
+    submitted_by_role = db.Column(db.String(20), nullable=False)
+    submitted_by_id = db.Column(db.Integer, nullable=False)
+    submitted_by_name = db.Column(db.String(100), nullable=False)
+    submitted_by_email = db.Column(db.String(150), nullable=False)
+    department_id = db.Column(db.Integer, db.ForeignKey('department.id'), nullable=True)
+    department_name = db.Column(db.String(100), nullable=True)
+
+    assigned_to = db.Column(db.String(100), nullable=True)
+    assigned_to_role = db.Column(db.String(50), nullable=True)
+
+    status = db.Column(db.String(20), default='open')
+
+    is_anonymous = db.Column(db.Boolean, default=False)
+    is_urgent = db.Column(db.Boolean, default=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    resolved_at = db.Column(db.DateTime, nullable=True)
+
+    resolution_note = db.Column(db.Text, nullable=True)
+    admin_remarks = db.Column(db.Text, nullable=True)
+
+    def generate_ticket_id(self):
+        year = datetime.utcnow().year
+        self.ticket_id = f"CMP-{year}-{self.id:04d}"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'ticket_id': self.ticket_id,
+            'title': self.title,
+            'description': self.description,
+            'category': self.category,
+            'priority': self.priority,
+            'submitted_by_role': self.submitted_by_role,
+            'submitted_by_name': 'Anonymous' if self.is_anonymous else self.submitted_by_name,
+            'submitted_by_email': '' if self.is_anonymous else self.submitted_by_email,
+            'department_name': self.department_name,
+            'assigned_to': self.assigned_to,
+            'assigned_to_role': self.assigned_to_role,
+            'status': self.status,
+            'is_anonymous': self.is_anonymous,
+            'is_urgent': self.is_urgent,
+            'created_at': self.created_at.isoformat() if self.created_at else '',
+            'updated_at': self.updated_at.isoformat() if self.updated_at else '',
+            'resolved_at': self.resolved_at.isoformat() if self.resolved_at else None,
+            'resolution_note': self.resolution_note,
+            'admin_remarks': self.admin_remarks,
+        }

@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>UniSchedule — Complaint Management</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --navy:#1e2a5e;--navy-deep:#141d42;--gold:#f5c518;--gold-dark:#c9a200;
+      --surface:#f7f8fc;--surface2:#eef0f8;--text:#1a1a2e;--muted:#6b7280;
+      --accent:#4f8ef7;--success:#10b981;--danger:#ef4444;--warning:#f59e0b;
+      --purple:#7c3aed;--radius:12px;--shadow:0 2px 12px rgba(30,42,94,.10);
+    }
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--surface);color:var(--text);min-height:100vh}
+
+    /* ── TOP BAR ── */
+    .topbar{background:var(--navy-deep);color:#fff;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(0,0,0,.2)}
+    .topbar-left{display:flex;align-items:center;gap:14px}
+    .back-btn{background:rgba(255,255,255,.1);border:none;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:background .2s}
+    .back-btn:hover{background:rgba(255,255,255,.2)}
+    .page-title{font-size:1.2rem;font-weight:700;display:flex;align-items:center;gap:8px}
+    .topbar-right{display:flex;align-items:center;gap:10px}
+    .role-badge{background:rgba(245,197,24,.15);color:var(--gold);border:1px solid rgba(245,197,24,.3);padding:4px 12px;border-radius:20px;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+
+    /* ── LAYOUT ── */
+    .page-wrap{max-width:1200px;margin:0 auto;padding:28px 24px}
+
+    /* ── STATS STRIP (admin only) ── */
+    .stats-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px}
+    .stat-card{background:#fff;border-radius:var(--radius);padding:16px 20px;box-shadow:var(--shadow);border-left:4px solid var(--accent);display:flex;flex-direction:column;gap:4px}
+    .stat-card.open{border-color:var(--danger)}
+    .stat-card.inprog{border-color:var(--warning)}
+    .stat-card.resolved{border-color:var(--success)}
+    .stat-card.urgent{border-color:#dc2626}
+    .stat-num{font-size:1.7rem;font-weight:800;line-height:1}
+    .stat-label{font-size:.74rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+
+    /* ── ACTION BAR ── */
+    .action-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px}
+    .filter-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .filter-select{background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 12px;font-size:.83rem;color:var(--text);cursor:pointer;outline:none}
+    .filter-select:focus{border-color:var(--accent)}
+    .search-input{background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 14px;font-size:.83rem;width:220px;outline:none}
+    .search-input:focus{border-color:var(--accent)}
+    .btn{border:none;border-radius:9px;padding:9px 20px;font-size:.85rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .2s}
+    .btn-primary{background:linear-gradient(135deg,var(--navy),var(--accent));color:#fff;box-shadow:0 2px 8px rgba(79,142,247,.3)}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(79,142,247,.4)}
+    .btn-secondary{background:#fff;color:var(--navy);border:1.5px solid #d1d9ef}
+    .btn-secondary:hover{background:var(--surface2)}
+    .btn-success{background:linear-gradient(135deg,#059669,var(--success));color:#fff}
+    .btn-success:hover{transform:translateY(-1px)}
+    .btn-sm{padding:5px 12px;font-size:.78rem}
+
+    /* ── TABLE CARD ── */
+    .table-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+    .table-card-header{padding:16px 22px;border-bottom:1px solid #eef0f8;display:flex;align-items:center;justify-content:space-between}
+    .table-card-title{font-size:1rem;font-weight:700;color:var(--navy)}
+    .table-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:.84rem}
+    th{background:var(--navy-deep);color:rgba(255,255,255,.85);font-weight:600;padding:11px 14px;text-align:left;white-space:nowrap;font-size:.78rem;letter-spacing:.3px;text-transform:uppercase}
+    td{padding:12px 14px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:#f8faff}
+    .ticket-id{font-family:'Courier New',monospace;font-weight:800;color:var(--navy);font-size:.82rem}
+    .comp-title{font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .comp-desc-preview{font-size:.75rem;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .empty-row td{text-align:center;padding:48px;color:var(--muted)}
+    .empty-icon{font-size:2.5rem;display:block;margin-bottom:8px}
+
+    /* ── BADGES ── */
+    .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.70rem;font-weight:800;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+    /* priority */
+    .badge-urgent{background:#fee2e2;color:#dc2626}
+    .badge-high{background:#ffedd5;color:#c2410c}
+    .badge-medium{background:#fef3c7;color:#b45309}
+    .badge-low{background:#dcfce7;color:#15803d}
+    /* status */
+    .badge-open{background:#fee2e2;color:#dc2626}
+    .badge-under_review{background:#dbeafe;color:#1d4ed8}
+    .badge-in_progress{background:#fef3c7;color:#b45309}
+    .badge-resolved{background:#dcfce7;color:#15803d}
+    .badge-closed{background:#f1f5f9;color:#64748b}
+    .badge-rejected{background:#fce7f3;color:#9d174d}
+    /* urgent pulse */
+    .urgent-dot{width:7px;height:7px;border-radius:50%;background:var(--danger);display:inline-block;margin-right:4px;animation:pulse 1.4s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
+
+    /* ── MODAL BACKDROP ── */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(14,20,40,.55);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+    .modal-backdrop.hidden{display:none}
+    .modal{background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:slideUp .22s ease}
+    .modal.wide{max-width:720px}
+    @keyframes slideUp{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+    .modal-header{padding:20px 24px 16px;border-bottom:1px solid #eef0f8;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1}
+    .modal-title{font-size:1.05rem;font-weight:800;color:var(--navy);display:flex;align-items:center;gap:8px}
+    .modal-close{background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--muted);line-height:1;padding:2px 6px;border-radius:6px;transition:background .15s}
+    .modal-close:hover{background:#f1f5f9}
+    .modal-body{padding:20px 24px}
+    .modal-footer{padding:16px 24px;border-top:1px solid #eef0f8;display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;background:#fff}
+
+    /* ── FORM ELEMENTS ── */
+    .form-group{margin-bottom:16px}
+    .form-label{display:block;font-size:.8rem;font-weight:700;color:var(--navy);margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px}
+    .form-label span{color:var(--danger)}
+    .form-control{width:100%;border:1.5px solid #e2e8f0;border-radius:9px;padding:10px 13px;font-size:.88rem;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s;background:#fff}
+    .form-control:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,142,247,.12)}
+    .form-control.error{border-color:var(--danger)}
+    textarea.form-control{resize:vertical;min-height:100px}
+    .form-hint{font-size:.74rem;color:var(--muted);margin-top:4px}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .checkbox-row{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:#f8faff;border-radius:9px;border:1.5px solid #e2e8f0;cursor:pointer}
+    .checkbox-row input{width:16px;height:16px;margin-top:2px;cursor:pointer;accent-color:var(--navy)}
+    .checkbox-label{font-size:.84rem;font-weight:600;color:var(--text);cursor:pointer}
+    .checkbox-hint{font-size:.74rem;color:var(--muted);margin-top:2px}
+    .urgent-warning{background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:.8rem;color:#dc2626;font-weight:600;margin-top:8px;display:none}
+    .urgent-warning.show{display:block}
+
+    /* ── DETAIL MODAL ── */
+    .detail-section{margin-bottom:20px}
+    .detail-section-title{font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #f1f5f9}
+    .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .detail-item{background:#f8faff;border-radius:8px;padding:10px 13px}
+    .detail-item-label{font-size:.71rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px}
+    .detail-item-value{font-size:.86rem;font-weight:600;color:var(--text)}
+    .detail-desc{background:#f8faff;border-radius:8px;padding:12px 14px;font-size:.86rem;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+    .resolution-box{background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:9px;padding:12px 14px;font-size:.85rem;color:#166534;line-height:1.5;white-space:pre-wrap}
+    .remarks-box{background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:9px;padding:12px 14px;font-size:.85rem;color:#1e40af;line-height:1.5;white-space:pre-wrap}
+
+    /* ── TOAST ── */
+    #toast{position:fixed;bottom:28px;right:28px;background:var(--navy-deep);color:#fff;padding:12px 20px;border-radius:10px;font-size:.86rem;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.25);z-index:9999;transform:translateY(80px);opacity:0;transition:all .3s;display:flex;align-items:center;gap:8px}
+    #toast.show{transform:none;opacity:1}
+    #toast.success{background:linear-gradient(135deg,#059669,#10b981)}
+    #toast.error{background:linear-gradient(135deg,#dc2626,#ef4444)}
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:768px){
+      .stats-strip{grid-template-columns:repeat(3,1fr)}
+      .form-row{grid-template-columns:1fr}
+      .detail-grid{grid-template-columns:1fr}
+      .filter-row{flex-direction:column;align-items:flex-start}
+      .search-input{width:100%}
+    }
+    @media(max-width:480px){
+      .stats-strip{grid-template-columns:1fr 1fr}
+      .page-wrap{padding:16px}
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <a href="javascript:history.back()" class="back-btn">← Back</a>
+    <div class="page-title">📋 Complaint Management</div>
+  </div>
+  <div class="topbar-right">
+    <span class="role-badge" id="roleLabel">Loading…</span>
+  </div>
+</div>
+
+<div class="page-wrap">
+
+  <!-- STATS STRIP (admin only) -->
+  <div class="stats-strip" id="statsStrip" style="display:none">
+    <div class="stat-card">
+      <span class="stat-num" id="statTotal">—</span>
+      <span class="stat-label">Total</span>
+    </div>
+    <div class="stat-card open">
+      <span class="stat-num" id="statOpen">—</span>
+      <span class="stat-label">Open</span>
+    </div>
+    <div class="stat-card inprog">
+      <span class="stat-num" id="statInProg">—</span>
+      <span class="stat-label">In Progress</span>
+    </div>
+    <div class="stat-card resolved">
+      <span class="stat-num" id="statResolved">—</span>
+      <span class="stat-label">Resolved</span>
+    </div>
+    <div class="stat-card urgent">
+      <span class="stat-num" id="statUrgent">—</span>
+      <span class="stat-label">⚡ Urgent</span>
+    </div>
+  </div>
+
+  <!-- ACTION BAR -->
+  <div class="action-bar">
+    <div class="filter-row">
+      <select class="filter-select" id="filterStatus" onchange="applyFilters()">
+        <option value="">All Statuses</option>
+        <option value="open">Open</option>
+        <option value="under_review">Under Review</option>
+        <option value="in_progress">In Progress</option>
+        <option value="resolved">Resolved</option>
+        <option value="closed">Closed</option>
+        <option value="rejected">Rejected</option>
+      </select>
+      <select class="filter-select" id="filterCategory" onchange="applyFilters()">
+        <option value="">All Categories</option>
+        <option value="infrastructure">🏗️ Infrastructure</option>
+        <option value="faculty_issue">👨‍🏫 Faculty Issue</option>
+        <option value="course_content">📚 Course Content</option>
+        <option value="hostel">🏠 Hostel</option>
+        <option value="transport">🚌 Transport</option>
+        <option value="academic">🎓 Academic</option>
+        <option value="other">Other</option>
+      </select>
+      <select class="filter-select" id="filterPriority" onchange="applyFilters()">
+        <option value="">All Priorities</option>
+        <option value="urgent">⚡ Urgent</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+      <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search ticket ID or title…" oninput="applyFilters()">
+    </div>
+    <button class="btn btn-primary" onclick="openSubmitModal()">➕ Submit New Complaint</button>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <span class="table-card-title" id="tableTitle">My Complaints</span>
+      <span style="font-size:.78rem;color:var(--muted)" id="countLabel"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="complaintsTable">
+        <thead>
+          <tr>
+            <th>Ticket ID</th>
+            <th>Title</th>
+            <th>Category</th>
+            <th>Priority</th>
+            <th>Assigned To</th>
+            <th>Status</th>
+            <th>Submitted</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr class="empty-row"><td colspan="8"><span class="empty-icon">⏳</span>Loading complaints…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SUBMIT MODAL
+══════════════════════════════════════════════ -->
+<div class="modal-backdrop hidden" id="submitModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">➕ Submit New Complaint</span>
+      <button class="modal-close" onclick="closeSubmitModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Title <span>*</span></label>
+        <input type="text" class="form-control" id="compTitle" maxlength="200" placeholder="Brief summary of the issue">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Category <span>*</span></label>
+          <select class="form-control" id="compCategory">
+            <option value="">— Select Category —</option>
+            <option value="infrastructure">🏗️ Infrastructure</option>
+            <option value="faculty_issue">👨‍🏫 Faculty Issue</option>
+            <option value="course_content">📚 Course Content</option>
+            <option value="hostel">🏠 Hostel</option>
+            <option value="transport">🚌 Transport</option>
+            <option value="academic">🎓 Academic</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Priority <span>*</span></label>
+          <select class="form-control" id="compPriority" onchange="handlePriorityChange()">
+            <option value="low">🟢 Low</option>
+            <option value="medium" selected>🟡 Medium</option>
+            <option value="high">🟠 High</option>
+            <option value="urgent">🔴 Urgent</option>
+          </select>
+          <div class="urgent-warning" id="urgentWarning">⚠️ Urgent complaints are escalated immediately and should only be used for critical issues requiring same-day resolution.</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description <span>*</span></label>
+        <textarea class="form-control" id="compDesc" rows="5" maxlength="2000" placeholder="Describe the issue in detail (minimum 20 characters)…"></textarea>
+        <div class="form-hint">Characters: <span id="descCount">0</span> / 2000</div>
+      </div>
+      <div class="form-group">
+        <label class="checkbox-row" for="compAnonymous">
+          <input type="checkbox" id="compAnonymous">
+          <div>
+            <div class="checkbox-label">Submit Anonymously</div>
+            <div class="checkbox-hint">Your name and email will be hidden from the complaint record</div>
+          </div>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeSubmitModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitComplaint()" id="submitBtn">📤 Submit Complaint</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     DETAIL / ADMIN UPDATE MODAL
+══════════════════════════════════════════════ -->
+<div class="modal-backdrop hidden" id="detailModal">
+  <div class="modal wide">
+    <div class="modal-header">
+      <span class="modal-title" id="detailModalTitle">📋 Complaint Details</span>
+      <button class="modal-close" onclick="closeDetailModal()">✕</button>
+    </div>
+    <div class="modal-body" id="detailModalBody">
+    </div>
+    <div class="modal-footer" id="detailModalFooter">
+      <button class="btn btn-secondary" onclick="closeDetailModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+  /* ─── State ─── */
+  let ROLE = '';
+  let allComplaints = [];
+  let currentComplaint = null;
+
+  /* ─── Init ─── */
+  document.addEventListener('DOMContentLoaded', async () => {
+    await detectRole();
+    await loadComplaints();
+    if (ROLE === 'admin') await loadStats();
+
+    document.getElementById('compDesc').addEventListener('input', () => {
+      document.getElementById('descCount').textContent = document.getElementById('compDesc').value.length;
+    });
+  });
+
+  async function detectRole() {
+    try {
+      const r = await fetch('/student/api/profile');
+      if (r.ok) { const d = await r.json(); if (d.id) { ROLE = 'student'; document.getElementById('roleLabel').textContent = 'Student'; return; } }
+    } catch(e){}
+    try {
+      const r = await fetch('/faculty/api/profile');
+      if (r.ok) { const d = await r.json(); if (d.id) { ROLE = 'faculty'; document.getElementById('roleLabel').textContent = 'Faculty'; return; } }
+    } catch(e){}
+    ROLE = 'admin';
+    document.getElementById('roleLabel').textContent = 'Admin';
+    document.getElementById('statsStrip').style.display = 'grid';
+    document.getElementById('tableTitle').textContent = 'All Complaints';
+  }
+
+  /* ─── Load Data ─── */
+  async function loadComplaints() {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="8"><span class="empty-icon">⏳</span>Loading…</td></tr>';
+    try {
+      const r = await fetch('/api/complaints');
+      if (!r.ok) throw new Error('Failed');
+      allComplaints = await r.json();
+      renderTable(allComplaints);
+    } catch(e) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="8"><span class="empty-icon">⚠️</span>Failed to load complaints.</td></tr>';
+    }
+  }
+
+  async function loadStats() {
+    try {
+      const r = await fetch('/api/complaints/stats');
+      if (!r.ok) return;
+      const d = await r.json();
+      document.getElementById('statTotal').textContent = d.total;
+      document.getElementById('statOpen').textContent = d.open;
+      document.getElementById('statInProg').textContent = d.in_progress;
+      document.getElementById('statResolved').textContent = d.resolved;
+      document.getElementById('statUrgent').textContent = d.urgent;
+    } catch(e){}
+  }
+
+  /* ─── Render Table ─── */
+  const CATEGORY_ICON = {infrastructure:'🏗️',faculty_issue:'👨‍🏫',course_content:'📚',hostel:'🏠',transport:'🚌',academic:'🎓',other:'📌'};
+  const CATEGORY_LABEL = {infrastructure:'Infrastructure',faculty_issue:'Faculty Issue',course_content:'Course Content',hostel:'Hostel',transport:'Transport',academic:'Academic',other:'Other'};
+
+  function priorityBadge(p) {
+    return `<span class="badge badge-${p}">${p === 'urgent' ? '<span class="urgent-dot"></span>' : ''}${p.charAt(0).toUpperCase()+p.slice(1)}</span>`;
+  }
+  function statusBadge(s) {
+    const labels = {open:'Open',under_review:'Under Review',in_progress:'In Progress',resolved:'Resolved',closed:'Closed',rejected:'Rejected'};
+    return `<span class="badge badge-${s}">${labels[s]||s}</span>`;
+  }
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  }
+
+  function renderTable(list) {
+    const tbody = document.getElementById('tableBody');
+    document.getElementById('countLabel').textContent = `${list.length} complaint${list.length!==1?'s':''}`;
+    if (!list.length) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="8"><span class="empty-icon">📭</span>No complaints found.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(c => `
+      <tr>
+        <td><span class="ticket-id">${c.ticket_id}</span></td>
+        <td>
+          <div class="comp-title" title="${esc(c.title)}">${esc(c.title)}</div>
+          <div class="comp-desc-preview">${esc((c.description||'').substring(0,60))}${c.description&&c.description.length>60?'…':''}</div>
+        </td>
+        <td>${CATEGORY_ICON[c.category]||'📌'} ${CATEGORY_LABEL[c.category]||c.category}</td>
+        <td>${priorityBadge(c.priority)}</td>
+        <td style="font-size:.80rem">${esc(c.assigned_to||'—')}</td>
+        <td>${statusBadge(c.status)}</td>
+        <td style="font-size:.78rem;color:var(--muted)">${fmtDate(c.created_at)}</td>
+        <td>
+          <button class="btn btn-secondary btn-sm" onclick="openDetailModal(${c.id})">👁 View</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  /* ─── Filters ─── */
+  function applyFilters() {
+    const status   = document.getElementById('filterStatus').value;
+    const category = document.getElementById('filterCategory').value;
+    const priority = document.getElementById('filterPriority').value;
+    const search   = document.getElementById('searchInput').value.toLowerCase();
+
+    const filtered = allComplaints.filter(c => {
+      if (status   && c.status   !== status)   return false;
+      if (category && c.category !== category) return false;
+      if (priority && c.priority !== priority) return false;
+      if (search && !c.ticket_id.toLowerCase().includes(search) && !c.title.toLowerCase().includes(search)) return false;
+      return true;
+    });
+    renderTable(filtered);
+  }
+
+  /* ─── Submit Modal ─── */
+  function openSubmitModal() {
+    document.getElementById('compTitle').value = '';
+    document.getElementById('compCategory').value = '';
+    document.getElementById('compPriority').value = 'medium';
+    document.getElementById('compDesc').value = '';
+    document.getElementById('compAnonymous').checked = false;
+    document.getElementById('descCount').textContent = '0';
+    document.getElementById('urgentWarning').classList.remove('show');
+    ['compTitle','compCategory','compDesc','compPriority'].forEach(id => document.getElementById(id).classList.remove('error'));
+    document.getElementById('submitModal').classList.remove('hidden');
+  }
+  function closeSubmitModal() { document.getElementById('submitModal').classList.add('hidden'); }
+
+  function handlePriorityChange() {
+    const p = document.getElementById('compPriority').value;
+    document.getElementById('urgentWarning').classList.toggle('show', p === 'urgent');
+  }
+
+  async function submitComplaint() {
+    const title    = document.getElementById('compTitle').value.trim();
+    const category = document.getElementById('compCategory').value;
+    const priority = document.getElementById('compPriority').value;
+    const desc     = document.getElementById('compDesc').value.trim();
+    const anon     = document.getElementById('compAnonymous').checked;
+
+    let valid = true;
+    ['compTitle','compCategory','compDesc'].forEach(id => document.getElementById(id).classList.remove('error'));
+
+    if (!title)          { document.getElementById('compTitle').classList.add('error'); valid = false; }
+    if (!category)       { document.getElementById('compCategory').classList.add('error'); valid = false; }
+    if (desc.length < 20){ document.getElementById('compDesc').classList.add('error'); valid = false; }
+
+    if (!valid) { showToast('Please fill all required fields (description ≥ 20 chars)', 'error'); return; }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.textContent = '⏳ Submitting…';
+
+    try {
+      const r = await fetch('/api/complaints', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({title, category, priority, description:desc, is_anonymous:anon})
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      closeSubmitModal();
+      showToast(`✅ Complaint submitted! Ticket: ${d.ticket_id}`, 'success');
+      await loadComplaints();
+      if (ROLE === 'admin') await loadStats();
+    } catch(e) {
+      showToast(e.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = '📤 Submit Complaint';
+    }
+  }
+
+  /* ─── Detail Modal ─── */
+  function openDetailModal(id) {
+    currentComplaint = allComplaints.find(c => c.id === id);
+    if (!currentComplaint) return;
+    const c = currentComplaint;
+
+    document.getElementById('detailModalTitle').innerHTML = `📋 ${esc(c.ticket_id)} — ${esc(c.title)}`;
+
+    let body = `
+      <div class="detail-section">
+        <div class="detail-section-title">Complaint Info</div>
+        <div class="detail-grid">
+          <div class="detail-item"><div class="detail-item-label">Ticket ID</div><div class="detail-item-value" style="font-family:monospace;font-weight:800;color:var(--navy)">${esc(c.ticket_id)}</div></div>
+          <div class="detail-item"><div class="detail-item-label">Category</div><div class="detail-item-value">${CATEGORY_ICON[c.category]||'📌'} ${CATEGORY_LABEL[c.category]||c.category}</div></div>
+          <div class="detail-item"><div class="detail-item-label">Priority</div><div class="detail-item-value">${priorityBadge(c.priority)}</div></div>
+          <div class="detail-item"><div class="detail-item-label">Status</div><div class="detail-item-value">${statusBadge(c.status)}</div></div>
+          <div class="detail-item"><div class="detail-item-label">Assigned To</div><div class="detail-item-value">${esc(c.assigned_to||'—')}</div></div>
+          <div class="detail-item"><div class="detail-item-label">Submitted</div><div class="detail-item-value">${fmtDate(c.created_at)}</div></div>
+          ${c.resolved_at ? `<div class="detail-item"><div class="detail-item-label">Resolved</div><div class="detail-item-value">${fmtDate(c.resolved_at)}</div></div>` : ''}
+          ${c.department_name ? `<div class="detail-item"><div class="detail-item-label">Department</div><div class="detail-item-value">${esc(c.department_name)}</div></div>` : ''}
+        </div>
+      </div>`;
+
+    if (ROLE === 'admin') {
+      body += `
+        <div class="detail-section">
+          <div class="detail-section-title">Submitter</div>
+          <div class="detail-grid">
+            <div class="detail-item"><div class="detail-item-label">Name</div><div class="detail-item-value">${c.is_anonymous ? '<em style="color:var(--muted)">Anonymous</em>' : esc(c.submitted_by_name)}</div></div>
+            <div class="detail-item"><div class="detail-item-label">Email</div><div class="detail-item-value">${c.is_anonymous ? '<em style="color:var(--muted)">Hidden</em>' : esc(c.submitted_by_email)}</div></div>
+            <div class="detail-item"><div class="detail-item-label">Role</div><div class="detail-item-value">${c.submitted_by_role}</div></div>
+          </div>
+        </div>`;
+    }
+
+    body += `
+      <div class="detail-section">
+        <div class="detail-section-title">Description</div>
+        <div class="detail-desc">${esc(c.description)}</div>
+      </div>`;
+
+    if (c.resolution_note) {
+      body += `<div class="detail-section"><div class="detail-section-title">Resolution Note</div><div class="resolution-box">${esc(c.resolution_note)}</div></div>`;
+    }
+    if (c.admin_remarks) {
+      body += `<div class="detail-section"><div class="detail-section-title">Admin Remarks</div><div class="remarks-box">${esc(c.admin_remarks)}</div></div>`;
+    }
+
+    if (ROLE === 'admin') {
+      body += `
+        <div class="detail-section">
+          <div class="detail-section-title">Admin Actions</div>
+          <div class="form-group">
+            <label class="form-label">Update Status</label>
+            <select class="form-control" id="adminStatus">
+              <option value="open" ${c.status==='open'?'selected':''}>Open</option>
+              <option value="under_review" ${c.status==='under_review'?'selected':''}>Under Review</option>
+              <option value="in_progress" ${c.status==='in_progress'?'selected':''}>In Progress</option>
+              <option value="resolved" ${c.status==='resolved'?'selected':''}>Resolved</option>
+              <option value="closed" ${c.status==='closed'?'selected':''}>Closed</option>
+              <option value="rejected" ${c.status==='rejected'?'selected':''}>Rejected</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Resolution Note</label>
+            <textarea class="form-control" id="adminResolution" rows="3" placeholder="Describe how the issue was resolved…">${esc(c.resolution_note||'')}</textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Admin Remarks</label>
+            <textarea class="form-control" id="adminRemarks" rows="3" placeholder="Internal remarks (visible to admin only)…">${esc(c.admin_remarks||'')}</textarea>
+          </div>
+        </div>`;
+    }
+
+    document.getElementById('detailModalBody').innerHTML = body;
+
+    const footer = document.getElementById('detailModalFooter');
+    if (ROLE === 'admin') {
+      footer.innerHTML = `
+        <button class="btn btn-secondary" onclick="closeDetailModal()">Cancel</button>
+        <button class="btn btn-success" onclick="saveAdminUpdate(${c.id})">💾 Save Changes</button>
+      `;
+    } else {
+      footer.innerHTML = `<button class="btn btn-secondary" onclick="closeDetailModal()">Close</button>`;
+    }
+
+    document.getElementById('detailModal').classList.remove('hidden');
+  }
+
+  function closeDetailModal() { document.getElementById('detailModal').classList.add('hidden'); }
+
+  async function saveAdminUpdate(id) {
+    const status     = document.getElementById('adminStatus').value;
+    const resolution = document.getElementById('adminResolution').value.trim();
+    const remarks    = document.getElementById('adminRemarks').value.trim();
+
+    try {
+      const r = await fetch(`/api/complaints/${id}/status`, {
+        method: 'PUT',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({status, resolution_note:resolution, admin_remarks:remarks})
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      closeDetailModal();
+      showToast('✅ Complaint updated successfully', 'success');
+      await loadComplaints();
+      if (ROLE === 'admin') await loadStats();
+    } catch(e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  /* ─── Helpers ─── */
+  function esc(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  let toastTimer;
+  function showToast(msg, type='') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show ' + type;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3800);
+  }
+
+  /* ─── Close modals on backdrop click ─── */
+  document.getElementById('submitModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeSubmitModal(); });
+  document.getElementById('detailModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeDetailModal(); });
+</script>
+</body>
+</html>

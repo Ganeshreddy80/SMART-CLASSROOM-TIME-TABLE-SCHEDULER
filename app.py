@@ -52,6 +52,7 @@ from blueprints.chatbot_admin import chatbot_admin_bp
 from blueprints.chatbot_faculty import chatbot_faculty_bp
 from blueprints.chatbot_student import chatbot_student_bp
 from blueprints.attendance import attendance_bp
+from blueprints.complaints import complaints_bp
 
 app.register_blueprint(auth)
 app.register_blueprint(admin)
@@ -62,6 +63,7 @@ app.register_blueprint(api)
 app.register_blueprint(attendance_bp)
 app.register_blueprint(chatbot_admin_bp)
 app.register_blueprint(chatbot_faculty_bp)
+app.register_blueprint(complaints_bp)
 
 @app.route('/')
 def index():
@@ -76,6 +78,7 @@ csrf.exempt(chatbot_admin_bp)
 csrf.exempt(chatbot_faculty_bp)
 csrf.exempt(chatbot_student_bp)
 csrf.exempt(attendance_bp)
+csrf.exempt(complaints_bp)
 
 # ─── Run ────────────────────────────────────────────────────
 if __name__ == '__main__':

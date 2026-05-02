@@ -111,6 +111,12 @@
                 <span class="icon">📋</span> Attendance Mgmt
             </a>
             {% endif %}
+
+            {% if session.get('role') == 'admin' %}
+            <a href="/complaints" class="nav-link {% if request.path == '/complaints' %}active{% endif %}">
+                <span class="icon">📋</span> All Complaints
+            </a>
+            {% endif %}
         </div>
 
         <!-- Sidebar Footer -->
