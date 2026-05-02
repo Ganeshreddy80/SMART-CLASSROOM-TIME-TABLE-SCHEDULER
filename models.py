@@ -406,3 +406,49 @@ class Complaint(db.Model):
             'resolution_note': self.resolution_note,
             'admin_remarks': self.admin_remarks,
         }
+
+
+class AttendanceAnomaly(db.Model):
+    __tablename__ = 'attendance_anomaly'
+
+    id = db.Column(db.Integer, primary_key=True)
+    anomaly_type = db.Column(db.String(50), nullable=False)
+    severity = db.Column(db.String(20), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    ai_analysis = db.Column(db.Text, nullable=True)
+
+    affected_student_id = db.Column(db.Integer, nullable=True)
+    affected_faculty_id = db.Column(db.Integer, nullable=True)
+    affected_course_id = db.Column(db.Integer, nullable=True)
+    affected_section_id = db.Column(db.Integer, nullable=True)
+
+    date_detected = db.Column(db.DateTime, default=datetime.utcnow)
+    attendance_date = db.Column(db.Date, nullable=True)
+
+    status = db.Column(db.String(20), default='open')
+    admin_note = db.Column(db.Text, nullable=True)
+    dismissed_by = db.Column(db.String(100), nullable=True)
+    dismissed_at = db.Column(db.DateTime, nullable=True)
+
+    raw_data = db.Column(db.JSON, nullable=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'anomaly_type': self.anomaly_type,
+            'severity': self.severity,
+            'title': self.title,
+            'description': self.description,
+            'ai_analysis': self.ai_analysis,
+            'affected_student_id': self.affected_student_id,
+            'affected_faculty_id': self.affected_faculty_id,
+            'affected_course_id': self.affected_course_id,
+            'affected_section_id': self.affected_section_id,
+            'date_detected': self.date_detected.isoformat(),
+            'attendance_date': self.attendance_date.isoformat() if self.attendance_date else None,
+            'status': self.status,
+            'admin_note': self.admin_note,
+            'raw_data': self.raw_data
+        }
+

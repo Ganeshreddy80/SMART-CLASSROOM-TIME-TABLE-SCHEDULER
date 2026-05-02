@@ -24,6 +24,7 @@ from flask import Blueprint, request, jsonify, session, render_template
 
 from models import db, Student, Faculty, Course, Section, Attendance, TimetableEntry
 from blueprints.utils import login_required, role_required
+from blueprints.anomaly_engine import run_all_checks
 
 attendance_bp = Blueprint('attendance_bp', __name__)
 
@@ -379,6 +380,15 @@ def stop_session():
     db.session.commit()
     del ACTIVE_SESSIONS[session_token]
 
+    try:
+        run_all_checks(
+            section_id=section_id,
+            course_id=course_id,
+            attendance_date=today
+        )
+    except Exception:
+        pass
+
     return jsonify({
         'message': 'Attendance saved successfully',
         'present': present_count,
@@ -484,6 +494,16 @@ def manual_attendance():
         db.session.add(att)
 
     db.session.commit()
+
+    try:
+        run_all_checks(
+            section_id=int(section_id),
+            course_id=int(course_id),
+            attendance_date=dt
+        )
+    except Exception:
+        pass
+
     return jsonify({
         'success': True,
         'message': 'Attendance saved successfully',

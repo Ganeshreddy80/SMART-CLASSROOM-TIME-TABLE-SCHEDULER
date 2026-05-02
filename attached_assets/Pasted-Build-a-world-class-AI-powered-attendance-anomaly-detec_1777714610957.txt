@@ -1,0 +1,529 @@
+Build a world-class AI-powered attendance anomaly detection system. 
+Follow every step exactly.
+
+STEP 1 — Add Anomaly model to models.py
+
+class AttendanceAnomaly(db.Model):
+    __tablename__ = 'attendance_anomaly'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    anomaly_type = db.Column(db.String(50), nullable=False)
+    # Types: speed_fraud, ghost_attendance, impossible_pattern,
+    #        sudden_drop, buddy_punching, off_hours, mass_absent,
+    #        consistent_pattern
+    
+    severity = db.Column(db.String(20), nullable=False)
+    # critical, high, warning, info
+    
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    # Human-readable AI-generated explanation
+    
+    ai_analysis = db.Column(db.Text, nullable=True)
+    # Full Claude AI analysis text
+    
+    affected_student_id = db.Column(db.Integer, nullable=True)
+    affected_faculty_id = db.Column(db.Integer, nullable=True)
+    affected_course_id = db.Column(db.Integer, nullable=True)
+    affected_section_id = db.Column(db.Integer, nullable=True)
+    
+    date_detected = db.Column(db.DateTime, default=datetime.utcnow)
+    attendance_date = db.Column(db.Date, nullable=True)
+    
+    status = db.Column(db.String(20), default='open')
+    # open, investigating, dismissed, confirmed_fraud
+    
+    admin_note = db.Column(db.Text, nullable=True)
+    dismissed_by = db.Column(db.String(100), nullable=True)
+    dismissed_at = db.Column(db.DateTime, nullable=True)
+    
+    raw_data = db.Column(db.JSON, nullable=True)
+    # Store the raw numbers that triggered this anomaly
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'anomaly_type': self.anomaly_type,
+            'severity': self.severity,
+            'title': self.title,
+            'description': self.description,
+            'ai_analysis': self.ai_analysis,
+            'affected_student_id': self.affected_student_id,
+            'affected_faculty_id': self.affected_faculty_id,
+            'affected_course_id': self.affected_course_id,
+            'affected_section_id': self.affected_section_id,
+            'date_detected': self.date_detected.isoformat(),
+            'attendance_date': self.attendance_date.isoformat() if self.attendance_date else None,
+            'status': self.status,
+            'admin_note': self.admin_note,
+            'raw_data': self.raw_data
+        }
+
+
+STEP 2 — Create blueprints/anomaly_engine.py
+
+This is the core detection engine:
+
+from models import db, Attendance, AttendanceAnomaly, Student, TimetableEntry
+from datetime import datetime, date, timedelta
+from sqlalchemy import func
+import os, requests, json
+
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
+
+def call_claude(prompt):
+    """Call Claude via OpenRouter for AI analysis"""
+    try:
+        response = requests.post(
+            'https://openrouter.ai/api/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {OPENROUTER_API_KEY}',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'model': 'anthropic/claude-3-haiku',
+                'messages': [{'role': 'user', 'content': prompt}],
+                'max_tokens': 300
+            },
+            timeout=10
+        )
+        data = response.json()
+        return data['choices'][0]['message']['content']
+    except Exception as e:
+        return f"AI analysis unavailable: {str(e)}"
+
+def already_flagged(anomaly_type, **kwargs):
+    """Check if this exact anomaly was already flagged today"""
+    today = date.today()
+    query = AttendanceAnomaly.query.filter_by(
+        anomaly_type=anomaly_type,
+        attendance_date=kwargs.get('attendance_date', today)
+    )
+    if kwargs.get('affected_student_id'):
+        query = query.filter_by(affected_student_id=kwargs['affected_student_id'])
+    if kwargs.get('affected_section_id'):
+        query = query.filter_by(affected_section_id=kwargs['affected_section_id'])
+    return query.first() is not None
+
+def detect_speed_fraud(section_id, course_id, attendance_date):
+    """Detect if too many students were marked present too quickly"""
+    records = Attendance.query.filter_by(
+        section_id=section_id,
+        course_id=course_id,
+        date=attendance_date,
+        status='present'
+    ).order_by(Attendance.marked_at).all()
+    
+    if len(records) < 5:
+        return
+    
+    # Check if 10+ students marked present within 30 seconds
+    for i in range(len(records) - 9):
+        if not records[i].marked_at or not records[i+9].marked_at:
+            continue
+        time_diff = (records[i+9].marked_at - records[i].marked_at).total_seconds()
+        if time_diff < 30:
+            if already_flagged('speed_fraud', 
+                             affected_section_id=section_id,
+                             attendance_date=attendance_date):
+                return
+            
+            ai_prompt = f"""
+            Attendance anomaly detected in a university system.
+            Type: Speed Fraud
+            Details: {len(records)} students marked present, 
+            10 of them within {time_diff:.1f} seconds.
+            Section ID: {section_id}, Course ID: {course_id}
+            Date: {attendance_date}
+            
+            Write a 2-sentence admin alert explaining why this is suspicious 
+            and what action to take. Be direct and professional.
+            """
+            
+            ai_text = call_claude(ai_prompt)
+            
+            anomaly = AttendanceAnomaly(
+                anomaly_type='speed_fraud',
+                severity='critical',
+                title=f'⚡ Speed Fraud Detected — Section {section_id}',
+                description=f'{len(records)} students marked present, 10 within {time_diff:.0f} seconds',
+                ai_analysis=ai_text,
+                affected_section_id=section_id,
+                affected_course_id=course_id,
+                attendance_date=attendance_date,
+                raw_data={
+                    'total_present': len(records),
+                    'suspicious_window_seconds': time_diff,
+                    'section_id': section_id,
+                    'course_id': course_id
+                }
+            )
+            db.session.add(anomaly)
+            db.session.commit()
+            return
+
+def detect_sudden_drop(student_id, course_id):
+    """Detect if a student's attendance dropped significantly in last 7 days"""
+    today = date.today()
+    week_ago = today - timedelta(days=7)
+    two_weeks_ago = today - timedelta(days=14)
+    
+    recent = Attendance.query.filter(
+        Attendance.student_id == student_id,
+        Attendance.course_id == course_id,
+        Attendance.date >= week_ago,
+        Attendance.status == 'present'
+    ).count()
+    
+    previous = Attendance.query.filter(
+        Attendance.student_id == student_id,
+        Attendance.course_id == course_id,
+        Attendance.date >= two_weeks_ago,
+        Attendance.date < week_ago,
+        Attendance.status == 'present'
+    ).count()
+    
+    total_recent = Attendance.query.filter(
+        Attendance.student_id == student_id,
+        Attendance.course_id == course_id,
+        Attendance.date >= week_ago
+    ).count()
+    
+    if total_recent == 0 or previous == 0:
+        return
+    
+    recent_pct = (recent / total_recent) * 100
+    prev_pct = (previous / total_recent) * 100
+    
+    if prev_pct > 70 and recent_pct < 40:
+        if already_flagged('sudden_drop',
+                          affected_student_id=student_id,
+                          attendance_date=today):
+            return
+        
+        student = Student.query.get(student_id)
+        name = student.name if student else f'Student {student_id}'
+        
+        ai_prompt = f"""
+        Student attendance anomaly in a university system.
+        Student: {name}
+        Previous week attendance: {prev_pct:.0f}%
+        Current week attendance: {recent_pct:.0f}%
+        Drop: {prev_pct - recent_pct:.0f} percentage points
+        
+        Write a 2-sentence alert for admin/faculty explaining 
+        the concern and recommended action. Professional tone.
+        """
+        
+        ai_text = call_claude(ai_prompt)
+        
+        anomaly = AttendanceAnomaly(
+            anomaly_type='sudden_drop',
+            severity='warning',
+            title=f'📉 Sudden Attendance Drop — {name}',
+            description=f'Attendance dropped from {prev_pct:.0f}% to {recent_pct:.0f}% this week',
+            ai_analysis=ai_text,
+            affected_student_id=student_id,
+            affected_course_id=course_id,
+            attendance_date=today,
+            raw_data={
+                'student_id': student_id,
+                'previous_pct': prev_pct,
+                'recent_pct': recent_pct,
+                'drop': prev_pct - recent_pct
+            }
+        )
+        db.session.add(anomaly)
+        db.session.commit()
+
+def detect_mass_absent(section_id, course_id, attendance_date):
+    """Detect if entire section is absent — possible data error"""
+    total = Attendance.query.filter_by(
+        section_id=section_id,
+        course_id=course_id,
+        date=attendance_date
+    ).count()
+    
+    absent = Attendance.query.filter_by(
+        section_id=section_id,
+        course_id=course_id,
+        date=attendance_date,
+        status='absent'
+    ).count()
+    
+    if total < 5:
+        return
+    
+    absent_pct = (absent / total) * 100
+    
+    if absent_pct >= 90:
+        if already_flagged('mass_absent',
+                          affected_section_id=section_id,
+                          attendance_date=attendance_date):
+            return
+        
+        anomaly = AttendanceAnomaly(
+            anomaly_type='mass_absent',
+            severity='high',
+            title=f'👥 Mass Absence — Section {section_id}',
+            description=f'{absent}/{total} students ({absent_pct:.0f}%) absent on {attendance_date}',
+            ai_analysis='Entire section marked absent. This may indicate a cancelled class, data entry error, or a real event requiring investigation.',
+            affected_section_id=section_id,
+            affected_course_id=course_id,
+            attendance_date=attendance_date,
+            raw_data={
+                'total': total,
+                'absent': absent,
+                'absent_pct': absent_pct
+            }
+        )
+        db.session.add(anomaly)
+        db.session.commit()
+
+def run_all_checks(section_id=None, course_id=None, attendance_date=None):
+    """Run all anomaly checks — call this after any attendance save"""
+    if not attendance_date:
+        attendance_date = date.today()
+    
+    try:
+        if section_id and course_id:
+            detect_speed_fraud(section_id, course_id, attendance_date)
+            detect_mass_absent(section_id, course_id, attendance_date)
+            
+            # Check sudden drop for all students in this section
+            students = Attendance.query.filter_by(
+                section_id=section_id,
+                course_id=course_id,
+                date=attendance_date
+            ).with_entities(Attendance.student_id).distinct().all()
+            
+            for (sid,) in students:
+                detect_sudden_drop(sid, course_id)
+    except Exception as e:
+        print(f"Anomaly detection error: {e}")
+
+
+STEP 3 — Create blueprints/anomalies.py (API routes)
+
+from flask import Blueprint, request, jsonify, session, render_template
+from models import db, AttendanceAnomaly
+from blueprints.utils import login_required, role_required
+from datetime import datetime
+
+anomalies_bp = Blueprint('anomalies_bp', __name__)
+
+@anomalies_bp.route('/api/anomalies', methods=['GET'])
+@login_required
+@role_required('admin')
+def get_anomalies():
+    status = request.args.get('status', 'open')
+    severity = request.args.get('severity')
+    
+    query = AttendanceAnomaly.query
+    if status != 'all':
+        query = query.filter_by(status=status)
+    if severity:
+        query = query.filter_by(severity=severity)
+    
+    anomalies = query.order_by(AttendanceAnomaly.date_detected.desc()).limit(100).all()
+    return jsonify([a.to_dict() for a in anomalies])
+
+@anomalies_bp.route('/api/anomalies/stats', methods=['GET'])
+@login_required
+@role_required('admin')
+def anomaly_stats():
+    return jsonify({
+        'total': AttendanceAnomaly.query.filter_by(status='open').count(),
+        'critical': AttendanceAnomaly.query.filter_by(status='open', severity='critical').count(),
+        'high': AttendanceAnomaly.query.filter_by(status='open', severity='high').count(),
+        'warning': AttendanceAnomaly.query.filter_by(status='open', severity='warning').count(),
+    })
+
+@anomalies_bp.route('/api/anomalies/<int:id>/dismiss', methods=['PUT'])
+@login_required
+@role_required('admin')
+def dismiss_anomaly(id):
+    anomaly = AttendanceAnomaly.query.get_or_404(id)
+    data = request.json or {}
+    anomaly.status = 'dismissed'
+    anomaly.admin_note = data.get('note', '')
+    anomaly.dismissed_by = session.get('user_name', 'Admin')
+    anomaly.dismissed_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({'message': 'Dismissed'})
+
+@anomalies_bp.route('/api/anomalies/<int:id>/confirm', methods=['PUT'])
+@login_required
+@role_required('admin')
+def confirm_anomaly(id):
+    anomaly = AttendanceAnomaly.query.get_or_404(id)
+    data = request.json or {}
+    anomaly.status = 'confirmed_fraud'
+    anomaly.admin_note = data.get('note', '')
+    db.session.commit()
+    return jsonify({'message': 'Confirmed as fraud'})
+
+
+STEP 4 — Hook into attendance saves
+
+In blueprints/attendance.py, at the top add:
+from blueprints.anomaly_engine import run_all_checks
+
+Find the stop_session route and at the end before return, add:
+try:
+    run_all_checks(
+        section_id=session_obj.section_id,
+        course_id=session_obj.course_id,
+        attendance_date=today
+    )
+except Exception:
+    pass
+
+Find the manual_attendance route and add the same at the end before return.
+
+
+STEP 5 — Register in app.py
+
+from blueprints.anomalies import anomalies_bp
+app.register_blueprint(anomalies_bp)
+csrf.exempt(anomalies_bp)
+
+
+STEP 6 — Add anomaly alerts section to admin dashboard
+
+In templates/admin_dashboard.html, find the stats cards section near the top of the dashboard page.
+Add this anomaly alert strip right below the existing stats cards:
+
+<div id="anomalyAlertStrip" style="display:none; margin:20px 0;">
+  <div style="
+    background: linear-gradient(135deg, #1a0a0a, #2d1515);
+    border: 1px solid #ef4444;
+    border-radius:16px; padding:20px;
+  ">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div>
+        <span style="font-size:1.5rem;">🚨</span>
+        <span style="color:#ef4444; font-weight:700; font-size:1.1rem; margin-left:8px;">
+          AI Anomaly Detection
+        </span>
+        <span id="anomalyBadge" style="
+          background:#ef4444; color:#fff; 
+          border-radius:20px; padding:2px 10px; 
+          font-size:0.8rem; margin-left:8px;
+        "></span>
+      </div>
+      <a href="/anomalies" style="
+        background:rgba(239,68,68,0.2); color:#ef4444;
+        padding:8px 16px; border-radius:8px; 
+        text-decoration:none; font-size:0.85rem; font-weight:600;
+      ">View All →</a>
+    </div>
+    <div id="anomalyList" style="display:flex; flex-direction:column; gap:10px;"></div>
+  </div>
+</div>
+
+<script>
+async function loadAnomalyAlerts() {
+  try {
+    const res = await fetch('/api/anomalies/stats');
+    if (!res.ok) return;
+    const stats = await res.json();
+    
+    if (stats.total === 0) return;
+    
+    document.getElementById('anomalyAlertStrip').style.display = 'block';
+    document.getElementById('anomalyBadge').textContent = stats.total + ' Open';
+    
+    const listRes = await fetch('/api/anomalies?status=open');
+    const anomalies = await listRes.json();
+    
+    const severityColors = {
+      critical: '#ef4444',
+      high: '#f97316', 
+      warning: '#eab308',
+      info: '#3b82f6'
+    };
+    
+    const listEl = document.getElementById('anomalyList');
+    anomalies.slice(0, 5).forEach(a => {
+      const color = severityColors[a.severity] || '#6b7280';
+      listEl.innerHTML += `
+        <div style="
+          background:rgba(255,255,255,0.03);
+          border-left: 3px solid ${color};
+          border-radius:8px; padding:12px 16px;
+          display:flex; justify-content:space-between; align-items:center;
+        ">
+          <div>
+            <div style="color:#fff; font-weight:600; font-size:0.9rem;">${a.title}</div>
+            <div style="color:#9ca3af; font-size:0.8rem; margin-top:3px;">${a.description}</div>
+            ${a.ai_analysis ? `<div style="color:#a78bfa; font-size:0.78rem; margin-top:5px; font-style:italic;">"${a.ai_analysis.substring(0, 120)}..."</div>` : ''}
+          </div>
+          <div style="display:flex; gap:8px; margin-left:16px; flex-shrink:0;">
+            <button onclick="dismissAnomaly(${a.id})" style="
+              background:rgba(107,114,128,0.3); color:#9ca3af;
+              border:none; border-radius:6px; padding:6px 12px;
+              cursor:pointer; font-size:0.8rem;
+            ">Dismiss</button>
+            <button onclick="confirmFraud(${a.id})" style="
+              background:rgba(239,68,68,0.2); color:#ef4444;
+              border:1px solid rgba(239,68,68,0.3); border-radius:6px; 
+              padding:6px 12px; cursor:pointer; font-size:0.8rem;
+            ">⚠️ Flag</button>
+          </div>
+        </div>
+      `;
+    });
+  } catch(e) { console.error('Anomaly load error:', e); }
+}
+
+async function dismissAnomaly(id) {
+  await fetch(`/api/anomalies/${id}/dismiss`, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({note: 'Dismissed by admin'})
+  });
+  loadAnomalyAlerts();
+}
+
+async function confirmFraud(id) {
+  await fetch(`/api/anomalies/${id}/confirm`, {
+    method: 'PUT', 
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({note: 'Confirmed as fraud'})
+  });
+  loadAnomalyAlerts();
+}
+
+// Load on page ready
+document.addEventListener('DOMContentLoaded', loadAnomalyAlerts);
+</script>
+
+
+STEP 7 — Run database migration
+
+flask db migrate -m "Add attendance_anomaly table"
+flask db upgrade
+
+Or fallback:
+python3 -c "from app import app; from models import db; app.app_context().__enter__(); db.create_all()"
+
+
+STEP 8 — Test end to end
+
+1. Save attendance for a section with 30+ students all present
+2. Call GET /api/anomalies — confirm no false positives
+3. Manually insert a speed_fraud test:
+   python3 -c "
+   from app import app
+   from blueprints.anomaly_engine import detect_speed_fraud
+   from datetime import date
+   with app.app_context():
+       detect_speed_fraud(51, 217, date.today())
+   "
+4. Call GET /api/anomalies — confirm anomaly appears
+5. Login as admin — confirm red alert strip shows on dashboard
+6. Click Dismiss — confirm it disappears
+7. Confirm non-admin cannot access /api/anomalies (should return 403)
+
+Do NOT push to git yet. Show results of all 8 tests.
