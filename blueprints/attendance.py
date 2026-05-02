@@ -748,50 +748,32 @@ def submit_attendance():
 @login_required
 @role_required('student')
 def verify_face():
-    import base64
-    import requests as req
-
     data = request.json or {}
-    selfie_b64 = data.get('selfie')
-    if not selfie_b64:
-        return jsonify({'match': False, 'error': 'No selfie provided'}), 400
-
     student_id = session.get('user_id')
     student = Student.query.get(student_id)
+
     if not student:
         return jsonify({'match': False, 'error': 'Student not found'}), 404
+
+    # Final confirmation: face-api.js already verified client-side
+    if data.get('verified'):
+        confidence = data.get('confidence', 0)
+        session['face_verified'] = True
+        session['face_confidence'] = round(float(confidence), 1)
+        return jsonify({
+            'match': True,
+            'confidence': session['face_confidence'],
+            'message': f"Identity verified at {session['face_confidence']:.1f}% confidence"
+        })
+
+    # Initial call: return profile photo for client-side face-api.js comparison
     if not student.photo_url:
-        return jsonify({'match': False, 'error': 'No profile picture found. Contact Admin.'})
+        return jsonify({'match': False, 'error': 'No profile picture on file. Please contact Admin.'})
 
-    try:
-        selfie_data = selfie_b64.split(',')[1] if ',' in selfie_b64 else selfie_b64
-        profile_data = student.photo_url.split(',')[1] if ',' in student.photo_url else student.photo_url
-
-        response = req.post(
-            'https://api-us.faceplusplus.com/facepp/v3/compare',
-            data={
-                'api_key': os.environ.get('FACEPP_API_KEY'),
-                'api_secret': os.environ.get('FACEPP_API_SECRET'),
-                'image_base64_1': selfie_data,
-                'image_base64_2': profile_data
-            },
-            timeout=15
-        )
-        result = response.json()
-
-        if 'error_message' in result:
-            return jsonify({'match': False, 'error': result['error_message']}), 500
-
-        confidence = round(result.get('confidence', 0), 1)
-        is_match = confidence >= 75
-
-        if is_match:
-            return jsonify({'match': True, 'confidence': confidence, 'message': 'Face verified!'})
-        else:
-            return jsonify({'match': False, 'confidence': confidence, 'error': 'Face does not match profile.'})
-
-    except Exception as e:
-        return jsonify({'match': False, 'error': f'Verification error: {str(e)}'}), 500
+    return jsonify({
+        'profile_photo': student.photo_url,
+        'student_name': student.name
+    })
 
 
 # ──────────────────────────────────────────────────────────────────────────────

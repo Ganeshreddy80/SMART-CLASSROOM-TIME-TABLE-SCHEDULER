@@ -117,7 +117,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--navy-deep);col
   <div class="steps-wrap" id="stepsWrap">
     <div class="step-item active" id="s1-dot">1<div class="step-label">GPS</div></div>
     <div class="step-line"></div>
-    <div class="step-item" id="s2-dot">2<div class="step-label">Selfie</div></div>
+    <div class="step-item" id="s2-dot">2<div class="step-label">Face AI</div></div>
     <div class="step-line"></div>
     <div class="step-item" id="s3-dot">3<div class="step-label">Scan</div></div>
   </div>
@@ -134,24 +134,81 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--navy-deep);col
     </div>
   </div>
 
-  <!-- STEP 2: SELFIE VERIFICATION -->
+  <!-- STEP 2: AI FACE VERIFICATION -->
   <div id="step2" style="display:none">
-    <div class="scanner-card">
-      <h3>🎭 Identity Verification</h3>
-      <p style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:16px">Take a live selfie to match with your profile picture.</p>
-      
-      <div class="selfie-wrap">
-        <video id="selfieVideo" autoplay playsinline muted></video>
-        <div id="faceOverlay" style="position:absolute;inset:0;border:2px dashed rgba(245,197,24,.4);border-radius:50%;margin:20px;display:flex;align-items:center;justify-content:center;pointer-events:none">
-          <div style="color:var(--gold);font-size:.7rem;font-weight:700;text-transform:uppercase;background:rgba(0,0,0,.5);padding:4px 10px;border-radius:10px">Align Face Here</div>
+    <div style="
+        background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);
+        border-radius:20px;padding:24px;max-width:420px;margin:0 auto;
+        box-shadow:0 25px 50px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.08)">
+
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:2.2rem;margin-bottom:8px">🛡️</div>
+        <h2 style="color:#fff;font-size:1.2rem;margin:0">Identity Verification</h2>
+        <p style="color:#a0aec0;margin:6px 0 0;font-size:.8rem">AI-powered liveness detection + face matching</p>
+      </div>
+
+      <!-- Progress bar -->
+      <div style="background:#2d3748;border-radius:10px;height:6px;margin-bottom:16px;overflow:hidden">
+        <div id="verifyProgress" style="height:100%;width:0%;background:linear-gradient(90deg,#667eea,#764ba2);border-radius:10px;transition:width .5s ease"></div>
+      </div>
+
+      <!-- Status -->
+      <div id="verifyStatus" style="
+          text-align:center;padding:10px 16px;border-radius:10px;
+          background:rgba(255,255,255,.05);color:#667eea;font-weight:600;
+          margin-bottom:16px;font-size:.85rem;min-height:44px;
+          display:flex;align-items:center;justify-content:center">Initializing…</div>
+
+      <!-- Camera feed -->
+      <div style="position:relative;border-radius:14px;overflow:hidden;background:#000">
+        <video id="verifyVideo" autoplay muted playsinline style="width:100%;display:block;transform:scaleX(-1)"></video>
+        <canvas id="verifyCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1)"></canvas>
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#667eea,transparent);animation:scanLine 2s linear infinite"></div>
+      </div>
+
+      <!-- Challenge box -->
+      <div id="challengeBox" style="
+          margin-top:14px;padding:12px;border-radius:12px;
+          background:rgba(102,126,234,.1);border:1px solid rgba(102,126,234,.3);
+          text-align:center;display:none">
+        <div id="challengeIcon" style="font-size:1.8rem;margin-bottom:6px"></div>
+        <div id="challengeText" style="color:#e2e8f0;font-weight:600;font-size:.88rem"></div>
+        <div id="challengeHint" style="color:#a0aec0;font-size:.77rem;margin-top:4px"></div>
+      </div>
+
+      <!-- Step indicators -->
+      <div style="display:flex;justify-content:center;gap:14px;margin-top:16px">
+        <div class="fv-step" id="fv-liveness" style="display:flex;align-items:center;gap:5px;color:#a0aec0;font-size:.78rem">
+          <div style="width:22px;height:22px;border-radius:50%;background:#2d3748;display:flex;align-items:center;justify-content:center;font-size:.7rem">1</div>Liveness
+        </div>
+        <div style="color:#4a5568;display:flex;align-items:center;font-size:.8rem">→</div>
+        <div class="fv-step" id="fv-matching" style="display:flex;align-items:center;gap:5px;color:#a0aec0;font-size:.78rem">
+          <div style="width:22px;height:22px;border-radius:50%;background:#2d3748;display:flex;align-items:center;justify-content:center;font-size:.7rem">2</div>Face Match
+        </div>
+        <div style="color:#4a5568;display:flex;align-items:center;font-size:.8rem">→</div>
+        <div class="fv-step" id="fv-verified" style="display:flex;align-items:center;gap:5px;color:#a0aec0;font-size:.78rem">
+          <div style="width:22px;height:22px;border-radius:50%;background:#2d3748;display:flex;align-items:center;justify-content:center;font-size:.7rem">3</div>Verified
         </div>
       </div>
-      <canvas id="selfieCanvas" width="320" height="240"></canvas>
-      
-      <div id="verifyStatus" style="text-align:center;margin-top:10px;font-size:.8rem;color:var(--gold)"></div>
-      <button class="btn-perm" id="btnVerifyFace" style="width:100%;margin-top:10px" onclick="verifyFace()">🤳 Capture & Verify Face</button>
+
+      <button id="retryVerifyBtn" onclick="retryVerification()" style="
+          display:none;width:100%;margin-top:16px;padding:13px;border:none;
+          border-radius:12px;background:linear-gradient(135deg,#667eea,#764ba2);
+          color:#fff;font-size:.95rem;font-weight:600;cursor:pointer">
+        🔄 Retry Verification
+      </button>
     </div>
   </div>
+
+  <style>
+  .fv-step.active div:first-child{background:linear-gradient(135deg,#667eea,#764ba2)!important;color:#fff!important}
+  .fv-step.completed div:first-child{background:#48bb78!important;color:#fff!important}
+  .fv-step.active{color:#667eea!important}
+  .fv-step.completed{color:#48bb78!important}
+  </style>
+
+  <!-- hidden selfie canvas still needed for submitAttendance() fallback -->
+  <canvas id="selfieCanvas" width="320" height="240" style="display:none"></canvas>
 
   <!-- STEP 3: SCAN QR -->
   <div id="step3" style="display:none">
@@ -178,6 +235,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--navy-deep);col
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="/static/js/face-verification.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
 // ── State ──────────────────────────────────────────────────────
@@ -186,6 +245,8 @@ let envStream = null, selfieStream = null;
 let scanLoopId = null;
 let sessionData = null;     // { session_token, course_name, faculty_name, expires_in }
 let submitting = false;
+let faceEngine = null;
+let faceVerifiedSelfie = '';  // captured by face engine, used in submitAttendance
 
 // ── Helpers ────────────────────────────────────────────────────
 function setPill(id, state, text) {
@@ -215,24 +276,102 @@ function startGPS() {
   }, { enableHighAccuracy: true, maximumAge: 3000 });
 }
 
-// ── Camera Setup ───────────────────────────────────────────────
-async function setupSelfieCamera() {
-  setPill('pillCam', 'loading', 'Selfie Cam…');
+// ── Face Verification (face-api.js) ────────────────────────────
+async function startFaceVerification() {
+  document.getElementById('step2').style.display = 'block';
+  setPill('pillCam', 'loading', 'Face AI…');
+
+  // Fetch profile photo from server
+  let profilePhotoUrl;
   try {
-    if (selfieStream) stopStream(selfieStream);
-    selfieStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: 320, height: 240 }
+    const res  = await fetch('/api/attendance/verify-face', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selfie: 'init' })
     });
-    document.getElementById('selfieVideo').srcObject = selfieStream;
-    setPill('pillCam', 'ok', 'Identity Cam ✓');
-    return true;
+    const data = await res.json();
+    if (!data.profile_photo) {
+      showError(data.error || 'No profile photo on file. Contact admin.');
+      setPill('pillCam', 'err', 'No Photo');
+      return;
+    }
+    profilePhotoUrl = data.profile_photo;
   } catch(e) {
-    console.error("Selfie cam error:", e);
-    setPill('pillCam', 'err', 'Selfie Denied');
-    showError('Face camera access is required for identity verification.');
-    return false;
+    showError('Network error fetching profile. Try again.');
+    return;
+  }
+
+  document.getElementById('fv-liveness').classList.add('active');
+
+  faceEngine = new FaceVerificationEngine({
+    videoEl:    document.getElementById('verifyVideo'),
+    canvasEl:   document.getElementById('verifyCanvas'),
+    statusEl:   document.getElementById('verifyStatus'),
+    progressEl: document.getElementById('verifyProgress'),
+
+    onProgress: (pct) => {
+      if (pct >= 60 && pct < 75) {
+        document.getElementById('fv-liveness').classList.add('active');
+      }
+      if (pct >= 75) {
+        document.getElementById('fv-liveness').classList.remove('active');
+        document.getElementById('fv-liveness').classList.add('completed');
+        document.getElementById('fv-matching').classList.add('active');
+        document.getElementById('challengeBox').style.display = 'none';
+      }
+      if (pct >= 100) {
+        document.getElementById('fv-matching').classList.remove('active');
+        document.getElementById('fv-matching').classList.add('completed');
+        document.getElementById('fv-verified').classList.add('completed');
+      }
+    },
+
+    onSuccess: async (result) => {
+      faceVerifiedSelfie = result.selfie;
+      setPill('pillCam', 'ok', `Face ✓ ${result.confidence.toFixed(0)}%`);
+
+      // Confirm with server (stores face_verified in session)
+      await fetch('/api/attendance/verify-face', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verified: true, confidence: result.confidence, selfie: result.selfie })
+      });
+
+      // Transition to QR scan after brief pause
+      setTimeout(() => startQRScan(), 1500);
+    },
+
+    onFailure: (err) => {
+      setPill('pillCam', 'err', 'Retry');
+      document.getElementById('retryVerifyBtn').style.display = 'block';
+    }
+  });
+
+  await faceEngine.initialize(profilePhotoUrl);
+}
+
+function retryVerification() {
+  document.getElementById('retryVerifyBtn').style.display = 'none';
+  // Reset step indicators
+  ['fv-liveness','fv-matching','fv-verified'].forEach(id => {
+    document.getElementById(id).classList.remove('active','completed');
+  });
+  if (faceEngine) faceEngine.stopCamera();
+  startFaceVerification();
+}
+
+async function startQRScan() {
+  const ok = await setupQRCamera();
+  if (ok) {
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('step3').style.display = 'block';
+    document.getElementById('s2-dot').classList.replace('active', 'done');
+    document.getElementById('s3-dot').classList.add('active');
+    startScanLoop();
   }
 }
+
+// ── Legacy camera setup (QR camera only now) ────────────────────
 
 async function setupQRCamera() {
   setPill('pillCam', 'loading', 'QR Cam…');
@@ -271,56 +410,9 @@ function captureSelfie() {
 // ── Navigation ──────────────────────────────────────────────────
 function goToStep2() {
   document.getElementById('step1').style.display = 'none';
-  document.getElementById('step2').style.display = 'block';
   document.getElementById('s1-dot').classList.replace('active', 'done');
   document.getElementById('s2-dot').classList.add('active');
-  setupSelfieCamera(); 
-}
-
-async function verifyFace() {
-  const btn = document.getElementById('btnVerifyFace');
-  const status = document.getElementById('verifyStatus');
-  btn.disabled = true;
-  btn.innerHTML = '<div class="spinner" style="display:inline-block;margin-right:8px"></div>Analyzing Face…';
-  
-  const selfie = captureSelfie();
-  
-  try {
-    // Call new face verification endpoint
-    const res = await fetch('/api/attendance/verify-face', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ selfie })
-    });
-    const data = await res.json();
-    
-    if (data.match) {
-      status.innerHTML = `✅ Face Match: ${data.confidence}% confidence. Identity Verified!`;
-      status.style.color = 'var(--success)';
-      btn.innerHTML = '✨ Identity Confirmed';
-      btn.style.background = 'var(--success)';
-      
-      setTimeout(async () => {
-        const ok = await setupQRCamera();
-        if (ok) {
-          document.getElementById('step2').style.display = 'none';
-          document.getElementById('step3').style.display = 'block';
-          document.getElementById('s2-dot').classList.replace('active', 'done');
-          document.getElementById('s3-dot').classList.add('active');
-          startScanLoop();
-        }
-      }, 1500);
-    } else {
-      status.textContent = '❌ ' + (data.error || 'Face does not match profile picture. Try again.');
-      status.style.color = 'var(--danger)';
-      btn.disabled = false;
-      btn.innerHTML = '🔄 Retry Verification';
-    }
-  } catch(e) {
-    status.textContent = '⚠️ Network error during verification.';
-    btn.disabled = false;
-    btn.innerHTML = '🔄 Retry Verification';
-  }
+  startFaceVerification();
 }
 
 // ── Session Check (modified) ──────────────────────────────────
@@ -431,7 +523,7 @@ async function submitAttendance(session_token, qr_token) {
   if (submitting) return;
   submitting = true;
 
-  const selfie = captureSelfie();
+  const selfie = faceVerifiedSelfie || captureSelfie();
 
   try {
     const res = await fetch('/api/attendance/submit', {
