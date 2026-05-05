@@ -1,0 +1,764 @@
+Here's the prompt for Replit Agent:
+
+---
+
+Build a world-class, impressive face recognition system using face-api.js that runs entirely in the browser. This replaces the current broken opencv-based server verification. Follow every detail exactly.
+
+**CONTEXT**
+Current flow: Student opens attendance scanner → GPS check → Selfie → QR Scan
+We are replacing the Selfie step with a professional AI-powered face verification system.
+
+---
+
+**STEP 1 — Download face-api.js models**
+
+In the shell, create the models directory and download the required model files:
+
+```bash
+mkdir -p static/face-models
+cd static/face-models
+
+# Tiny face detector
+curl -L -o tiny_face_detector_model-weights_manifest.json https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/tiny_face_detector_model-weights_manifest.json
+curl -L -o tiny_face_detector_model-shard1 https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/tiny_face_detector_model-shard1
+
+# Face landmark 68 points
+curl -L -o face_landmark_68_model-weights_manifest.json https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/face_landmark_68_model-weights_manifest.json
+curl -L -o face_landmark_68_model-shard1 https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/face_landmark_68_model-shard1
+
+# Face recognition
+curl -L -o face_recognition_model-weights_manifest.json https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/face_recognition_model-weights_manifest.json
+curl -L -o face_recognition_model-shard1 https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/face_recognition_model-shard1
+curl -L -o face_recognition_model-shard2 https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/face_recognition_model-shard2
+
+# Face expression (for liveness smile detection)
+curl -L -o face_expression_model-weights_manifest.json https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/face_expression_model-weights_manifest.json
+curl -L -o face_expression_model-shard1 https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/face_expression_model-shard1
+```
+
+---
+
+**STEP 2 — Update `/api/attendance/verify-face` in `blueprints/attendance.py`**
+
+Replace the entire verify-face route with this — the heavy lifting moves to browser, server just validates the result:
+
+```python
+@attendance_bp.route('/api/attendance/verify-face', methods=['POST'])
+@login_required
+@role_required('student')
+def verify_face():
+    data = request.json or {}
+    
+    student_id = session.get('user_id')
+    student = Student.query.get(student_id)
+    if not student:
+        return jsonify({'match': False, 'error': 'Student not found'}), 404
+    if not student.photo_url:
+        return jsonify({'match': False, 'error': 'No profile picture found. Please contact Admin.'})
+    
+    # Return profile photo for client-side face-api.js comparison
+    return jsonify({
+        'profile_photo': student.photo_url,
+        'student_name': student.name
+    })
+```
+
+---
+
+**STEP 3 — Create `static/js/face-verification.js`**
+
+This is the core face verification engine. Build it with:
+
+```javascript
+/**
+ * UniSchedule Face Verification Engine
+ * Uses face-api.js for liveness detection + face matching
+ * Runs entirely in browser — no server processing needed
+ */
+
+class FaceVerificationEngine {
+    constructor(options = {}) {
+        this.videoEl = options.videoEl;
+        this.canvasEl = options.canvasEl;
+        this.statusEl = options.statusEl;
+        this.progressEl = options.progressEl;
+        
+        this.modelsLoaded = false;
+        this.stream = null;
+        this.profileDescriptor = null;
+        this.verificationInterval = null;
+        
+        // Liveness challenges
+        this.challenges = ['blink', 'smile', 'turn_left', 'turn_right'];
+        this.currentChallenge = null;
+        this.challengeCompleted = false;
+        this.blinkCount = 0;
+        this.lastEyeState = 'open';
+        this.challengeTimeout = null;
+        
+        // Verification state
+        this.livenessVerified = false;
+        this.faceMatched = false;
+        this.matchConfidence = 0;
+        
+        // Callbacks
+        this.onSuccess = options.onSuccess || (() => {});
+        this.onFailure = options.onFailure || (() => {});
+        this.onProgress = options.onProgress || (() => {});
+    }
+
+    async loadModels() {
+        this.updateStatus('🧠 Loading AI models...', 'loading');
+        this.updateProgress(10);
+        
+        const MODEL_URL = '/static/face-models';
+        
+        await Promise.all([
+            faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+            faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+            faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+            faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+        ]);
+        
+        this.modelsLoaded = true;
+        this.updateStatus('✅ AI models loaded', 'success');
+        this.updateProgress(25);
+    }
+
+    async startCamera() {
+        this.updateStatus('📷 Starting camera...', 'loading');
+        
+        this.stream = await navigator.mediaDevices.getUserMedia({
+            video: { 
+                width: { ideal: 640 }, 
+                height: { ideal: 480 },
+                facingMode: 'user'
+            }
+        });
+        
+        this.videoEl.srcObject = this.stream;
+        await new Promise(resolve => this.videoEl.onloadedmetadata = resolve);
+        await this.videoEl.play();
+        
+        // Match canvas size to video
+        this.canvasEl.width = this.videoEl.videoWidth;
+        this.canvasEl.height = this.videoEl.videoHeight;
+        
+        this.updateProgress(40);
+    }
+
+    async loadProfilePhoto(photoUrl) {
+        this.updateStatus('🔍 Loading your profile photo...', 'loading');
+        
+        const img = await faceapi.fetchImage(photoUrl);
+        const detection = await faceapi
+            .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+            .withFaceLandmarks()
+            .withFaceDescriptor();
+        
+        if (!detection) {
+            throw new Error('No face found in profile photo. Please upload a clearer photo.');
+        }
+        
+        this.profileDescriptor = detection.descriptor;
+        this.updateProgress(55);
+        this.updateStatus('✅ Profile loaded. Starting liveness check...', 'success');
+    }
+
+    startLivenessChallenge() {
+        // Pick random challenge
+        this.currentChallenge = this.challenges[Math.floor(Math.random() * this.challenges.length)];
+        this.challengeCompleted = false;
+        this.blinkCount = 0;
+        
+        const challengeMessages = {
+            'blink': '👁️ Please BLINK your eyes twice',
+            'smile': '😊 Please SMILE for the camera',
+            'turn_left': '👈 Please turn your head LEFT slightly',
+            'turn_right': '👉 Please turn your head RIGHT slightly'
+        };
+        
+        this.updateStatus(challengeMessages[this.currentChallenge], 'challenge');
+        this.updateProgress(60);
+        
+        // Set timeout for challenge
+        this.challengeTimeout = setTimeout(() => {
+            if (!this.challengeCompleted) {
+                this.updateStatus('⏰ Challenge timed out. Please retry.', 'error');
+                this.onFailure('Liveness challenge timed out');
+            }
+        }, 15000); // 15 seconds to complete challenge
+    }
+
+    async checkLivenessChallenge(detection) {
+        if (this.challengeCompleted) return true;
+        
+        const landmarks = detection.landmarks;
+        const expressions = detection.expressions;
+        
+        switch(this.currentChallenge) {
+            case 'blink':
+                return this.checkBlink(landmarks);
+            case 'smile':
+                return expressions.happy > 0.7;
+            case 'turn_left':
+                return this.checkHeadTurn(landmarks, 'left');
+            case 'turn_right':
+                return this.checkHeadTurn(landmarks, 'right');
+        }
+        return false;
+    }
+
+    checkBlink(landmarks) {
+        const leftEye = landmarks.getLeftEye();
+        const rightEye = landmarks.getRightEye();
+        
+        const leftEAR = this.eyeAspectRatio(leftEye);
+        const rightEAR = this.eyeAspectRatio(rightEye);
+        const avgEAR = (leftEAR + rightEAR) / 2;
+        
+        const eyeClosed = avgEAR < 0.2;
+        
+        if (eyeClosed && this.lastEyeState === 'open') {
+            this.blinkCount++;
+            this.lastEyeState = 'closed';
+            this.updateStatus(`👁️ Blink detected! (${this.blinkCount}/2)`, 'challenge');
+        } else if (!eyeClosed && this.lastEyeState === 'closed') {
+            this.lastEyeState = 'open';
+        }
+        
+        return this.blinkCount >= 2;
+    }
+
+    eyeAspectRatio(eye) {
+        const A = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
+        const B = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
+        const C = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
+        return (A + B) / (2 * C);
+    }
+
+    checkHeadTurn(landmarks, direction) {
+        const nose = landmarks.getNose();
+        const leftEye = landmarks.getLeftEye();
+        const rightEye = landmarks.getRightEye();
+        
+        const eyeCenter = {
+            x: (leftEye[0].x + rightEye[3].x) / 2,
+            y: (leftEye[0].y + rightEye[3].y) / 2
+        };
+        
+        const noseTip = nose[3];
+        const offset = noseTip.x - eyeCenter.x;
+        const faceWidth = Math.abs(rightEye[3].x - leftEye[0].x);
+        const normalizedOffset = offset / faceWidth;
+        
+        if (direction === 'left') return normalizedOffset < -0.15;
+        if (direction === 'right') return normalizedOffset > 0.15;
+        return false;
+    }
+
+    async compareFaces(descriptor) {
+        if (!this.profileDescriptor) return 0;
+        
+        const distance = faceapi.euclideanDistance(descriptor, this.profileDescriptor);
+        // Convert distance to confidence (0-100)
+        // distance < 0.4 = same person, distance > 0.6 = different person
+        const confidence = Math.max(0, Math.min(100, (1 - distance / 0.6) * 100));
+        return { confidence, distance, isMatch: distance < 0.45 };
+    }
+
+    async startVerification() {
+        this.startLivenessChallenge();
+        
+        this.verificationInterval = setInterval(async () => {
+            if (!this.videoEl.readyState === 4) return;
+            
+            const detections = await faceapi
+                .detectSingleFace(this.videoEl, new faceapi.TinyFaceDetectorOptions())
+                .withFaceLandmarks()
+                .withFaceDescriptor()
+                .withFaceExpressions();
+            
+            // Clear canvas
+            const ctx = this.canvasEl.getContext('2d');
+            ctx.clearRect(0, 0, this.canvasEl.width, this.canvasEl.height);
+            
+            if (!detections) {
+                this.updateStatus('👤 No face detected. Position your face in the camera.', 'warning');
+                this.drawGuideBox(ctx, false);
+                return;
+            }
+            
+            // Draw face box and landmarks
+            const resized = faceapi.resizeResults(detections, {
+                width: this.canvasEl.width,
+                height: this.canvasEl.height
+            });
+            
+            // Check liveness first
+            if (!this.livenessVerified) {
+                const livenesPassed = await this.checkLivenessChallenge(detections);
+                
+                this.drawFaceBox(ctx, resized, false);
+                
+                if (livenesPassed) {
+                    clearTimeout(this.challengeTimeout);
+                    this.challengeCompleted = true;
+                    this.livenessVerified = true;
+                    this.updateStatus('✅ Liveness verified! Now matching your face...', 'success');
+                    this.updateProgress(75);
+                    
+                    // Short pause then do face matching
+                    setTimeout(() => this.doFaceMatching(detections.descriptor), 1000);
+                    clearInterval(this.verificationInterval);
+                }
+                return;
+            }
+        }, 200); // Check every 200ms
+    }
+
+    async doFaceMatching(descriptor) {
+        this.updateStatus('🔍 Comparing faces...', 'loading');
+        
+        const result = await this.compareFaces(descriptor);
+        this.matchConfidence = result.confidence;
+        
+        if (result.isMatch) {
+            this.faceMatched = true;
+            this.updateStatus(`✅ Identity verified! ${result.confidence.toFixed(1)}% match`, 'success');
+            this.updateProgress(100);
+            
+            // Capture selfie for record
+            const canvas = document.createElement('canvas');
+            canvas.width = this.videoEl.videoWidth;
+            canvas.height = this.videoEl.videoHeight;
+            canvas.getContext('2d').drawImage(this.videoEl, 0, 0);
+            const selfieData = canvas.toDataURL('image/jpeg', 0.8);
+            
+            setTimeout(() => {
+                this.stopCamera();
+                this.onSuccess({
+                    confidence: result.confidence,
+                    distance: result.distance,
+                    selfie: selfieData
+                });
+            }, 1500);
+        } else {
+            this.updateStatus(`❌ Face does not match. ${result.confidence.toFixed(1)}% confidence. Please retry.`, 'error');
+            this.updateProgress(0);
+            
+            setTimeout(() => {
+                this.livenessVerified = false;
+                this.updateProgress(55);
+                this.startLivenessChallenge();
+                this.startVerification();
+            }, 3000);
+        }
+    }
+
+    drawFaceBox(ctx, detections, isVerified) {
+        const box = detections.detection.box;
+        ctx.strokeStyle = isVerified ? '#00ff00' : '#667eea';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
+        
+        // Draw corner decorations
+        const cornerSize = 20;
+        ctx.strokeStyle = isVerified ? '#00ff00' : '#f6ad55';
+        ctx.lineWidth = 4;
+        
+        // Top left
+        ctx.beginPath();
+        ctx.moveTo(box.x, box.y + cornerSize);
+        ctx.lineTo(box.x, box.y);
+        ctx.lineTo(box.x + cornerSize, box.y);
+        ctx.stroke();
+        
+        // Top right
+        ctx.beginPath();
+        ctx.moveTo(box.x + box.width - cornerSize, box.y);
+        ctx.lineTo(box.x + box.width, box.y);
+        ctx.lineTo(box.x + box.width, box.y + cornerSize);
+        ctx.stroke();
+        
+        // Bottom left
+        ctx.beginPath();
+        ctx.moveTo(box.x, box.y + box.height - cornerSize);
+        ctx.lineTo(box.x, box.y + box.height);
+        ctx.lineTo(box.x + cornerSize, box.y + box.height);
+        ctx.stroke();
+        
+        // Bottom right
+        ctx.beginPath();
+        ctx.moveTo(box.x + box.width - cornerSize, box.y + box.height);
+        ctx.lineTo(box.x + box.width, box.y + box.height);
+        ctx.lineTo(box.x + box.width - cornerSize, box.y + box.height);
+        ctx.stroke();
+    }
+
+    drawGuideBox(ctx, faceDetected) {
+        const centerX = this.canvasEl.width / 2;
+        const centerY = this.canvasEl.height / 2;
+        const width = 200;
+        const height = 250;
+        
+        ctx.strokeStyle = faceDetected ? '#48bb78' : '#fc8181';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([10, 5]);
+        ctx.strokeRect(centerX - width/2, centerY - height/2, width, height);
+        ctx.setLineDash([]);
+    }
+
+    updateStatus(message, type) {
+        if (!this.statusEl) return;
+        
+        const colors = {
+            loading: '#667eea',
+            success: '#48bb78',
+            error: '#fc8181',
+            warning: '#f6ad55',
+            challenge: '#9f7aea'
+        };
+        
+        this.statusEl.textContent = message;
+        this.statusEl.style.color = colors[type] || '#ffffff';
+    }
+
+    updateProgress(percent) {
+        if (!this.progressEl) return;
+        this.progressEl.style.width = percent + '%';
+        this.onProgress(percent);
+    }
+
+    stopCamera() {
+        if (this.stream) {
+            this.stream.getTracks().forEach(track => track.stop());
+            this.stream = null;
+        }
+        if (this.verificationInterval) {
+            clearInterval(this.verificationInterval);
+        }
+        if (this.challengeTimeout) {
+            clearTimeout(this.challengeTimeout);
+        }
+    }
+
+    async initialize(profilePhotoUrl) {
+        try {
+            await this.loadModels();
+            await this.startCamera();
+            await this.loadProfilePhoto(profilePhotoUrl);
+            await this.startVerification();
+        } catch (error) {
+            this.updateStatus(`❌ Error: ${error.message}`, 'error');
+            this.onFailure(error.message);
+        }
+    }
+}
+```
+
+---
+
+**STEP 4 — Update the attendance scanner template**
+
+Find the student attendance scanner template (likely `templates/student_scan.html` or similar). Replace the selfie/verification section with this new impressive UI:
+
+```html
+<!-- Face Verification Section -->
+<div id="faceVerificationSection" style="display:none;">
+    <div class="verification-container" style="
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        border-radius: 20px;
+        padding: 30px;
+        max-width: 600px;
+        margin: 0 auto;
+        box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+    ">
+        <!-- Header -->
+        <div style="text-align:center; margin-bottom:25px;">
+            <div style="font-size:2.5rem; margin-bottom:10px;">🛡️</div>
+            <h2 style="color:#fff; font-size:1.5rem; margin:0;">Identity Verification</h2>
+            <p style="color:#a0aec0; margin:8px 0 0;">AI-powered liveness detection + face matching</p>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div style="background:#2d3748; border-radius:10px; height:6px; margin-bottom:20px; overflow:hidden;">
+            <div id="verifyProgress" style="
+                height:100%; width:0%; 
+                background: linear-gradient(90deg, #667eea, #764ba2);
+                border-radius:10px;
+                transition: width 0.5s ease;
+            "></div>
+        </div>
+        
+        <!-- Status Message -->
+        <div id="verifyStatus" style="
+            text-align:center;
+            padding:12px 20px;
+            border-radius:10px;
+            background:rgba(255,255,255,0.05);
+            color:#667eea;
+            font-weight:600;
+            margin-bottom:20px;
+            font-size:0.95rem;
+            min-height:48px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        ">Initializing...</div>
+        
+        <!-- Camera Feed -->
+        <div style="position:relative; border-radius:15px; overflow:hidden; background:#000;">
+            <video id="verifyVideo" autoplay muted playsinline style="
+                width:100%; display:block;
+                transform: scaleX(-1);
+            "></video>
+            <canvas id="verifyCanvas" style="
+                position:absolute; top:0; left:0;
+                width:100%; height:100%;
+                transform: scaleX(-1);
+            "></canvas>
+            
+            <!-- Scanning animation overlay -->
+            <div id="scanLine" style="
+                position:absolute; top:0; left:0; right:0;
+                height:3px;
+                background: linear-gradient(90deg, transparent, #667eea, transparent);
+                animation: scanAnimation 2s linear infinite;
+            "></div>
+        </div>
+        
+        <!-- Challenge Instructions -->
+        <div id="challengeBox" style="
+            margin-top:20px;
+            padding:15px;
+            border-radius:12px;
+            background:rgba(102,126,234,0.1);
+            border:1px solid rgba(102,126,234,0.3);
+            text-align:center;
+            display:none;
+        ">
+            <div id="challengeIcon" style="font-size:2rem; margin-bottom:8px;"></div>
+            <div id="challengeText" style="color:#e2e8f0; font-weight:600;"></div>
+            <div id="challengeHint" style="color:#a0aec0; font-size:0.85rem; margin-top:5px;"></div>
+        </div>
+        
+        <!-- Steps indicator -->
+        <div style="display:flex; justify-content:center; gap:15px; margin-top:20px;">
+            <div class="step-indicator" id="step-liveness" style="
+                display:flex; align-items:center; gap:6px;
+                color:#a0aec0; font-size:0.85rem;
+            ">
+                <div style="width:24px; height:24px; border-radius:50%; background:#2d3748; display:flex; align-items:center; justify-content:center; font-size:0.75rem;">1</div>
+                Liveness
+            </div>
+            <div style="color:#4a5568; display:flex; align-items:center;">→</div>
+            <div class="step-indicator" id="step-matching" style="
+                display:flex; align-items:center; gap:6px;
+                color:#a0aec0; font-size:0.85rem;
+            ">
+                <div style="width:24px; height:24px; border-radius:50%; background:#2d3748; display:flex; align-items:center; justify-content:center; font-size:0.75rem;">2</div>
+                Face Match
+            </div>
+            <div style="color:#4a5568; display:flex; align-items:center;">→</div>
+            <div class="step-indicator" id="step-verified" style="
+                display:flex; align-items:center; gap:6px;
+                color:#a0aec0; font-size:0.85rem;
+            ">
+                <div style="width:24px; height:24px; border-radius:50%; background:#2d3748; display:flex; align-items:center; justify-content:center; font-size:0.75rem;">3</div>
+                Verified
+            </div>
+        </div>
+        
+        <!-- Retry button (hidden initially) -->
+        <button id="retryVerifyBtn" onclick="retryVerification()" style="
+            display:none; width:100%; margin-top:20px;
+            padding:14px; border:none; border-radius:12px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color:#fff; font-size:1rem; font-weight:600;
+            cursor:pointer;
+        ">🔄 Retry Verification</button>
+    </div>
+</div>
+
+<style>
+@keyframes scanAnimation {
+    0% { top: 0%; }
+    100% { top: 100%; }
+}
+.step-indicator.active div:first-child {
+    background: linear-gradient(135deg, #667eea, #764ba2) !important;
+    color: white !important;
+}
+.step-indicator.completed div:first-child {
+    background: #48bb78 !important;
+    color: white !important;
+}
+.step-indicator.active { color: #667eea !important; }
+.step-indicator.completed { color: #48bb78 !important; }
+</style>
+```
+
+---
+
+**STEP 5 — Add JavaScript to initialize the verification**
+
+In the scanner page script section, add:
+
+```javascript
+// Load face-api.js from CDN
+// Add to head: <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+let faceEngine = null;
+
+async function startFaceVerification() {
+    document.getElementById('faceVerificationSection').style.display = 'block';
+    
+    // Get profile photo from server
+    const response = await fetch('/api/attendance/verify-face', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ selfie: 'init' })
+    });
+    const data = await response.json();
+    
+    if (!data.profile_photo) {
+        showError(data.error || 'No profile photo found. Contact admin.');
+        return;
+    }
+    
+    // Activate step 1
+    document.getElementById('step-liveness').classList.add('active');
+    
+    faceEngine = new FaceVerificationEngine({
+        videoEl: document.getElementById('verifyVideo'),
+        canvasEl: document.getElementById('verifyCanvas'),
+        statusEl: document.getElementById('verifyStatus'),
+        progressEl: document.getElementById('verifyProgress'),
+        
+        onProgress: (percent) => {
+            if (percent >= 60 && percent < 75) {
+                // Liveness phase
+                document.getElementById('challengeBox').style.display = 'block';
+                document.getElementById('step-liveness').classList.add('active');
+            }
+            if (percent >= 75) {
+                // Matching phase
+                document.getElementById('challengeBox').style.display = 'none';
+                document.getElementById('step-liveness').classList.remove('active');
+                document.getElementById('step-liveness').classList.add('completed');
+                document.getElementById('step-matching').classList.add('active');
+            }
+            if (percent >= 100) {
+                document.getElementById('step-matching').classList.remove('active');
+                document.getElementById('step-matching').classList.add('completed');
+                document.getElementById('step-verified').classList.add('completed');
+            }
+        },
+        
+        onSuccess: async (result) => {
+            // Face verified — proceed to QR scan step
+            document.getElementById('step-verified').classList.add('completed');
+            
+            // Submit verification to server
+            await fetch('/api/attendance/verify-face', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    verified: true,
+                    confidence: result.confidence,
+                    selfie: result.selfie
+                })
+            });
+            
+            // Move to QR scan step after 1.5 seconds
+            setTimeout(() => {
+                document.getElementById('faceVerificationSection').style.display = 'none';
+                startQRScan(); // existing function
+            }, 1500);
+        },
+        
+        onFailure: (error) => {
+            document.getElementById('retryVerifyBtn').style.display = 'block';
+            document.getElementById('verifyStatus').textContent = '❌ ' + error;
+            document.getElementById('verifyStatus').style.color = '#fc8181';
+        }
+    });
+    
+    await faceEngine.initialize(data.profile_photo);
+}
+
+function retryVerification() {
+    document.getElementById('retryVerifyBtn').style.display = 'none';
+    if (faceEngine) faceEngine.stopCamera();
+    startFaceVerification();
+}
+```
+
+---
+
+**STEP 6 — Update `verify-face` route to handle both init and final verification**
+
+Replace the verify-face route in `attendance.py`:
+
+```python
+@attendance_bp.route('/api/attendance/verify-face', methods=['POST'])
+@login_required
+@role_required('student')
+def verify_face():
+    data = request.json or {}
+    student_id = session.get('user_id')
+    student = Student.query.get(student_id)
+    
+    if not student:
+        return jsonify({'match': False, 'error': 'Student not found'}), 404
+    
+    # If client sends verified=True, it means face-api.js already verified
+    if data.get('verified'):
+        confidence = data.get('confidence', 0)
+        session['face_verified'] = True
+        session['face_confidence'] = confidence
+        return jsonify({
+            'match': True,
+            'confidence': confidence,
+            'message': f'Identity verified at {confidence:.1f}% confidence'
+        })
+    
+    # Otherwise return profile photo for client-side verification
+    if not student.photo_url:
+        return jsonify({'match': False, 'error': 'No profile picture found. Please contact Admin.'})
+    
+    return jsonify({
+        'profile_photo': student.photo_url,
+        'student_name': student.name
+    })
+```
+
+---
+
+**STEP 7 — Add face-api.js CDN to base template**
+
+In `templates/base.html` or the scanner template head section, add:
+```html
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="/static/js/face-verification.js"></script>
+```
+
+---
+
+**STEP 8 — Test the complete flow**
+
+1. Login as student
+2. Go to attendance scanner
+3. Complete GPS step
+4. Face verification section appears with camera
+5. Liveness challenge appears (blink/smile/turn)
+6. After liveness — face matches against profile photo
+7. On success — moves to QR scan step
+8. Confirm the entire flow works end to end
+
+Do NOT push to git yet. Show me the result and confirm it works.
+
+---
+
+Paste this into Replit Agent!

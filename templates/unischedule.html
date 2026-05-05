@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>UniSchedule — University Timetable Management</title>
+<meta name="description" content="UniSchedule — Premium university timetable management system.">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--navy:#1e2a5e;--navy-deep:#141d42;--gold:#f5c518;--gold-dark:#c9a200;
+--gold-light:#fff3b0;--surface:#f7f8fc;--surface2:#eef0f8;
+--text:#1a1a2e;--muted:#6b7280;--accent:#4f8ef7;--success:#10b981;
+--danger:#ef4444;--warning:#f59e0b;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(245,197,24,.4)}50%{box-shadow:0 0 0 10px rgba(245,197,24,0)}}
+@keyframes cardPop{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes barGrow{from{width:0}to{width:var(--w)}}
+@keyframes toastSlide{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes floatBadge{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes dotPop{0%{transform:scale(0)}60%{transform:scale(1.3)}100%{transform:scale(1)}}
+html{font-size:15px;scroll-behavior:smooth}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--surface);color:var(--text);line-height:1.6;min-height:100vh;-webkit-font-smoothing:antialiased}
+::selection{background:var(--gold);color:var(--navy-deep)}
+a{color:var(--gold-dark);text-decoration:none;cursor:pointer}
+input,select,textarea,button{font-family:inherit}
+
+/* ═══ LOGIN ═══ */
+#loginView{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--navy),var(--navy-deep));position:relative;overflow:hidden}
+#loginView::before{content:'';position:absolute;top:-100px;right:-100px;width:400px;height:400px;background:radial-gradient(circle,rgba(245,197,24,.12),transparent 65%);pointer-events:none}
+#loginView::after{content:'';position:absolute;bottom:-80px;left:-80px;width:350px;height:350px;background:radial-gradient(circle,rgba(79,142,247,.08),transparent 65%);pointer-events:none}
+.lcard{background:#fff;border-radius:24px;padding:44px 40px 36px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:fadeUp .6s ease;position:relative;z-index:1}
+.lcard h2{text-align:center;font-size:1.55rem;font-weight:700;color:var(--text);margin-bottom:2px}
+.lcard .lsub{text-align:center;color:var(--muted);font-size:.82rem;margin-bottom:24px}
+.lcard .licon{text-align:center;font-size:2.2rem;margin-bottom:10px}
+.role-tabs{display:flex;gap:0;background:var(--surface);border-radius:12px;padding:4px;margin-bottom:24px}
+.role-tab{flex:1;padding:10px 0;text-align:center;font-size:.82rem;font-weight:600;border-radius:10px;cursor:pointer;transition:all .2s;color:var(--muted);border:none;background:transparent}
+.role-tab.active{background:#fff;color:var(--navy-deep);box-shadow:0 2px 8px rgba(0,0,0,.08);border-bottom:3px solid var(--gold)}
+.role-tab:hover:not(.active){color:var(--text)}
+.linner{background:var(--surface);border-radius:14px;padding:24px}
+.fg{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.fg:last-of-type{margin-bottom:0}
+.fg label{font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.fg input,.fg select,.fg textarea{background:#fff;border:1.5px solid #e5e7eb;border-radius:12px;padding:12px 16px;color:var(--text);font-size:.88rem;transition:all .2s;outline:none;width:100%}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(245,197,24,.15);background:#fff}
+.lbtn{width:100%;padding:13px;background:var(--gold);color:var(--navy-deep);font-weight:700;font-size:1rem;border:none;border-radius:12px;cursor:pointer;transition:all .25s;animation:pulse 2s ease-in-out infinite;margin-top:20px}
+.lbtn:hover{background:var(--gold-dark);transform:translateY(-2px);box-shadow:0 6px 20px rgba(245,197,24,.4)}
+.lforgot{text-align:center;margin-top:16px;font-size:.85rem;color:var(--gold-dark)}
+
+/* ═══ LAYOUT ═══ */
+#appView{display:none;min-height:100vh}
+.wrap{display:flex;min-height:100vh}
+.sb{width:220px;background:var(--navy-deep);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;overflow-y:auto}
+.sb::-webkit-scrollbar{width:0}
+.sb-logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
+.sb-logo h1{font-size:1.05rem;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px}
+.sb-logo h1 span{animation:floatBadge 3s ease-in-out infinite;display:inline-block}
+.sb-logo .sub{font-size:.68rem;color:rgba(255,255,255,.35);margin-top:2px;letter-spacing:.04em}
+.nsec{padding:12px 6px 4px}
+.nsec-t{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.25);padding:0 14px;margin-bottom:4px}
+.nl{display:flex;align-items:center;gap:10px;padding:9px 14px;margin:1px 6px;border-radius:10px;color:rgba(255,255,255,.55);font-size:.84rem;font-weight:500;transition:all .18s;cursor:pointer;border:none;background:none;width:calc(100% - 12px);text-align:left;position:relative}
+.nl:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.85)}
+.nl.act{background:var(--gold-light);color:var(--navy-deep);font-weight:600}
+.nl.act::before{content:'';position:absolute;left:0;top:20%;height:60%;width:3px;background:var(--gold);border-radius:0 3px 3px 0}
+.nl .ni{font-size:1rem;width:20px;text-align:center;flex-shrink:0}
+.sb-foot{margin-top:auto;padding:14px 18px;border-top:1px solid rgba(255,255,255,.06)}
+.sb-foot button{background:none;border:none;color:rgba(255,255,255,.4);font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 0;transition:color .2s;font-family:inherit}
+.sb-foot button:hover{color:var(--gold)}
+.main{margin-left:220px;flex:1;min-height:100vh;background:var(--surface);padding:28px 32px}
+.page{animation:fadeUp .45s ease forwards}
+
+/* ═══ COMPONENTS ═══ */
+.card{background:#fff;border-radius:16px;padding:26px;margin-bottom:20px;box-shadow:0 1px 6px rgba(0,0,0,.04);border:1px solid rgba(0,0,0,.04)}
+.card-t{font-size:1.02rem;font-weight:700;margin-bottom:16px;color:var(--text);display:flex;align-items:center;gap:8px}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.hdr h2{font-size:1.6rem;font-weight:700}.hdr p{color:var(--muted);font-size:.88rem;margin-top:2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 20px;border:none;border-radius:10px;font-size:.84rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit}
+.btn-g{background:var(--gold);color:var(--navy-deep)}.btn-g:hover{background:var(--gold-dark);transform:translateY(-1px);box-shadow:0 4px 14px rgba(245,197,24,.3)}
+.btn-s{background:var(--success);color:#fff}.btn-s:hover{filter:brightness(1.08)}
+.btn-d{background:#fee2e2;color:#dc2626}.btn-d:hover{background:#fecaca}
+.btn-o{background:var(--surface);border:1px solid #d1d5db;color:var(--navy)}.btn-o:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sm{padding:6px 13px;font-size:.78rem}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:600}
+.b-bl{background:rgba(79,142,247,.1);color:var(--accent)}.b-gn{background:rgba(16,185,129,.1);color:var(--success)}.b-rd{background:rgba(239,68,68,.1);color:var(--danger)}.b-am{background:rgba(245,158,11,.1);color:#b45309}.b-pu{background:rgba(139,92,246,.12);color:#7c3aed}.b-pk{background:rgba(236,72,153,.12);color:#db2777}.b-go{background:var(--gold-light);color:var(--gold-dark)}.b-gy{background:var(--surface2);color:var(--muted)}
+
+/* stat cards */
+.sg{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:24px}
+.sc{background:#fff;border-radius:16px;padding:20px 22px;display:flex;align-items:center;gap:14px;transition:all .25s;cursor:pointer;box-shadow:0 1px 6px rgba(0,0,0,.04);border:1px solid rgba(0,0,0,.05);animation:cardPop .35s ease forwards;position:relative;overflow:hidden}
+.sc:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.08)}
+.sc::after{content:'';position:absolute;top:0;right:0;bottom:0;width:80px;background:linear-gradient(90deg,transparent,rgba(245,197,24,.04));pointer-events:none}
+.si{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.sv{font-size:1.9rem;font-weight:700;color:var(--text);line-height:1.1}
+.sl{font-size:.8rem;color:var(--muted);margin-top:1px;font-weight:500}
+/* quick links */
+.ql-g{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.ql{display:flex;flex-direction:column;gap:6px;padding:18px;background:#fff;border:1.5px solid rgba(0,0,0,.05);border-radius:14px;cursor:pointer;transition:all .25s}
+.ql:hover{border-color:var(--gold);background:var(--gold-light);transform:translateY(-3px);box-shadow:0 4px 14px rgba(245,197,24,.1)}
+.ql .qi{font-size:1.4rem}.ql .qt{font-weight:600;font-size:.88rem}.ql .qd{color:var(--muted);font-size:.75rem}
+/* activity */
+.ai{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(0,0,0,.04);font-size:.85rem}
+.ai:last-child{border-bottom:none}
+.ad{width:8px;height:8px;border-radius:50%;flex-shrink:0;animation:dotPop .4s ease forwards}
+.atm{font-size:.72rem;color:var(--muted);margin-left:auto;white-space:nowrap}
+/* progress */
+.pi{margin-bottom:14px}
+.pl{display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:5px}
+.pl span:first-child{font-weight:600}.pl span:last-child{color:var(--muted)}
+.pt{width:100%;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.pf{height:100%;border-radius:4px;animation:barGrow 1.2s cubic-bezier(.34,1.56,.64,1) forwards}
+/* table */
+.tw{overflow-x:auto;border-radius:14px;border:1px solid rgba(0,0,0,.05);overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+thead th{background:var(--surface);padding:11px 14px;text-align:left;font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border-bottom:1px solid rgba(0,0,0,.06)}
+tbody td{padding:12px 14px;border-bottom:1px solid rgba(0,0,0,.03)}
+tbody tr{transition:background .15s}tbody tr:hover{background:#fafbff}tbody tr:last-child td{border-bottom:none}
+.ac{display:flex;gap:5px}
+/* forms */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-grid.c3{grid-template-columns:1fr 1fr 1fr}
+.form-grid.c1{grid-template-columns:1fr}
+.form-row{display:flex;gap:10px;margin-top:16px}
+.form-panel{background:var(--surface);border-radius:14px;padding:22px;margin-bottom:20px;border:1px solid rgba(0,0,0,.04)}
+/* checkbox grid */
+.cg{display:flex;flex-wrap:wrap;gap:6px}
+.cg label{display:flex;align-items:center;gap:5px;font-size:.8rem;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:8px;border:1px solid rgba(0,0,0,.06);background:#fff;transition:all .15s}
+.cg label:has(input:checked){background:var(--gold-light);border-color:var(--gold);color:var(--navy-deep);font-weight:600}
+.cg input[type=checkbox]{accent-color:var(--gold);width:14px;height:14px}
+/* avail grid */
+.avail-grid{display:grid;grid-template-columns:60px repeat(7,1fr);gap:2px;font-size:.72rem;margin-top:8px}
+.avail-grid .ah{background:var(--surface);padding:6px 4px;text-align:center;font-weight:600;color:var(--muted);border-radius:4px}
+.avail-grid .ac2{background:#fff;display:flex;align-items:center;justify-content:center;padding:4px;border-radius:4px;border:1px solid rgba(0,0,0,.04)}
+.avail-grid .ac2 input{accent-color:var(--gold);width:14px;height:14px}
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:center;justify-content:center;animation:fadeUp .25s}
+.modal{background:#fff;border-radius:20px;padding:32px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal h3{font-size:1.15rem;font-weight:700;margin-bottom:18px}
+/* toast */
+.toast-wrap{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{min-width:280px;max-width:400px;padding:12px 18px;border-radius:12px;font-size:.85rem;font-weight:500;background:var(--navy-deep);color:#fff;border-left:4px solid var(--gold);box-shadow:0 6px 24px rgba(0,0,0,.18);animation:toastSlide .4s cubic-bezier(.34,1.56,.64,1);display:flex;align-items:center;gap:8px}
+.toast.ts{border-left-color:var(--success)}.toast.tw2{border-left-color:var(--warning)}.toast.te{border-left-color:var(--danger)}
+/* filter tabs */
+.ftabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.ftab{padding:7px 16px;border-radius:20px;font-size:.8rem;font-weight:600;cursor:pointer;border:1.5px solid rgba(0,0,0,.08);background:#fff;color:var(--muted);transition:all .2s}
+.ftab.active,.ftab:hover{background:var(--gold-light);border-color:var(--gold);color:var(--navy-deep)}
+/* course cards */
+.cc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.cc{background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:14px;padding:20px;transition:all .25s;animation:cardPop .3s ease}
+.cc:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.07);border-color:var(--gold)}
+.cc .cc-code{font-size:.72rem;font-weight:700;color:var(--gold-dark);background:var(--gold-light);padding:2px 10px;border-radius:6px;display:inline-block;margin-bottom:6px}
+.cc .cc-name{font-size:.95rem;font-weight:700;margin-bottom:8px;color:var(--text)}
+.cc .cc-meta{display:flex;flex-wrap:wrap;gap:6px;font-size:.75rem}
+/* responsive */
+/* timetable grid */
+.tg{display:grid;gap:1px;background:rgba(0,0,0,.06);border:1px solid rgba(0,0,0,.06);border-radius:16px;overflow:hidden}
+.tg .th2{background:var(--surface);padding:11px 8px;font-weight:700;font-size:.75rem;text-align:center;color:var(--navy);text-transform:uppercase;letter-spacing:.04em}
+.tg .ts2{background:var(--surface);padding:10px 6px;font-weight:600;font-size:.73rem;color:var(--muted);display:flex;align-items:center;justify-content:center}
+.tg .tc2{background:#fff;padding:6px;min-height:66px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;font-size:.75rem;transition:background .15s}
+.tg .tc2:hover{background:#fafbff}
+.tg .tc2 .cn2{font-weight:700;font-size:.78rem;color:var(--text)}.tg .tc2 .fn2{color:var(--muted);font-size:.7rem}.tg .tc2 .rn2{color:#b0b5c0;font-size:.66rem;margin-top:1px}
+.tg .tc2.empty{background:var(--surface);color:var(--muted)}.tg .tc2.lunch{background:var(--gold-light);color:var(--gold-dark);font-weight:600}
+.tg .tc2.d0{background:#ddeeff;border-left:3px solid #4a9eff}.tg .tc2.d1{background:#e5fbe5;border-left:3px solid #34c759}.tg .tc2.d2{background:#fff3e0;border-left:3px solid #ff9f0a}.tg .tc2.d3{background:#fce4ec;border-left:3px solid #ff3b30}.tg .tc2.d4{background:#e8eaf6;border-left:3px solid #5856d6}.tg .tc2.d5{background:#f3e5f5;border-left:3px solid #af52de}.tg .tc2.d6{background:#e0f2f1;border-left:3px solid #00bcd4}
+.tg .tc2.cancelled{background:#fff5f5;border-left:3px solid var(--danger)}
+/* algo cards */
+.algo-g{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.algo-c{background:#fff;border:1.5px solid rgba(0,0,0,.08);border-radius:14px;padding:18px;cursor:pointer;transition:all .25s}
+.algo-c:hover{border-color:var(--gold);box-shadow:0 4px 14px rgba(245,197,24,.08)}.algo-c.sel{border-color:var(--gold);background:rgba(245,197,24,.04)}
+.ar{width:16px;height:16px;border-radius:50%;border:2px solid #d1d5db;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+.algo-c.sel .ar{border-color:var(--gold)}.algo-c.sel .ar::after{content:'';width:9px;height:9px;border-radius:50%;background:var(--gold)}
+.spinner2{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
+.btn-gen{width:100%;background:linear-gradient(135deg,var(--navy),var(--navy-deep));color:#fff;padding:13px;font-size:.92rem;font-weight:600;border-radius:12px;border:none;cursor:pointer;transition:all .2s;font-family:inherit}
+.btn-gen:hover{box-shadow:0 6px 20px rgba(20,29,66,.4);transform:translateY(-1px)}.btn-gen:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-gen.ok{background:linear-gradient(135deg,var(--success),#059669)!important}
+/* attendance */
+.att-row{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid rgba(0,0,0,.04);transition:background .15s}
+.att-row:hover{background:#fafbff}.att-row:last-child{border-bottom:none}
+.att-btns{display:flex;gap:5px}
+.att-b{padding:5px 12px;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;border:1.5px solid transparent;transition:all .2s;font-family:inherit;background:var(--surface)}
+.att-b.sel-p{background:rgba(16,185,129,.15);color:var(--success);border-color:var(--success)}
+.att-b.sel-a{background:rgba(239,68,68,.1);color:var(--danger);border-color:var(--danger)}
+.att-b.sel-od{background:rgba(79,142,247,.1);color:var(--accent);border-color:var(--accent)}
+/* student views */
+.hero{background:var(--navy-deep);border-radius:16px;padding:28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;color:#fff;animation:fadeUp .5s}
+.hero-l{display:flex;align-items:center;gap:18px}
+.hero-av{width:72px;height:72px;border-radius:50%;border:3px solid var(--gold);background:linear-gradient(135deg,var(--navy),var(--accent));display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:700;color:#fff}
+.hero-name{font-size:1.4rem;font-weight:700}.hero-id{display:inline-block;background:var(--gold);color:var(--navy-deep);padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:700;margin-top:4px}
+.hero-meta{color:rgba(255,255,255,.55);font-size:.82rem;margin-top:3px}
+.hero-r{display:flex;gap:14px}
+.hstat{background:rgba(255,255,255,.08);border-radius:12px;padding:12px 18px;text-align:center;min-width:90px}
+.hstat .hv{font-size:1.4rem;font-weight:700;color:#fff}.hstat .hl{font-size:.7rem;color:rgba(255,255,255,.45);margin-top:1px}
+.det-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+.det-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(0,0,0,.04)}.det-row:last-child{border-bottom:none}
+.det-l{font-size:.73rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}.det-v{font-size:.86rem;font-weight:500}
+.cp-wrap{display:flex;flex-wrap:wrap;gap:12px}
+.cp-card{flex:1;min-width:120px;max-width:160px;background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:12px;padding:14px;text-align:center;transition:all .2s;animation:cardPop .3s}
+.cp-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.06)}
+.cp-ring{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;position:relative}
+.cp-ring .cp-val{font-size:.78rem;font-weight:700;position:absolute}
+.cp-card .cp-code{font-size:.7rem;font-weight:700;color:var(--gold-dark)}.cp-card .cp-name{font-size:.66rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.today-chip{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:10px;padding:8px 14px;margin:3px;font-size:.8rem;transition:all .2s;animation:cardPop .3s}
+.today-chip:hover{transform:translateY(-2px);box-shadow:0 2px 6px rgba(0,0,0,.05)}
+.today-chip .tc-dot{width:7px;height:7px;border-radius:50%}
+.lunch-chip{background:var(--gold-light);border-color:var(--gold);font-weight:600;color:var(--gold-dark)}
+.tt-slot{background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:14px;padding:18px;margin-bottom:10px;transition:all .25s;animation:cardPop .3s}
+.tt-slot:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,.06)}
+@keyframes absentPulse{0%,100%{background:#fff5f5}50%{background:#fff}}
+.tt-slot.absent-slot{background:#fff5f5;border-left:4px solid var(--danger);animation:absentPulse 2s infinite}
+.status-pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.7rem;font-weight:600}
+.sp-on{background:rgba(16,185,129,.12);color:var(--success)}.sp-done{background:var(--surface2);color:var(--muted)}.sp-up{background:rgba(79,142,247,.1);color:var(--accent)}.sp-cancel{background:rgba(239,68,68,.1);color:var(--danger)}
+.att-banner{background:var(--navy-deep);color:#fff;border-radius:14px;padding:16px 22px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between}
+.sum-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.sum-c{background:#fff;border-radius:14px;padding:18px;text-align:center;border:1px solid rgba(0,0,0,.06)}
+.sum-c .sc-v{font-size:1.7rem;font-weight:700}.sum-c .sc-l{font-size:.8rem;color:var(--muted);margin-top:1px}
+.att-pct{font-weight:700}.att-pct.good{color:var(--success)}.att-pct.mid{color:var(--warning)}.att-pct.bad{color:var(--danger)}
+.mini-bar{width:100%;height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:3px}
+.mini-bar-fill{height:100%;border-radius:3px;animation:barGrow 1.2s cubic-bezier(.34,1.56,.64,1) forwards}
+@media(max-width:900px){.sb{transform:translateX(-100%);transition:transform .3s}.sb.open{transform:translateX(0)}.main{margin-left:0}.sg{grid-template-columns:repeat(2,1fr)}.ql-g{grid-template-columns:repeat(2,1fr)}.form-grid{grid-template-columns:1fr}.form-grid.c3{grid-template-columns:1fr}.algo-g{grid-template-columns:1fr}.det-grid{grid-template-columns:1fr}.sum-cards{grid-template-columns:1fr}.hero{flex-direction:column;text-align:center;gap:16px}.hero-r{justify-content:center}}
+@media(max-width:600px){.sg{grid-template-columns:1fr}.ql-g{grid-template-columns:1fr}.main{padding:16px}.lcard{margin:16px;padding:28px 22px}}
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="loginView">
+<div class="lcard">
+<div class="licon">🔒</div>
+<h2>UniSchedule</h2>
+<p class="lsub">University Timetable Management</p>
+<div class="role-tabs">
+<button class="role-tab active" onclick="setRole(this,'admin')">🛡️ Admin</button>
+<button class="role-tab" onclick="setRole(this,'faculty')">👨‍🏫 Faculty</button>
+<button class="role-tab" onclick="setRole(this,'student')">🎓 Student</button>
+</div>
+<div class="linner">
+<div class="fg"><label>Email Address</label><input type="email" id="logEmail" placeholder="admin@srmap.edu.in"></div>
+<div class="fg"><label>Password</label><input type="password" id="logPass" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+<button class="lbtn" onclick="doLogin()">🚀 Sign In</button>
+</div>
+<div class="lforgot"><a href="#">Forgot Password?</a></div>
+</div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="appView">
+<div class="wrap">
+<nav class="sb" id="sidebar"></nav>
+<div class="main" id="mainArea"></div>
+</div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+
+/* ══════════════════════════════════════════════════
+   DATA — Single Source of Truth
+   ══════════════════════════════════════════════════ */
+const DATA={
+university:{name:"SRM University AP",blocks:4,roomsPerFloor:5,roomCapacity:60,floorsPerBlock:[3,4,2,3],days:["Mon","Tue","Wed","Thu","Fri"],slots:["9-10","10-11","11-12","12-1","2-3","3-4","4-5"]},
+departments:[{id:1,name:"Computer Science",code:"CSE"},{id:2,name:"Electronics",code:"ECE"},{id:3,name:"Mechanical",code:"MECH"},{id:4,name:"Civil",code:"CIVIL"},{id:5,name:"Information Technology",code:"IT"},{id:6,name:"Artificial Intelligence",code:"AI"}],
+courses:[
+{code:"CS205",name:"Hands-On With Python",dept:"CSE",credits:3,difficulty:"Medium",classesPerWeek:3,type:"Theory"},
+{code:"CS206",name:"Coding Skills II",dept:"CSE",credits:3,difficulty:"Medium",classesPerWeek:3,type:"Theory"},
+{code:"AEC201",name:"Industry Standard Employability Soft Skills",dept:"CSE",credits:2,difficulty:"Easy",classesPerWeek:2,type:"Theory"},
+{code:"CS208",name:"Probability and Statistics",dept:"CSE",credits:4,difficulty:"Hard",classesPerWeek:4,type:"Theory"},
+{code:"CS209",name:"Database Management Systems",dept:"CSE",credits:4,difficulty:"Hard",classesPerWeek:4,type:"Theory"},
+{code:"CS211",name:"Full Stack Development",dept:"CSE",credits:4,difficulty:"Medium",classesPerWeek:4,type:"Lab"},
+{code:"MAT266A",name:"Elementary Number Theory",dept:"CSE",credits:3,difficulty:"Hard",classesPerWeek:3,type:"Theory"},
+{code:"EC201",name:"Signals and Systems",dept:"ECE",credits:4,difficulty:"Hard",classesPerWeek:4,type:"Theory"},
+{code:"EC202",name:"Digital Electronics",dept:"ECE",credits:3,difficulty:"Medium",classesPerWeek:3,type:"Theory"},
+{code:"EC203",name:"Analog Circuits",dept:"ECE",credits:3,difficulty:"Hard",classesPerWeek:3,type:"Theory"},
+{code:"EC204",name:"Electromagnetic Theory",dept:"ECE",credits:4,difficulty:"Hard",classesPerWeek:4,type:"Theory"},
+{code:"EC205",name:"VLSI Design Lab",dept:"ECE",credits:3,difficulty:"Medium",classesPerWeek:3,type:"Lab"},
+{code:"EC206",name:"Communication Systems",dept:"ECE",credits:3,difficulty:"Medium",classesPerWeek:3,type:"Theory"},
+{code:"ME201",name:"Thermodynamics",dept:"MECH",credits:4,difficulty:"Hard",classesPerWeek:4,type:"Theory"},
+{code:"ME202",name:"Fluid Mechanics",dept:"MECH",credits:3,difficulty:"Hard",classesPerWeek:3,type:"Theory"},
+{code:"ME203",name:"Strength of Materials",dept:"MECH",credits:4,difficulty:"Medium",classesPerWeek:4,type:"Theory"},
+{code:"ME204",name:"Manufacturing Processes",dept:"MECH",credits:3,difficulty:"Medium",classesPerWeek:3,type:"Theory"},
+{code:"ME205",name:"CAD/CAM Lab",dept:"MECH",credits:3,difficulty:"Easy",classesPerWeek:3,type:"Lab"},
+{code:"CE201",name:"Structural Analysis",dept:"CIVIL",credits:4,difficulty:"Hard",classesPerWeek:4,type:"Theory"},
+{code:"CE202",name:"Geotechnical Engineering",dept:"CIVIL",credits:3,difficulty:"Medium",classesPerWeek:3,type:"Theory"},
+{code:"CE203",name:"Surveying Lab",dept:"CIVIL",credits:3,difficulty:"Medium",classesPerWeek:3,type:"Lab"},
+{code:"CE204",name:"Environmental Engineering",dept:"CIVIL",credits:3,difficulty:"Easy",classesPerWeek:3,type:"Theory"},
+{code:"IT201",name:"Cloud Computing",dept:"IT",credits:4,difficulty:"Medium",classesPerWeek:4,type:"Theory"},
+{code:"IT202",name:"Cybersecurity Fundamentals",dept:"IT",credits:3,difficulty:"Hard",classesPerWeek:3,type:"Theory"},
+{code:"IT203",name:"Web Technologies Lab",dept:"IT",credits:3,difficulty:"Easy",classesPerWeek:3,type:"Lab"},
+{code:"IT204",name:"Software Engineering",dept:"IT",credits:3,difficulty:"Medium",classesPerWeek:3,type:"Theory"},
+{code:"IT205",name:"DevOps Practices",dept:"IT",credits:3,difficulty:"Medium",classesPerWeek:3,type:"Theory"},
+{code:"AI201",name:"Machine Learning",dept:"AI",credits:4,difficulty:"Hard",classesPerWeek:4,type:"Theory"},
+{code:"AI202",name:"Deep Learning",dept:"AI",credits:4,difficulty:"Hard",classesPerWeek:4,type:"Theory"},
+{code:"AI203",name:"Natural Language Processing",dept:"AI",credits:3,difficulty:"Medium",classesPerWeek:3,type:"Theory"},
+{code:"AI204",name:"Computer Vision Lab",dept:"AI",credits:3,difficulty:"Medium",classesPerWeek:3,type:"Lab"},
+{code:"AI205",name:"AI Ethics and Society",dept:"AI",credits:2,difficulty:"Easy",classesPerWeek:2,type:"Theory"}],
+faculty:[
+{id:"FAC001",name:"Dr. Arun Kumar",dept:"CSE",email:"arun.kumar@srmap.edu.in",password:"arun.kumar@123",canTeach:["CS205","CS208"],assignedSections:["SEC001","SEC002"],available:{Mon:["9-10","2-3"],Tue:["9-10"],Wed:["9-10"],Thu:["9-10","2-3"],Fri:["9-10"]},absentDates:[]},
+{id:"FAC002",name:"Dr. Priya Sharma",dept:"CSE",email:"priya.sharma@srmap.edu.in",password:"priya.sharma@123",canTeach:["CS206"],assignedSections:["SEC001","SEC002"],available:{Mon:["10-11"],Tue:["10-11"],Wed:["10-11"],Thu:["10-11"],Fri:["10-11"]},absentDates:[]},
+{id:"FAC003",name:"Dr. Meena Iyer",dept:"CSE",email:"meena.iyer@srmap.edu.in",password:"meena.iyer@123",canTeach:["AEC201"],assignedSections:["SEC001"],available:{Mon:["11-12"],Tue:["11-12"],Wed:["11-12"],Thu:["11-12"],Fri:["11-12"]},absentDates:["2026-04-12"]},
+{id:"FAC004",name:"Dr. Ramesh Babu",dept:"CSE",email:"ramesh.babu@srmap.edu.in",password:"ramesh.babu@123",canTeach:["CS208"],assignedSections:["SEC001"],available:{Mon:["2-3"],Tue:["2-3"],Wed:["2-3"],Thu:["2-3"],Fri:["2-3"]},absentDates:[]},
+{id:"FAC005",name:"Dr. Vikram Rao",dept:"CSE",email:"vikram.rao@srmap.edu.in",password:"vikram.rao@123",canTeach:["CS209"],assignedSections:["SEC001","SEC002"],available:{Mon:["3-4"],Tue:["3-4"],Wed:["3-4"],Thu:["3-4"],Fri:["3-4"]},absentDates:[]},
+{id:"FAC006",name:"Dr. Anjali Nair",dept:"CSE",email:"anjali.nair@srmap.edu.in",password:"anjali.nair@123",canTeach:["CS211"],assignedSections:["SEC001"],available:{Mon:["4-5"],Tue:["4-5"],Wed:["4-5"],Thu:["4-5"],Fri:["4-5"]},absentDates:[]},
+{id:"FAC007",name:"Dr. Suresh Pillai",dept:"CSE",email:"suresh.pillai@srmap.edu.in",password:"suresh.pillai@123",canTeach:["MAT266A"],assignedSections:["SEC001","SEC002"],available:{Mon:["10-11"],Tue:["10-11"],Wed:["10-11"],Thu:["10-11"],Fri:["10-11"]},absentDates:[]},
+{id:"FAC008",name:"Dr. Lakshmi Menon",dept:"ECE",email:"lakshmi.menon@srmap.edu.in",password:"lakshmi.menon@123",canTeach:["EC201","EC204"],assignedSections:["SEC003"],available:{Mon:["9-10","2-3"],Tue:["9-10"],Wed:["9-10","3-4"],Thu:["9-10"],Fri:["9-10","2-3"]},absentDates:[]},
+{id:"FAC009",name:"Dr. Raghav Sinha",dept:"ECE",email:"raghav.sinha@srmap.edu.in",password:"raghav.sinha@123",canTeach:["EC202","EC205"],assignedSections:["SEC003"],available:{Mon:["10-11","3-4"],Tue:["10-11","3-4"],Wed:["10-11"],Thu:["10-11","3-4"],Fri:["10-11"]},absentDates:[]},
+{id:"FAC010",name:"Dr. Kavitha Das",dept:"ECE",email:"kavitha.das@srmap.edu.in",password:"kavitha.das@123",canTeach:["EC203","EC206"],assignedSections:["SEC003"],available:{Mon:["11-12","4-5"],Tue:["11-12","4-5"],Wed:["11-12","4-5"],Thu:["11-12"],Fri:["11-12","4-5"]},absentDates:[]},
+{id:"FAC011",name:"Dr. Karthik Reddy",dept:"MECH",email:"karthik.reddy@srmap.edu.in",password:"karthik.reddy@123",canTeach:["ME201","ME203"],assignedSections:["SEC004"],available:{Mon:["9-10","2-3"],Tue:["9-10","2-3"],Wed:["9-10"],Thu:["9-10"],Fri:["9-10","2-3"]},absentDates:[]},
+{id:"FAC012",name:"Dr. Sanjay Mehta",dept:"MECH",email:"sanjay.mehta@srmap.edu.in",password:"sanjay.mehta@123",canTeach:["ME202","ME204","ME205"],assignedSections:["SEC004"],available:{Mon:["10-11","3-4","4-5"],Tue:["10-11","3-4"],Wed:["10-11","3-4","4-5"],Thu:["10-11","3-4"],Fri:["10-11","3-4","4-5"]},absentDates:[]},
+{id:"FAC013",name:"Dr. Sunita Joshi",dept:"CIVIL",email:"sunita.joshi@srmap.edu.in",password:"sunita.joshi@123",canTeach:["CE201","CE204"],assignedSections:["SEC005"],available:{Mon:["9-10","2-3","11-12"],Tue:["9-10","2-3"],Wed:["9-10"],Thu:["9-10","2-3"],Fri:["9-10","11-12"]},absentDates:[]},
+{id:"FAC014",name:"Dr. Mohan Patil",dept:"CIVIL",email:"mohan.patil@srmap.edu.in",password:"mohan.patil@123",canTeach:["CE202","CE203"],assignedSections:["SEC005"],available:{Mon:["10-11","3-4","4-5"],Tue:["10-11","3-4"],Wed:["10-11","3-4","4-5"],Thu:["10-11","3-4"],Fri:["10-11","3-4"]},absentDates:[]},
+{id:"FAC015",name:"Dr. Neha Kapoor",dept:"IT",email:"neha.kapoor@srmap.edu.in",password:"neha.kapoor@123",canTeach:["IT201","IT204"],assignedSections:["SEC006"],available:{Mon:["9-10","2-3"],Tue:["9-10","2-3"],Wed:["9-10"],Thu:["9-10","2-3"],Fri:["9-10"]},absentDates:[]},
+{id:"FAC016",name:"Dr. Vivek Gupta",dept:"IT",email:"vivek.gupta@srmap.edu.in",password:"vivek.gupta@123",canTeach:["IT202","IT203","IT205"],assignedSections:["SEC006"],available:{Mon:["10-11","3-4","4-5"],Tue:["10-11","3-4"],Wed:["10-11","3-4","4-5"],Thu:["10-11","3-4"],Fri:["10-11","3-4","4-5"]},absentDates:[]},
+{id:"FAC017",name:"Dr. Deepa Verma",dept:"AI",email:"deepa.verma@srmap.edu.in",password:"deepa.verma@123",canTeach:["AI201","AI203"],assignedSections:["SEC007"],available:{Mon:["9-10","2-3"],Tue:["9-10"],Wed:["9-10","3-4"],Thu:["9-10","2-3"],Fri:["9-10"]},absentDates:[]},
+{id:"FAC018",name:"Dr. Arjun Saxena",dept:"AI",email:"arjun.saxena@srmap.edu.in",password:"arjun.saxena@123",canTeach:["AI202","AI204"],assignedSections:["SEC007"],available:{Mon:["10-11","3-4","4-5"],Tue:["10-11","3-4"],Wed:["10-11","4-5"],Thu:["10-11","3-4"],Fri:["10-11","3-4","4-5"]},absentDates:[]},
+{id:"FAC019",name:"Dr. Pooja Rao",dept:"AI",email:"pooja.rao@srmap.edu.in",password:"pooja.rao@123",canTeach:["AI205"],assignedSections:["SEC007"],available:{Mon:["11-12"],Tue:["11-12"],Wed:["11-12"],Thu:["11-12"],Fri:["11-12"]},absentDates:[]}],
+sections:[
+{id:"SEC001",name:"CSE-A",dept:"CSE",semester:4,year:2,courses:["CS205","CS206","AEC201","CS208","CS209","CS211","MAT266A"],students:["STU2024CS047","STU2024CS048","STU2024CS049","STU2024CS050","STU2024CS051"]},
+{id:"SEC002",name:"CSE-B",dept:"CSE",semester:4,year:2,courses:["CS205","CS206","AEC201","CS208","CS209","CS211","MAT266A"],students:["STU2024CS052","STU2024CS053","STU2024CS054","STU2024CS055"]},
+{id:"SEC003",name:"ECE-A",dept:"ECE",semester:4,year:2,courses:["EC201","EC202","EC203","EC204","EC205","EC206"],students:["STU2024EC001","STU2024EC002","STU2024EC003","STU2024EC004"]},
+{id:"SEC004",name:"MECH-A",dept:"MECH",semester:4,year:2,courses:["ME201","ME202","ME203","ME204","ME205"],students:["STU2024ME001","STU2024ME002","STU2024ME003"]},
+{id:"SEC005",name:"CIVIL-A",dept:"CIVIL",semester:4,year:2,courses:["CE201","CE202","CE203","CE204"],students:["STU2024CE001","STU2024CE002","STU2024CE003"]},
+{id:"SEC006",name:"IT-A",dept:"IT",semester:4,year:2,courses:["IT201","IT202","IT203","IT204","IT205"],students:["STU2024IT001","STU2024IT002","STU2024IT003","STU2024IT004"]},
+{id:"SEC007",name:"AI-A",dept:"AI",semester:4,year:2,courses:["AI201","AI202","AI203","AI204","AI205"],students:["STU2024AI001","STU2024AI002","STU2024AI003","STU2024AI004"]},
+{id:"SEC008",name:"CSE-C",dept:"CSE",semester:2,year:1,courses:["CS205","CS206","AEC201"],students:["STU2025CS001","STU2025CS002","STU2025CS003"]}],
+students:[
+{id:"STU2024CS047",name:"Manish Singh",section:"SEC001",dept:"CSE",semester:4,year:2,email:"manish.singh@srmap.edu.in",phone:"+91 98765 43210",dob:"15 March 2005",blood:"B+",hostel:"Block-C, Room 214",advisor:"Dr. Arun Kumar",cgpa:8.74,password:"manish@123"},
+{id:"STU2024CS048",name:"Riya Patel",section:"SEC001",dept:"CSE",semester:4,year:2,email:"riya.patel@srmap.edu.in",phone:"+91 87654 32109",dob:"22 July 2005",blood:"O+",hostel:"Block-D, Room 108",advisor:"Dr. Arun Kumar",cgpa:9.12,password:"riya@123"},
+{id:"STU2024CS049",name:"Arjun Verma",section:"SEC001",dept:"CSE",semester:4,year:2,email:"arjun.verma@srmap.edu.in",phone:"+91 76543 21098",dob:"10 Nov 2005",blood:"A+",hostel:"Block-B, Room 312",advisor:"Dr. Priya Sharma",cgpa:7.95,password:"arjun@123"},
+{id:"STU2024CS050",name:"Simran Sharma",section:"SEC001",dept:"CSE",semester:4,year:2,email:"simran.sharma@srmap.edu.in",phone:"+91 95432 10987",dob:"5 Jan 2005",blood:"AB+",hostel:"Block-D, Room 205",advisor:"Dr. Priya Sharma",cgpa:8.42,password:"simran@123"},
+{id:"STU2024CS051",name:"Siddharth Nair",section:"SEC001",dept:"CSE",semester:4,year:2,email:"siddharth.nair@srmap.edu.in",phone:"+91 94321 09876",dob:"18 Apr 2005",blood:"O-",hostel:"Block-A, Room 118",advisor:"Dr. Arun Kumar",cgpa:8.10,password:"siddharth@123"},
+{id:"STU2024CS052",name:"Divya Joshi",section:"SEC002",dept:"CSE",semester:4,year:2,email:"divya.joshi@srmap.edu.in",phone:"+91 93210 98765",dob:"12 Feb 2005",blood:"B-",hostel:"Block-D, Room 301",advisor:"Dr. Vikram Rao",cgpa:8.88,password:"divya@123"},
+{id:"STU2024CS053",name:"Kritika Pillai",section:"SEC002",dept:"CSE",semester:4,year:2,email:"kritika.pillai@srmap.edu.in",phone:"+91 92109 87654",dob:"30 Aug 2005",blood:"A+",hostel:"Block-D, Room 106",advisor:"Dr. Vikram Rao",cgpa:9.25,password:"kritika@123"},
+{id:"STU2024CS054",name:"Harsh Bhat",section:"SEC002",dept:"CSE",semester:4,year:2,email:"harsh.bhat@srmap.edu.in",phone:"+91 91098 76543",dob:"7 Jun 2005",blood:"O+",hostel:"Block-C, Room 405",advisor:"Dr. Suresh Pillai",cgpa:7.65,password:"harsh@123"},
+{id:"STU2024CS055",name:"Diya Saxena",section:"SEC002",dept:"CSE",semester:4,year:2,email:"diya.saxena@srmap.edu.in",phone:"+91 90987 65432",dob:"25 Sep 2005",blood:"B+",hostel:"Block-D, Room 310",advisor:"Dr. Suresh Pillai",cgpa:8.33,password:"diya@123"},
+{id:"STU2024EC001",name:"Neha Iyer",section:"SEC003",dept:"ECE",semester:4,year:2,email:"neha.iyer@srmap.edu.in",phone:"+91 89876 54321",dob:"14 Mar 2005",blood:"A+",hostel:"Block-D, Room 202",advisor:"Dr. Lakshmi Menon",cgpa:8.55,password:"neha@123"},
+{id:"STU2024EC002",name:"Aditya Nair",section:"SEC003",dept:"ECE",semester:4,year:2,email:"aditya.nair@srmap.edu.in",phone:"+91 88765 43210",dob:"2 Jul 2005",blood:"B+",hostel:"Block-B, Room 115",advisor:"Dr. Lakshmi Menon",cgpa:7.82,password:"aditya@123"},
+{id:"STU2024EC003",name:"Isha Malhotra",section:"SEC003",dept:"ECE",semester:4,year:2,email:"isha.malhotra@srmap.edu.in",phone:"+91 87654 32101",dob:"19 Dec 2004",blood:"O-",hostel:"Block-D, Room 407",advisor:"Dr. Raghav Sinha",cgpa:8.90,password:"isha@123"},
+{id:"STU2024EC004",name:"Pooja Reddy",section:"SEC003",dept:"ECE",semester:4,year:2,email:"pooja.reddy@srmap.edu.in",phone:"+91 86543 21090",dob:"8 May 2005",blood:"AB+",hostel:"Block-D, Room 112",advisor:"Dr. Kavitha Das",cgpa:8.20,password:"pooja@123"},
+{id:"STU2024ME001",name:"Tanvi Patel",section:"SEC004",dept:"MECH",semester:4,year:2,email:"tanvi.patel@srmap.edu.in",phone:"+91 85432 10989",dob:"11 Oct 2005",blood:"A-",hostel:"Block-D, Room 315",advisor:"Dr. Karthik Reddy",cgpa:7.95,password:"tanvi@123"},
+{id:"STU2024ME002",name:"Gaurav Kumar",section:"SEC004",dept:"MECH",semester:4,year:2,email:"gaurav.kumar@srmap.edu.in",phone:"+91 84321 09878",dob:"27 Jan 2005",blood:"B+",hostel:"Block-A, Room 220",advisor:"Dr. Karthik Reddy",cgpa:8.15,password:"gaurav@123"},
+{id:"STU2024ME003",name:"Tanya Gupta",section:"SEC004",dept:"MECH",semester:4,year:2,email:"tanya.gupta@srmap.edu.in",phone:"+91 83210 98767",dob:"4 Sep 2005",blood:"O+",hostel:"Block-D, Room 411",advisor:"Dr. Sanjay Mehta",cgpa:8.60,password:"tanya@123"},
+{id:"STU2024CE001",name:"Ishaan Singh",section:"SEC005",dept:"CIVIL",semester:4,year:2,email:"ishaan.singh@srmap.edu.in",phone:"+91 82109 87656",dob:"16 Jun 2005",blood:"AB-",hostel:"Block-B, Room 308",advisor:"Dr. Sunita Joshi",cgpa:7.45,password:"ishaan@123"},
+{id:"STU2024CE002",name:"Divya Reddy",section:"SEC005",dept:"CIVIL",semester:4,year:2,email:"divya.reddy@srmap.edu.in",phone:"+91 81098 76545",dob:"3 Apr 2005",blood:"B+",hostel:"Block-D, Room 505",advisor:"Dr. Sunita Joshi",cgpa:8.30,password:"divya@123"},
+{id:"STU2024CE003",name:"Rajat Pillai",section:"SEC005",dept:"CIVIL",semester:4,year:2,email:"rajat.pillai@srmap.edu.in",phone:"+91 80987 65434",dob:"22 Nov 2004",blood:"O+",hostel:"Block-A, Room 104",advisor:"Dr. Mohan Patil",cgpa:7.80,password:"rajat@123"},
+{id:"STU2024IT001",name:"Pranav Kumar",section:"SEC006",dept:"IT",semester:4,year:2,email:"pranav.kumar@srmap.edu.in",phone:"+91 79876 54323",dob:"9 Feb 2005",blood:"A+",hostel:"Block-C, Room 310",advisor:"Dr. Neha Kapoor",cgpa:8.65,password:"pranav@123"},
+{id:"STU2024IT002",name:"Swati Bhat",section:"SEC006",dept:"IT",semester:4,year:2,email:"swati.bhat@srmap.edu.in",phone:"+91 78765 43212",dob:"20 Aug 2005",blood:"B-",hostel:"Block-D, Room 209",advisor:"Dr. Neha Kapoor",cgpa:9.05,password:"swati@123"},
+{id:"STU2024IT003",name:"Priya Verma",section:"SEC006",dept:"IT",semester:4,year:2,email:"priya.verma@srmap.edu.in",phone:"+91 77654 32101",dob:"15 May 2005",blood:"O+",hostel:"Block-D, Room 315",advisor:"Dr. Vivek Gupta",cgpa:8.40,password:"priya@123"},
+{id:"STU2024IT004",name:"Dev Nair",section:"SEC006",dept:"IT",semester:4,year:2,email:"dev.nair@srmap.edu.in",phone:"+91 76543 21090",dob:"1 Dec 2004",blood:"AB+",hostel:"Block-B, Room 205",advisor:"Dr. Vivek Gupta",cgpa:7.70,password:"dev@123"},
+{id:"STU2024AI001",name:"Ananya Nair",section:"SEC007",dept:"AI",semester:4,year:2,email:"ananya.nair@srmap.edu.in",phone:"+91 75432 10989",dob:"6 Mar 2005",blood:"A+",hostel:"Block-D, Room 106",advisor:"Dr. Deepa Verma",cgpa:9.15,password:"ananya@123"},
+{id:"STU2024AI002",name:"Meghna Saxena",section:"SEC007",dept:"AI",semester:4,year:2,email:"meghna.saxena@srmap.edu.in",phone:"+91 74321 09878",dob:"18 Jul 2005",blood:"B+",hostel:"Block-D, Room 401",advisor:"Dr. Deepa Verma",cgpa:8.78,password:"meghna@123"},
+{id:"STU2024AI003",name:"Aditi Reddy",section:"SEC007",dept:"AI",semester:4,year:2,email:"aditi.reddy@srmap.edu.in",phone:"+91 73210 98767",dob:"24 Oct 2005",blood:"O-",hostel:"Block-D, Room 220",advisor:"Dr. Arjun Saxena",cgpa:8.50,password:"aditi@123"},
+{id:"STU2024AI004",name:"Vihaan Bhat",section:"SEC007",dept:"AI",semester:4,year:2,email:"vihaan.bhat@srmap.edu.in",phone:"+91 72109 87656",dob:"12 Jan 2005",blood:"AB+",hostel:"Block-C, Room 102",advisor:"Dr. Arjun Saxena",cgpa:7.90,password:"vihaan@123"},
+{id:"STU2025CS001",name:"Anjali Chauhan",section:"SEC008",dept:"CSE",semester:2,year:1,email:"anjali.chauhan@srmap.edu.in",phone:"+91 71098 76545",dob:"30 Jun 2006",blood:"B+",hostel:"Block-D, Room 103",advisor:"Dr. Priya Sharma",cgpa:8.20,password:"anjali@123"},
+{id:"STU2025CS002",name:"Akash Mishra",section:"SEC008",dept:"CSE",semester:2,year:1,email:"akash.mishra@srmap.edu.in",phone:"+91 70987 65434",dob:"8 Sep 2006",blood:"O+",hostel:"Block-A, Room 412",advisor:"Dr. Priya Sharma",cgpa:7.55,password:"akash@123"},
+{id:"STU2025CS003",name:"Divya Patel",section:"SEC008",dept:"CSE",semester:2,year:1,email:"divya.patel@srmap.edu.in",phone:"+91 69876 54323",dob:"17 Feb 2006",blood:"A-",hostel:"Block-D, Room 208",advisor:"Dr. Arun Kumar",cgpa:8.85,password:"divya@123"}],
+timetable:[],
+attendance:{}
+};
+
+let currentUser=null,currentFaculty=null,currentStudent=null,currentRole=null;
+let selectedLoginRole='admin';
+
+/* Seed timetable — all sections */
+DATA.timetable=[
+{section:"SEC001",day:"Mon",slot:"9-10",course:"CS205",faculty:"FAC001",room:"B1-F1-R101"},
+{section:"SEC001",day:"Mon",slot:"10-11",course:"CS206",faculty:"FAC002",room:"B2-F2-R204"},
+{section:"SEC001",day:"Mon",slot:"11-12",course:"AEC201",faculty:"FAC003",room:"B3-F3-R301"},
+{section:"SEC001",day:"Mon",slot:"2-3",course:"CS208",faculty:"FAC004",room:"B1-F1-R105"},
+{section:"SEC001",day:"Mon",slot:"3-4",course:"CS209",faculty:"FAC005",room:"B2-F2-R202"},
+{section:"SEC001",day:"Mon",slot:"4-5",course:"CS211",faculty:"FAC006",room:"B4-F4-R401"},
+{section:"SEC001",day:"Tue",slot:"9-10",course:"CS205",faculty:"FAC001",room:"B1-F1-R101"},
+{section:"SEC001",day:"Tue",slot:"10-11",course:"MAT266A",faculty:"FAC007",room:"B2-F2-R205"},
+{section:"SEC001",day:"Tue",slot:"11-12",course:"CS208",faculty:"FAC004",room:"B1-F1-R105"},
+{section:"SEC001",day:"Tue",slot:"2-3",course:"CS206",faculty:"FAC002",room:"B2-F2-R204"},
+{section:"SEC001",day:"Tue",slot:"3-4",course:"CS209",faculty:"FAC005",room:"B2-F2-R202"},
+{section:"SEC001",day:"Tue",slot:"4-5",course:"CS211",faculty:"FAC006",room:"B4-F4-R401"},
+{section:"SEC001",day:"Wed",slot:"9-10",course:"CS208",faculty:"FAC001",room:"B1-F1-R101"},
+{section:"SEC001",day:"Wed",slot:"10-11",course:"CS206",faculty:"FAC002",room:"B2-F2-R204"},
+{section:"SEC001",day:"Wed",slot:"11-12",course:"AEC201",faculty:"FAC003",room:"B3-F3-R301"},
+{section:"SEC001",day:"Wed",slot:"2-3",course:"CS205",faculty:"FAC001",room:"B1-F1-R101"},
+{section:"SEC001",day:"Wed",slot:"3-4",course:"MAT266A",faculty:"FAC007",room:"B2-F2-R205"},
+{section:"SEC001",day:"Wed",slot:"4-5",course:"CS211",faculty:"FAC006",room:"B4-F4-R401"},
+{section:"SEC001",day:"Thu",slot:"9-10",course:"CS205",faculty:"FAC001",room:"B1-F1-R101"},
+{section:"SEC001",day:"Thu",slot:"10-11",course:"CS209",faculty:"FAC005",room:"B2-F2-R202"},
+{section:"SEC001",day:"Thu",slot:"11-12",course:"CS208",faculty:"FAC004",room:"B1-F1-R105"},
+{section:"SEC001",day:"Thu",slot:"2-3",course:"AEC201",faculty:"FAC003",room:"B3-F3-R301"},
+{section:"SEC001",day:"Thu",slot:"3-4",course:"CS206",faculty:"FAC002",room:"B2-F2-R204"},
+{section:"SEC001",day:"Thu",slot:"4-5",course:"MAT266A",faculty:"FAC007",room:"B2-F2-R205"},
+{section:"SEC001",day:"Fri",slot:"9-10",course:"CS209",faculty:"FAC005",room:"B2-F2-R202"},
+{section:"SEC001",day:"Fri",slot:"10-11",course:"CS208",faculty:"FAC004",room:"B1-F1-R105"},
+{section:"SEC001",day:"Fri",slot:"11-12",course:"CS211",faculty:"FAC006",room:"B4-F4-R401"},
+{section:"SEC001",day:"Fri",slot:"2-3",course:"CS206",faculty:"FAC002",room:"B2-F2-R204"},
+{section:"SEC001",day:"Fri",slot:"3-4",course:"MAT266A",faculty:"FAC007",room:"B2-F2-R205"},
+{section:"SEC001",day:"Fri",slot:"4-5",course:"CS205",faculty:"FAC001",room:"B1-F1-R101"},
+{section:"SEC002",day:"Mon",slot:"9-10",course:"CS206",faculty:"FAC002",room:"B1-F1-R102"},
+{section:"SEC002",day:"Mon",slot:"10-11",course:"CS205",faculty:"FAC001",room:"B2-F2-R201"},
+{section:"SEC002",day:"Mon",slot:"11-12",course:"MAT266A",faculty:"FAC007",room:"B3-F3-R302"},
+{section:"SEC002",day:"Mon",slot:"2-3",course:"CS209",faculty:"FAC005",room:"B1-F1-R103"},
+{section:"SEC002",day:"Mon",slot:"3-4",course:"CS208",faculty:"FAC004",room:"B2-F2-R203"},
+{section:"SEC002",day:"Mon",slot:"4-5",course:"CS211",faculty:"FAC006",room:"B4-F4-R402"},
+{section:"SEC002",day:"Tue",slot:"9-10",course:"CS209",faculty:"FAC005",room:"B1-F1-R102"},
+{section:"SEC002",day:"Tue",slot:"10-11",course:"CS206",faculty:"FAC002",room:"B2-F2-R201"},
+{section:"SEC002",day:"Tue",slot:"11-12",course:"AEC201",faculty:"FAC003",room:"B3-F3-R302"},
+{section:"SEC002",day:"Tue",slot:"2-3",course:"CS208",faculty:"FAC004",room:"B1-F1-R103"},
+{section:"SEC002",day:"Tue",slot:"3-4",course:"CS205",faculty:"FAC001",room:"B2-F2-R203"},
+{section:"SEC002",day:"Tue",slot:"4-5",course:"MAT266A",faculty:"FAC007",room:"B4-F4-R402"},
+{section:"SEC002",day:"Wed",slot:"9-10",course:"CS211",faculty:"FAC006",room:"B1-F1-R102"},
+{section:"SEC002",day:"Wed",slot:"10-11",course:"CS208",faculty:"FAC004",room:"B2-F2-R201"},
+{section:"SEC002",day:"Wed",slot:"11-12",course:"CS205",faculty:"FAC001",room:"B3-F3-R302"},
+{section:"SEC002",day:"Wed",slot:"2-3",course:"CS206",faculty:"FAC002",room:"B1-F1-R103"},
+{section:"SEC002",day:"Wed",slot:"3-4",course:"CS209",faculty:"FAC005",room:"B2-F2-R203"},
+{section:"SEC002",day:"Wed",slot:"4-5",course:"AEC201",faculty:"FAC003",room:"B4-F4-R402"},
+{section:"SEC002",day:"Thu",slot:"9-10",course:"MAT266A",faculty:"FAC007",room:"B1-F1-R102"},
+{section:"SEC002",day:"Thu",slot:"10-11",course:"CS211",faculty:"FAC006",room:"B2-F2-R201"},
+{section:"SEC002",day:"Thu",slot:"11-12",course:"CS206",faculty:"FAC002",room:"B3-F3-R302"},
+{section:"SEC002",day:"Thu",slot:"2-3",course:"CS205",faculty:"FAC001",room:"B1-F1-R103"},
+{section:"SEC002",day:"Thu",slot:"3-4",course:"CS208",faculty:"FAC004",room:"B2-F2-R203"},
+{section:"SEC002",day:"Thu",slot:"4-5",course:"CS209",faculty:"FAC005",room:"B4-F4-R402"},
+{section:"SEC002",day:"Fri",slot:"9-10",course:"CS208",faculty:"FAC004",room:"B1-F1-R102"},
+{section:"SEC002",day:"Fri",slot:"10-11",course:"CS205",faculty:"FAC001",room:"B2-F2-R201"},
+{section:"SEC002",day:"Fri",slot:"11-12",course:"CS209",faculty:"FAC005",room:"B3-F3-R302"},
+{section:"SEC002",day:"Fri",slot:"2-3",course:"MAT266A",faculty:"FAC007",room:"B1-F1-R103"},
+{section:"SEC002",day:"Fri",slot:"3-4",course:"CS211",faculty:"FAC006",room:"B2-F2-R203"},
+{section:"SEC002",day:"Fri",slot:"4-5",course:"CS206",faculty:"FAC002",room:"B4-F4-R402"},
+{section:"SEC003",day:"Mon",slot:"9-10",course:"EC201",faculty:"FAC008",room:"B3-F1-R101"},
+{section:"SEC003",day:"Mon",slot:"10-11",course:"EC202",faculty:"FAC009",room:"B3-F1-R102"},
+{section:"SEC003",day:"Mon",slot:"11-12",course:"EC203",faculty:"FAC010",room:"B3-F1-R103"},
+{section:"SEC003",day:"Mon",slot:"2-3",course:"EC204",faculty:"FAC008",room:"B3-F2-R201"},
+{section:"SEC003",day:"Mon",slot:"3-4",course:"EC205",faculty:"FAC009",room:"B3-F2-R202"},
+{section:"SEC003",day:"Mon",slot:"4-5",course:"EC206",faculty:"FAC010",room:"B3-F2-R203"},
+{section:"SEC003",day:"Tue",slot:"9-10",course:"EC204",faculty:"FAC008",room:"B3-F1-R101"},
+{section:"SEC003",day:"Tue",slot:"10-11",course:"EC201",faculty:"FAC009",room:"B3-F1-R102"},
+{section:"SEC003",day:"Tue",slot:"11-12",course:"EC206",faculty:"FAC010",room:"B3-F1-R103"},
+{section:"SEC003",day:"Tue",slot:"2-3",course:"EC202",faculty:"FAC009",room:"B3-F2-R201"},
+{section:"SEC003",day:"Tue",slot:"3-4",course:"EC203",faculty:"FAC010",room:"B3-F2-R202"},
+{section:"SEC003",day:"Tue",slot:"4-5",course:"EC205",faculty:"FAC008",room:"B3-F2-R203"},
+{section:"SEC003",day:"Wed",slot:"9-10",course:"EC203",faculty:"FAC010",room:"B3-F1-R101"},
+{section:"SEC003",day:"Wed",slot:"10-11",course:"EC204",faculty:"FAC008",room:"B3-F1-R102"},
+{section:"SEC003",day:"Wed",slot:"11-12",course:"EC201",faculty:"FAC009",room:"B3-F1-R103"},
+{section:"SEC003",day:"Wed",slot:"2-3",course:"EC205",faculty:"FAC009",room:"B3-F2-R201"},
+{section:"SEC003",day:"Wed",slot:"3-4",course:"EC206",faculty:"FAC010",room:"B3-F2-R202"},
+{section:"SEC003",day:"Wed",slot:"4-5",course:"EC202",faculty:"FAC008",room:"B3-F2-R203"},
+{section:"SEC003",day:"Thu",slot:"9-10",course:"EC201",faculty:"FAC008",room:"B3-F1-R101"},
+{section:"SEC003",day:"Thu",slot:"10-11",course:"EC205",faculty:"FAC009",room:"B3-F1-R102"},
+{section:"SEC003",day:"Thu",slot:"11-12",course:"EC204",faculty:"FAC010",room:"B3-F1-R103"},
+{section:"SEC003",day:"Thu",slot:"2-3",course:"EC206",faculty:"FAC010",room:"B3-F2-R201"},
+{section:"SEC003",day:"Thu",slot:"3-4",course:"EC202",faculty:"FAC009",room:"B3-F2-R202"},
+{section:"SEC003",day:"Thu",slot:"4-5",course:"EC203",faculty:"FAC008",room:"B3-F2-R203"},
+{section:"SEC003",day:"Fri",slot:"9-10",course:"EC206",faculty:"FAC010",room:"B3-F1-R101"},
+{section:"SEC003",day:"Fri",slot:"10-11",course:"EC203",faculty:"FAC009",room:"B3-F1-R102"},
+{section:"SEC003",day:"Fri",slot:"11-12",course:"EC202",faculty:"FAC008",room:"B3-F1-R103"},
+{section:"SEC003",day:"Fri",slot:"2-3",course:"EC201",faculty:"FAC008",room:"B3-F2-R201"},
+{section:"SEC003",day:"Fri",slot:"3-4",course:"EC204",faculty:"FAC009",room:"B3-F2-R202"},
+{section:"SEC003",day:"Fri",slot:"4-5",course:"EC205",faculty:"FAC010",room:"B3-F2-R203"},
+{section:"SEC004",day:"Mon",slot:"9-10",course:"ME201",faculty:"FAC011",room:"B4-F1-R101"},
+{section:"SEC004",day:"Mon",slot:"10-11",course:"ME202",faculty:"FAC012",room:"B4-F1-R102"},
+{section:"SEC004",day:"Mon",slot:"11-12",course:"ME203",faculty:"FAC011",room:"B4-F1-R103"},
+{section:"SEC004",day:"Mon",slot:"2-3",course:"ME204",faculty:"FAC012",room:"B4-F2-R201"},
+{section:"SEC004",day:"Mon",slot:"3-4",course:"ME205",faculty:"FAC012",room:"B4-F2-R202"},
+{section:"SEC004",day:"Tue",slot:"9-10",course:"ME203",faculty:"FAC011",room:"B4-F1-R101"},
+{section:"SEC004",day:"Tue",slot:"10-11",course:"ME201",faculty:"FAC012",room:"B4-F1-R102"},
+{section:"SEC004",day:"Tue",slot:"11-12",course:"ME204",faculty:"FAC011",room:"B4-F1-R103"},
+{section:"SEC004",day:"Tue",slot:"2-3",course:"ME202",faculty:"FAC012",room:"B4-F2-R201"},
+{section:"SEC004",day:"Tue",slot:"3-4",course:"ME205",faculty:"FAC012",room:"B4-F2-R202"},
+{section:"SEC004",day:"Wed",slot:"9-10",course:"ME201",faculty:"FAC011",room:"B4-F1-R101"},
+{section:"SEC004",day:"Wed",slot:"10-11",course:"ME204",faculty:"FAC012",room:"B4-F1-R102"},
+{section:"SEC004",day:"Wed",slot:"11-12",course:"ME202",faculty:"FAC012",room:"B4-F1-R103"},
+{section:"SEC004",day:"Wed",slot:"2-3",course:"ME203",faculty:"FAC011",room:"B4-F2-R201"},
+{section:"SEC004",day:"Wed",slot:"3-4",course:"ME205",faculty:"FAC012",room:"B4-F2-R202"},
+{section:"SEC004",day:"Thu",slot:"9-10",course:"ME202",faculty:"FAC012",room:"B4-F1-R101"},
+{section:"SEC004",day:"Thu",slot:"10-11",course:"ME203",faculty:"FAC011",room:"B4-F1-R102"},
+{section:"SEC004",day:"Thu",slot:"11-12",course:"ME201",faculty:"FAC011",room:"B4-F1-R103"},
+{section:"SEC004",day:"Thu",slot:"2-3",course:"ME205",faculty:"FAC012",room:"B4-F2-R201"},
+{section:"SEC004",day:"Thu",slot:"3-4",course:"ME204",faculty:"FAC012",room:"B4-F2-R202"},
+{section:"SEC004",day:"Fri",slot:"9-10",course:"ME204",faculty:"FAC012",room:"B4-F1-R101"},
+{section:"SEC004",day:"Fri",slot:"10-11",course:"ME201",faculty:"FAC011",room:"B4-F1-R102"},
+{section:"SEC004",day:"Fri",slot:"11-12",course:"ME205",faculty:"FAC012",room:"B4-F1-R103"},
+{section:"SEC004",day:"Fri",slot:"2-3",course:"ME203",faculty:"FAC011",room:"B4-F2-R201"},
+{section:"SEC004",day:"Fri",slot:"3-4",course:"ME202",faculty:"FAC012",room:"B4-F2-R202"},
+{section:"SEC005",day:"Mon",slot:"9-10",course:"CE201",faculty:"FAC013",room:"B2-F1-R101"},
+{section:"SEC005",day:"Mon",slot:"10-11",course:"CE202",faculty:"FAC014",room:"B2-F1-R102"},
+{section:"SEC005",day:"Mon",slot:"11-12",course:"CE203",faculty:"FAC014",room:"B2-F1-R103"},
+{section:"SEC005",day:"Mon",slot:"2-3",course:"CE204",faculty:"FAC013",room:"B2-F3-R301"},
+{section:"SEC005",day:"Mon",slot:"3-4",course:"CE201",faculty:"FAC013",room:"B2-F3-R302"},
+{section:"SEC005",day:"Tue",slot:"9-10",course:"CE202",faculty:"FAC014",room:"B2-F1-R101"},
+{section:"SEC005",day:"Tue",slot:"10-11",course:"CE201",faculty:"FAC013",room:"B2-F1-R102"},
+{section:"SEC005",day:"Tue",slot:"11-12",course:"CE204",faculty:"FAC014",room:"B2-F1-R103"},
+{section:"SEC005",day:"Tue",slot:"2-3",course:"CE203",faculty:"FAC014",room:"B2-F3-R301"},
+{section:"SEC005",day:"Tue",slot:"3-4",course:"CE201",faculty:"FAC013",room:"B2-F3-R302"},
+{section:"SEC005",day:"Wed",slot:"9-10",course:"CE204",faculty:"FAC013",room:"B2-F1-R101"},
+{section:"SEC005",day:"Wed",slot:"10-11",course:"CE203",faculty:"FAC014",room:"B2-F1-R102"},
+{section:"SEC005",day:"Wed",slot:"11-12",course:"CE201",faculty:"FAC013",room:"B2-F1-R103"},
+{section:"SEC005",day:"Wed",slot:"2-3",course:"CE202",faculty:"FAC014",room:"B2-F3-R301"},
+{section:"SEC005",day:"Wed",slot:"3-4",course:"CE204",faculty:"FAC013",room:"B2-F3-R302"},
+{section:"SEC005",day:"Thu",slot:"9-10",course:"CE203",faculty:"FAC014",room:"B2-F1-R101"},
+{section:"SEC005",day:"Thu",slot:"10-11",course:"CE204",faculty:"FAC013",room:"B2-F1-R102"},
+{section:"SEC005",day:"Thu",slot:"11-12",course:"CE202",faculty:"FAC014",room:"B2-F1-R103"},
+{section:"SEC005",day:"Thu",slot:"2-3",course:"CE201",faculty:"FAC013",room:"B2-F3-R301"},
+{section:"SEC005",day:"Thu",slot:"3-4",course:"CE203",faculty:"FAC014",room:"B2-F3-R302"},
+{section:"SEC005",day:"Fri",slot:"9-10",course:"CE201",faculty:"FAC013",room:"B2-F1-R101"},
+{section:"SEC005",day:"Fri",slot:"10-11",course:"CE202",faculty:"FAC014",room:"B2-F1-R102"},
+{section:"SEC005",day:"Fri",slot:"11-12",course:"CE204",faculty:"FAC013",room:"B2-F1-R103"},
+{section:"SEC005",day:"Fri",slot:"2-3",course:"CE203",faculty:"FAC014",room:"B2-F3-R301"},
+{section:"SEC006",day:"Mon",slot:"9-10",course:"IT201",faculty:"FAC015",room:"B1-F2-R201"},
+{section:"SEC006",day:"Mon",slot:"10-11",course:"IT202",faculty:"FAC016",room:"B1-F2-R202"},
+{section:"SEC006",day:"Mon",slot:"11-12",course:"IT203",faculty:"FAC016",room:"B1-F2-R203"},
+{section:"SEC006",day:"Mon",slot:"2-3",course:"IT204",faculty:"FAC015",room:"B1-F3-R301"},
+{section:"SEC006",day:"Mon",slot:"3-4",course:"IT205",faculty:"FAC016",room:"B1-F3-R302"},
+{section:"SEC006",day:"Tue",slot:"9-10",course:"IT204",faculty:"FAC015",room:"B1-F2-R201"},
+{section:"SEC006",day:"Tue",slot:"10-11",course:"IT201",faculty:"FAC016",room:"B1-F2-R202"},
+{section:"SEC006",day:"Tue",slot:"11-12",course:"IT205",faculty:"FAC015",room:"B1-F2-R203"},
+{section:"SEC006",day:"Tue",slot:"2-3",course:"IT202",faculty:"FAC016",room:"B1-F3-R301"},
+{section:"SEC006",day:"Tue",slot:"3-4",course:"IT203",faculty:"FAC016",room:"B1-F3-R302"},
+{section:"SEC006",day:"Wed",slot:"9-10",course:"IT202",faculty:"FAC016",room:"B1-F2-R201"},
+{section:"SEC006",day:"Wed",slot:"10-11",course:"IT204",faculty:"FAC015",room:"B1-F2-R202"},
+{section:"SEC006",day:"Wed",slot:"11-12",course:"IT201",faculty:"FAC015",room:"B1-F2-R203"},
+{section:"SEC006",day:"Wed",slot:"2-3",course:"IT205",faculty:"FAC016",room:"B1-F3-R301"},
+{section:"SEC006",day:"Wed",slot:"3-4",course:"IT203",faculty:"FAC016",room:"B1-F3-R302"},
+{section:"SEC006",day:"Thu",slot:"9-10",course:"IT203",faculty:"FAC016",room:"B1-F2-R201"},
+{section:"SEC006",day:"Thu",slot:"10-11",course:"IT205",faculty:"FAC015",room:"B1-F2-R202"},
+{section:"SEC006",day:"Thu",slot:"11-12",course:"IT202",faculty:"FAC016",room:"B1-F2-R203"},
+{section:"SEC006",day:"Thu",slot:"2-3",course:"IT201",faculty:"FAC015",room:"B1-F3-R301"},
+{section:"SEC006",day:"Thu",slot:"3-4",course:"IT204",faculty:"FAC016",room:"B1-F3-R302"},
+{section:"SEC006",day:"Fri",slot:"9-10",course:"IT205",faculty:"FAC016",room:"B1-F2-R201"},
+{section:"SEC006",day:"Fri",slot:"10-11",course:"IT203",faculty:"FAC015",room:"B1-F2-R202"},
+{section:"SEC006",day:"Fri",slot:"11-12",course:"IT204",faculty:"FAC016",room:"B1-F2-R203"},
+{section:"SEC006",day:"Fri",slot:"2-3",course:"IT201",faculty:"FAC015",room:"B1-F3-R301"},
+{section:"SEC006",day:"Fri",slot:"3-4",course:"IT202",faculty:"FAC016",room:"B1-F3-R302"},
+{section:"SEC007",day:"Mon",slot:"9-10",course:"AI201",faculty:"FAC017",room:"B2-F4-R401"},
+{section:"SEC007",day:"Mon",slot:"10-11",course:"AI202",faculty:"FAC018",room:"B2-F4-R402"},
+{section:"SEC007",day:"Mon",slot:"11-12",course:"AI205",faculty:"FAC019",room:"B2-F4-R403"},
+{section:"SEC007",day:"Mon",slot:"2-3",course:"AI203",faculty:"FAC017",room:"B2-F4-R404"},
+{section:"SEC007",day:"Mon",slot:"3-4",course:"AI204",faculty:"FAC018",room:"B2-F4-R405"},
+{section:"SEC007",day:"Tue",slot:"9-10",course:"AI203",faculty:"FAC017",room:"B2-F4-R401"},
+{section:"SEC007",day:"Tue",slot:"10-11",course:"AI201",faculty:"FAC018",room:"B2-F4-R402"},
+{section:"SEC007",day:"Tue",slot:"11-12",course:"AI204",faculty:"FAC019",room:"B2-F4-R403"},
+{section:"SEC007",day:"Tue",slot:"2-3",course:"AI202",faculty:"FAC017",room:"B2-F4-R404"},
+{section:"SEC007",day:"Tue",slot:"3-4",course:"AI205",faculty:"FAC018",room:"B2-F4-R405"},
+{section:"SEC007",day:"Wed",slot:"9-10",course:"AI202",faculty:"FAC018",room:"B2-F4-R401"},
+{section:"SEC007",day:"Wed",slot:"10-11",course:"AI203",faculty:"FAC017",room:"B2-F4-R402"},
+{section:"SEC007",day:"Wed",slot:"11-12",course:"AI201",faculty:"FAC019",room:"B2-F4-R403"},
+{section:"SEC007",day:"Wed",slot:"2-3",course:"AI205",faculty:"FAC017",room:"B2-F4-R404"},
+{section:"SEC007",day:"Wed",slot:"3-4",course:"AI204",faculty:"FAC018",room:"B2-F4-R405"},
+{section:"SEC007",day:"Thu",slot:"9-10",course:"AI204",faculty:"FAC018",room:"B2-F4-R401"},
+{section:"SEC007",day:"Thu",slot:"10-11",course:"AI205",faculty:"FAC019",room:"B2-F4-R402"},
+{section:"SEC007",day:"Thu",slot:"11-12",course:"AI202",faculty:"FAC017",room:"B2-F4-R403"},
+{section:"SEC007",day:"Thu",slot:"2-3",course:"AI201",faculty:"FAC017",room:"B2-F4-R404"},
+{section:"SEC007",day:"Thu",slot:"3-4",course:"AI203",faculty:"FAC018",room:"B2-F4-R405"},
+{section:"SEC007",day:"Fri",slot:"9-10",course:"AI205",faculty:"FAC019",room:"B2-F4-R401"},
+{section:"SEC007",day:"Fri",slot:"10-11",course:"AI204",faculty:"FAC018",room:"B2-F4-R402"},
+{section:"SEC007",day:"Fri",slot:"11-12",course:"AI203",faculty:"FAC017",room:"B2-F4-R403"},
+{section:"SEC007",day:"Fri",slot:"2-3",course:"AI201",faculty:"FAC017",room:"B2-F4-R404"},
+{section:"SEC007",day:"Fri",slot:"3-4",course:"AI202",faculty:"FAC018",room:"B2-F4-R405"},
+{section:"SEC008",day:"Mon",slot:"9-10",course:"CS205",faculty:"FAC001",room:"B1-F3-R303"},
+{section:"SEC008",day:"Mon",slot:"10-11",course:"CS206",faculty:"FAC002",room:"B1-F3-R304"},
+{section:"SEC008",day:"Mon",slot:"11-12",course:"AEC201",faculty:"FAC003",room:"B1-F3-R305"},
+{section:"SEC008",day:"Tue",slot:"9-10",course:"CS206",faculty:"FAC002",room:"B1-F3-R303"},
+{section:"SEC008",day:"Tue",slot:"10-11",course:"AEC201",faculty:"FAC003",room:"B1-F3-R304"},
+{section:"SEC008",day:"Tue",slot:"11-12",course:"CS205",faculty:"FAC001",room:"B1-F3-R305"},
+{section:"SEC008",day:"Wed",slot:"9-10",course:"AEC201",faculty:"FAC003",room:"B1-F3-R303"},
+{section:"SEC008",day:"Wed",slot:"10-11",course:"CS205",faculty:"FAC001",room:"B1-F3-R304"},
+{section:"SEC008",day:"Wed",slot:"11-12",course:"CS206",faculty:"FAC002",room:"B1-F3-R305"},
+{section:"SEC008",day:"Thu",slot:"9-10",course:"CS205",faculty:"FAC001",room:"B1-F3-R303"},
+{section:"SEC008",day:"Thu",slot:"10-11",course:"CS206",faculty:"FAC002",room:"B1-F3-R304"},
+{section:"SEC008",day:"Fri",slot:"9-10",course:"CS206",faculty:"FAC002",room:"B1-F3-R303"},
+{section:"SEC008",day:"Fri",slot:"10-11",course:"CS205",faculty:"FAC001",room:"B1-F3-R304"}
+];
+
+/* Seed attendance — all students, all sections */
+(function seedAtt(){
+function gen(sid,courses,vary){
+DATA.attendance[sid]={};
+const base={c:40,p:32,a:6,od:2};
+courses.forEach((cc,ci)=>{
+const v={c:base.c+ci*2+(vary%3)*2, p:0, a:0, od:0};
+const pRate=0.7+((vary+ci)%5)*0.05;
+v.p=Math.round(v.c*pRate);v.od=Math.round(v.c*0.04+((vary+ci)%3));v.a=v.c-v.p-v.od;
+if(v.a<0){v.a=0;v.od=v.c-v.p}
+DATA.attendance[sid][cc]={};
+let pi=0,ai=0,oi=0;const s=new Date(2026,0,5);
+for(let d=0;pi+ai+oi<v.c;d++){const dt=new Date(s);dt.setDate(dt.getDate()+d);const dw=dt.getDay();if(dw===0||dw===6)continue;const k=dt.toISOString().split("T")[0];
+if(pi<v.p){DATA.attendance[sid][cc][k]="P";pi++}else if(oi<v.od){DATA.attendance[sid][cc][k]="OD";oi++}else if(ai<v.a){DATA.attendance[sid][cc][k]="A";ai++}}
+})}
+DATA.sections.forEach(sec=>{
+sec.students.forEach((sid,si)=>gen(sid,sec.courses,si*7+sec.id.charCodeAt(5)))
+})})();
+
+function calcAtt(sid,cc){const r=DATA.attendance[sid]?.[cc]||{};let P=0,A=0,OD=0;Object.values(r).forEach(v=>{if(v==='P')P++;else if(v==='A')A++;else if(v==='OD')OD++});const c=P+A+OD;return{conducted:c,present:P,absent:A,odml:OD,pct:c>0?parseFloat(((P+OD)/c*100).toFixed(1)):0}}
+function getSlotStatus(s){const h=new Date().getHours();const p=s.split('-');let sh=+p[0],eh=+p[1];if(sh<8)sh+=12;if(eh<8||eh<=sh)eh+=12;if(h>=eh)return'done';if(h>=sh&&h<eh)return'ongoing';return'upcoming'}
+
+
+/* ═══ UTILS ═══ */
+const SLOT_ORDER=["9-10","10-11","11-12","12-1","2-3","3-4","4-5"];
+function getTodayKey(){return new Date().toISOString().split('T')[0]}
+function getTodayDay(){return['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date().getDay()]}
+function getInitials(n){return n.replace(/^Dr\.\s*/i,'').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)}
+function formatDate(d){return new Date(d||Date.now()).toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
+function slotOrder(s){return SLOT_ORDER.indexOf(s)}
+function deptBadge(c){return{CSE:'b-bl',ECE:'b-am',MECH:'b-gn',CIVIL:'b-pu',IT:'b-pk',AI:'b-rd'}[c]||'b-gy'}
+function diffBadge(d){return{Easy:'b-gn',Medium:'b-am',Hard:'b-rd'}[d]||'b-gy'}
+
+function showToast(msg,type='default'){
+const w=document.getElementById('toastWrap');
+const t=document.createElement('div');
+t.className='toast'+(type==='success'?' ts':type==='warning'?' tw2':type==='error'?' te':'');
+t.textContent=msg;w.appendChild(t);
+setTimeout(()=>{t.style.transition='opacity .3s';t.style.opacity='0';setTimeout(()=>t.remove(),300)},3000);
+}
+function animateCounter(el,target){
+const dur=1200,start=performance.now();
+(function up(now){const t=Math.min((now-start)/dur,1),p=1-Math.pow(1-t,3);
+el.textContent=Math.floor(target*p);if(t<1)requestAnimationFrame(up)})(performance.now());
+}
+function $(id){return document.getElementById(id)}
+
+/* ═══ LOGIN ═══ */
+function setRole(btn,role){
+document.querySelectorAll('.role-tab').forEach(b=>b.classList.remove('active'));
+btn.classList.add('active');selectedLoginRole=role;
+const hints={admin:['admin@srmap.edu.in','admin123'],faculty:['arun.kumar@srmap.edu.in','arun.kumar@123'],student:['manish.singh@srmap.edu.in','manish@123']};
+$('logEmail').placeholder=hints[role][0];$('logPass').placeholder=hints[role][1];
+}
+function doLogin(){
+const e=$('logEmail').value.trim().toLowerCase(),p=$('logPass').value.trim();
+if(!e||!p){showToast('❌ Please fill in both fields','error');return}
+if(e==='admin@srmap.edu.in'&&p==='admin123'){currentRole='admin';currentUser='admin';initApp();return}
+const fac=DATA.faculty.find(f=>f.email===e&&f.password===p);
+if(fac){currentRole='faculty';currentFaculty=fac;currentUser=fac;initApp();return}
+const stu=DATA.students.find(s=>s.email===e&&s.password===p);
+if(stu){currentRole='student';currentStudent=stu;currentUser=stu;initApp();return}
+showToast('❌ Invalid credentials. Try again.','error');
+}
+function doLogout(){
+currentUser=currentFaculty=currentStudent=currentRole=null;
+$('appView').style.display='none';$('loginView').style.display='flex';
+$('logEmail').value='';$('logPass').value='';
+}
+function initApp(){
+$('loginView').style.display='none';$('appView').style.display='block';
+if(currentRole==='admin'){buildAdminSidebar();showPage('dashboard')}
+else if(currentRole==='faculty')showFacultyDashboard();
+else showStudentDashboard();
+}
+
+/* ═══ MODULE 2: TIMETABLE ═══ */
+/* Seed timetable — all sections */
+DATA.timetable=[
+/* SEC001 CSE-A */
+{section:"SEC001",day:"Mon",slot:"9-10",course:"CS205",faculty:"FAC001",room:"B1-F1-R101"},
+{section:"SEC001",day:"Mon",slot:"10-11",course:"CS206",faculty:"FAC002",room:"B2-F2-R204"},
+{section:"SEC001",day:"Mon",slot:"11-12",course:"AEC201",faculty:"FAC003",room:"B3-F3-R301"},
+{section:"SEC001",day:"Mon",slot:"2-3",course:"CS208",faculty:"FAC004",room:"B1-F1-R105"},
+{section:"SEC001",day:"Mon",slot:"3-4",course:"CS209",faculty:"FAC005",room:"B2-F2-R202"},
+{section:"SEC001",day:"Mon",slot:"4-5",course:"CS211",faculty:"FAC006",room:"B4-F4-R401"},
+{section:"SEC001",day:"Tue",slot:"9-10",course:"CS205",faculty:"FAC001",room:"B1-F1-R101"},
+{section:"SEC001",day:"Tue",slot:"10-11",course:"MAT266A",faculty:"FAC007",room:"B2-F2-R205"},
+{section:"SEC001",day:"Tue",slot:"11-12",course:"CS208",faculty:"FAC004",room:"B1-F1-R105"},
+{section:"SEC001",day:"Tue",slot:"2-3",course:"CS206",faculty:"FAC002",room:"B2-F2-R204"},
+{section:"SEC001",day:"Tue",slot:"3-4",course:"CS209",faculty:"FAC005",room:"B2-F2-R202"},
+{section:"SEC001",day:"Tue",slot:"4-5",course:"CS211",faculty:"FAC006",room:"B4-F4-R401"},
+{section:"SEC001",day:"Wed",slot:"9-10",course:"CS208",faculty:"FAC001",room:"B1-F1-R101"},
+{section:"SEC001",day:"Wed",slot:"10-11",course:"CS206",faculty:"FAC002",room:"B2-F2-R204"},
+{section:"SEC001",day:"Wed",slot:"11-12",course:"AEC201",faculty:"FAC003",room:"B3-F3-R301"},
+{section:"SEC001",day:"Wed",slot:"2-3",course:"CS205",faculty:"FAC001",room:"B1-F1-R101"},
+{section:"SEC001",day:"Wed",slot:"3-4",course:"MAT266A",faculty:"FAC007",room:"B2-F2-R205"},
+{section:"SEC001",day:"Wed",slot:"4-5",course:"CS211",faculty:"FAC006",room:"B4-F4-R401"},
+{section:"SEC001",day:"Thu",slot:"9-10",course:"CS205",faculty:"FAC001",room:"B1-F1-R101"},
+{section:"SEC001",day:"Thu",slot:"10-11",course:"CS209",faculty:"FAC005",room:"B2-F2-R202"},
+{section:"SEC001",day:"Thu",slot:"11-12",course:"CS208",faculty:"FAC004",room:"B1-F1-R105"},
+{section:"SEC001",day:"Thu",slot:"2-3",course:"AEC201",faculty:"FAC003",room:"B3-F3-R301"},
+{section:"SEC001",day:"Thu",slot:"3-4",course:"CS206",faculty:"FAC002",room:"B2-F2-R204"},
+{section:"SEC001",day:"Thu",slot:"4-5",course:"MAT266A",faculty:"FAC007",room:"B2-F2-R205"},
+{section:"SEC001",day:"Fri",slot:"9-10",course:"CS209",faculty:"FAC005",room:"B2-F2-R202"},
+{section:"SEC001",day:"Fri",slot:"10-11",course:"CS208",faculty:"FAC004",room:"B1-F1-R105"},
+{section:"SEC001",day:"Fri",slot:"11-12",course:"CS211",faculty:"FAC006",room:"B4-F4-R401"},
+{section:"SEC001",day:"Fri",slot:"2-3",course:"CS206",faculty:"FAC002",room:"B2-F2-R204"},
+{section:"SEC001",day:"Fri",slot:"3-4",course:"MAT266A",faculty:"FAC007",room:"B2-F2-R205"},
+{section:"SEC001",day:"Fri",slot:"4-5",course:"CS205",faculty:"FAC001",room:"B1-F1-R101"},
+/* SEC002 CSE-B */
+{section:"SEC002",day:"Mon",slot:"9-10",course:"CS206",faculty:"FAC002",room:"B1-F1-R102"},
+{section:"SEC002",day:"Mon",slot:"10-11",course:"CS205",faculty:"FAC001",room:"B2-F2-R201"},
+{section:"SEC002",day:"Mon",slot:"11-12",course:"MAT266A",faculty:"FAC007",room:"B3-F3-R302"},
+{section:"SEC002",day:"Mon",slot:"2-3",course:"CS209",faculty:"FAC005",room:"B1-F1-R103"},
+{section:"SEC002",day:"Mon",slot:"3-4",course:"CS208",faculty:"FAC004",room:"B2-F2-R203"},
+{section:"SEC002",day:"Mon",slot:"4-5",course:"CS211",faculty:"FAC006",room:"B4-F4-R402"},
+{section:"SEC002",day:"Tue",slot:"9-10",course:"CS209",faculty:"FAC005",room:"B1-F1-R102"},
+{section:"SEC002",day:"Tue",slot:"10-11",course:"CS206",faculty:"FAC002",room:"B2-F2-R201"},
+{section:"SEC002",day:"Tue",slot:"11-12",course:"AEC201",faculty:"FAC003",room:"B3-F3-R302"},
+{section:"SEC002",day:"Tue",slot:"2-3",course:"CS208",faculty:"FAC004",room:"B1-F1-R103"},
+{section:"SEC002",day:"Tue",slot:"3-4",course:"CS205",faculty:"FAC001",room:"B2-F2-R203"},
+{section:"SEC002",day:"Tue",slot:"4-5",course:"MAT266A",faculty:"FAC007",room:"B4-F4-R402"},
+{section:"SEC002",day:"Wed",slot:"9-10",course:"CS211",faculty:"FAC006",room:"B1-F1-R102"},
+{section:"SEC002",day:"Wed",slot:"10-11",course:"CS208",faculty:"FAC004",room:"B2-F2-R201"},
+{section:"SEC002",day:"Wed",slot:"11-12",course:"CS205",faculty:"FAC001",room:"B3-F3-R302"},
+{section:"SEC002",day:"Wed",slot:"2-3",course:"CS206",faculty:"FAC002",room:"B1-F1-R103"},
+{section:"SEC002",day:"Wed",slot:"3-4",course:"CS209",faculty:"FAC005",room:"B2-F2-R203"},
+{section:"SEC002",day:"Wed",slot:"4-5",course:"AEC201",faculty:"FAC003",room:"B4-F4-R402"},
+{section:"SEC002",day:"Thu",slot:"9-10",course:"MAT266A",faculty:"FAC007",room:"B1-F1-R102"},
+{section:"SEC002",day:"Thu",slot:"10-11",course:"CS211",faculty:"FAC006",room:"B2-F2-R201"},
+{section:"SEC002",day:"Thu",slot:"11-12",course:"CS206",faculty:"FAC002",room:"B3-F3-R302"},
+{section:"SEC002",day:"Thu",slot:"2-3",course:"CS205",faculty:"FAC001",room:"B1-F1-R103"},
+{section:"SEC002",day:"Thu",slot:"3-4",course:"CS208",faculty:"FAC004",room:"B2-F2-R203"},
+{section:"SEC002",day:"Thu",slot:"4-5",course:"CS209",faculty:"FAC005",room:"B4-F4-R402"},
+{section:"SEC002",day:"Fri",slot:"9-10",course:"CS208",faculty:"FAC004",room:"B1-F1-R102"},
+{section:"SEC002",day:"Fri",slot:"10-11",course:"CS205",faculty:"FAC001",room:"B2-F2-R201"},
+{section:"SEC002",day:"Fri",slot:"11-12",course:"CS209",faculty:"FAC005",room:"B3-F3-R302"},
+{section:"SEC002",day:"Fri",slot:"2-3",course:"MAT266A",faculty:"FAC007",room:"B1-F1-R103"},
+{section:"SEC002",day:"Fri",slot:"3-4",course:"CS211",faculty:"FAC006",room:"B2-F2-R203"},
+{section:"SEC002",day:"Fri",slot:"4-5",course:"CS206",faculty:"FAC002",room:"B4-F4-R402"},
+/* SEC003 ECE-A */
+{section:"SEC003",day:"Mon",slot:"9-10",course:"EC201",faculty:"FAC008",room:"B3-F1-R101"},
+{section:"SEC003",day:"Mon",slot:"10-11",course:"EC202",faculty:"FAC009",room:"B3-F1-R102"},
+{section:"SEC003",day:"Mon",slot:"11-12",course:"EC203",faculty:"FAC010",room:"B3-F1-R103"},
+{section:"SEC003",day:"Mon",slot:"2-3",course:"EC204",faculty:"FAC008",room:"B3-F2-R201"},
+{section:"SEC003",day:"Mon",slot:"3-4",course:"EC205",faculty:"FAC009",room:"B3-F2-R202"},
+{section:"SEC003",day:"Mon",slot:"4-5",course:"EC206",faculty:"FAC010",room:"B3-F2-R203"},
+{section:"SEC003",day:"Tue",slot:"9-10",course:"EC204",faculty:"FAC008",room:"B3-F1-R101"},
+{section:"SEC003",day:"Tue",slot:"10-11",course:"EC201",faculty:"FAC009",room:"B3-F1-R102"},
+{section:"SEC003",day:"Tue",slot:"11-12",course:"EC206",faculty:"FAC010",room:"B3-F1-R103"},
+{section:"SEC003",day:"Tue",slot:"2-3",course:"EC202",faculty:"FAC009",room:"B3-F2-R201"},
+{section:"SEC003",day:"Tue",slot:"3-4",course:"EC203",faculty:"FAC010",room:"B3-F2-R202"},
+{section:"SEC003",day:"Tue",slot:"4-5",course:"EC205",faculty:"FAC008",room:"B3-F2-R203"},
+{section:"SEC003",day:"Wed",slot:"9-10",course:"EC203",faculty:"FAC010",room:"B3-F1-R101"},
+{section:"SEC003",day:"Wed",slot:"10-11",course:"EC204",faculty:"FAC008",room:"B3-F1-R102"},
+{section:"SEC003",day:"Wed",slot:"11-12",course:"EC201",faculty:"FAC009",room:"B3-F1-R103"},
+{section:"SEC003",day:"Wed",slot:"2-3",course:"EC205",faculty:"FAC009",room:"B3-F2-R201"},
+{section:"SEC003",day:"Wed",slot:"3-4",course:"EC206",faculty:"FAC010",room:"B3-F2-R202"},
+{section:"SEC003",day:"Wed",slot:"4-5",course:"EC202",faculty:"FAC008",room:"B3-F2-R203"},
+{section:"SEC003",day:"Thu",slot:"9-10",course:"EC201",faculty:"FAC008",room:"B3-F1-R101"},
+{section:"SEC003",day:"Thu",slot:"10-11",course:"EC205",faculty:"FAC009",room:"B3-F1-R102"},
+{section:"SEC003",day:"Thu",slot:"11-12",course:"EC204",faculty:"FAC010",room:"B3-F1-R103"},
+{section:"SEC003",day:"Thu",slot:"2-3",course:"EC206",faculty:"FAC010",room:"B3-F2-R201"},
+{section:"SEC003",day:"Thu",slot:"3-4",course:"EC202",faculty:"FAC009",room:"B3-F2-R202"},
+{section:"SEC003",day:"Thu",slot:"4-5",course:"EC203",faculty:"FAC008",room:"B3-F2-R203"},
+{section:"SEC003",day:"Fri",slot:"9-10",course:"EC206",faculty:"FAC010",room:"B3-F1-R101"},
+{section:"SEC003",day:"Fri",slot:"10-11",course:"EC203",faculty:"FAC009",room:"B3-F1-R102"},
+{section:"SEC003",day:"Fri",slot:"11-12",course:"EC202",faculty:"FAC008",room:"B3-F1-R103"},
+{section:"SEC003",day:"Fri",slot:"2-3",course:"EC201",faculty:"FAC008",room:"B3-F2-R201"},
+{section:"SEC003",day:"Fri",slot:"3-4",course:"EC204",faculty:"FAC009",room:"B3-F2-R202"},
+{section:"SEC003",day:"Fri",slot:"4-5",course:"EC205",faculty:"FAC010",room:"B3-F2-R203"},
+/* SEC004 MECH-A */
+{section:"SEC004",day:"Mon",slot:"9-10",course:"ME201",faculty:"FAC011",room:"B4-F1-R101"},
+{section:"SEC004",day:"Mon",slot:"10-11",course:"ME202",faculty:"FAC012",room:"B4-F1-R102"},
+{section:"SEC004",day:"Mon",slot:"11-12",course:"ME203",faculty:"FAC011",room:"B4-F1-R103"},
+{section:"SEC004",day:"Mon",slot:"2-3",course:"ME204",faculty:"FAC012",room:"B4-F2-R201"},
+{section:"SEC004",day:"Mon",slot:"3-4",course:"ME205",faculty:"FAC012",room:"B4-F2-R202"},
+{section:"SEC004",day:"Tue",slot:"9-10",course:"ME203",faculty:"FAC011",room:"B4-F1-R101"},
+{section:"SEC004",day:"Tue",slot:"10-11",course:"ME201",faculty:"FAC012",room:"B4-F1-R102"},
+{section:"SEC004",day:"Tue",slot:"11-12",course:"ME204",faculty:"FAC011",room:"B4-F1-R103"},
+{section:"SEC004",day:"Tue",slot:"2-3",course:"ME202",faculty:"FAC012",room:"B4-F2-R201"},
+{section:"SEC004",day:"Tue",slot:"3-4",course:"ME205",faculty:"FAC012",room:"B4-F2-R202"},
+{section:"SEC004",day:"Wed",slot:"9-10",course:"ME201",faculty:"FAC011",room:"B4-F1-R101"},
+{section:"SEC004",day:"Wed",slot:"10-11",course:"ME204",faculty:"FAC012",room:"B4-F1-R102"},
+{section:"SEC004",day:"Wed",slot:"11-12",course:"ME202",faculty:"FAC012",room:"B4-F1-R103"},
+{section:"SEC004",day:"Wed",slot:"2-3",course:"ME203",faculty:"FAC011",room:"B4-F2-R201"},
+{section:"SEC004",day:"Wed",slot:"3-4",course:"ME205",faculty:"FAC012",room:"B4-F2-R202"},
+{section:"SEC004",day:"Thu",slot:"9-10",course:"ME202",faculty:"FAC012",room:"B4-F1-R101"},
+{section:"SEC004",day:"Thu",slot:"10-11",course:"ME203",faculty:"FAC011",room:"B4-F1-R102"},
+{section:"SEC004",day:"Thu",slot:"11-12",course:"ME201",faculty:"FAC011",room:"B4-F1-R103"},
+{section:"SEC004",day:"Thu",slot:"2-3",course:"ME205",faculty:"FAC012",room:"B4-F2-R201"},
+{section:"SEC004",day:"Thu",slot:"3-4",course:"ME204",faculty:"FAC012",room:"B4-F2-R202"},
+{section:"SEC004",day:"Fri",slot:"9-10",course:"ME204",faculty:"FAC012",room:"B4-F1-R101"},
+{section:"SEC004",day:"Fri",slot:"10-11",course:"ME201",faculty:"FAC011",room:"B4-F1-R102"},
+{section:"SEC004",day:"Fri",slot:"11-12",course:"ME205",faculty:"FAC012",room:"B4-F1-R103"},
+{section:"SEC004",day:"Fri",slot:"2-3",course:"ME203",faculty:"FAC011",room:"B4-F2-R201"},
+{section:"SEC004",day:"Fri",slot:"3-4",course:"ME202",faculty:"FAC012",room:"B4-F2-R202"},
+/* SEC005 CIVIL-A */
+{section:"SEC005",day:"Mon",slot:"9-10",course:"CE201",faculty:"FAC013",room:"B2-F1-R101"},
+{section:"SEC005",day:"Mon",slot:"10-11",course:"CE202",faculty:"FAC014",room:"B2-F1-R102"},
+{section:"SEC005",day:"Mon",slot:"11-12",course:"CE203",faculty:"FAC014",room:"B2-F1-R103"},
+{section:"SEC005",day:"Mon",slot:"2-3",course:"CE204",faculty:"FAC013",room:"B2-F3-R301"},
+{section:"SEC005",day:"Mon",slot:"3-4",course:"CE201",faculty:"FAC013",room:"B2-F3-R302"},
+{section:"SEC005",day:"Tue",slot:"9-10",course:"CE202",faculty:"FAC014",room:"B2-F1-R101"},
+{section:"SEC005",day:"Tue",slot:"10-11",course:"CE201",faculty:"FAC013",room:"B2-F1-R102"},
+{section:"SEC005",day:"Tue",slot:"11-12",course:"CE204",faculty:"FAC014",room:"B2-F1-R103"},
+{section:"SEC005",day:"Tue",slot:"2-3",course:"CE203",faculty:"FAC014",room:"B2-F3-R301"},
+{section:"SEC005",day:"Tue",slot:"3-4",course:"CE201",faculty:"FAC013",room:"B2-F3-R302"},
+{section:"SEC005",day:"Wed",slot:"9-10",course:"CE204",faculty:"FAC013",room:"B2-F1-R101"},
+{section:"SEC005",day:"Wed",slot:"10-11",course:"CE203",faculty:"FAC014",room:"B2-F1-R102"},
+{section:"SEC005",day:"Wed",slot:"11-12",course:"CE201",faculty:"FAC013",room:"B2-F1-R103"},
+{section:"SEC005",day:"Wed",slot:"2-3",course:"CE202",faculty:"FAC014",room:"B2-F3-R301"},
+{section:"SEC005",day:"Wed",slot:"3-4",course:"CE204",faculty:"FAC013",room:"B2-F3-R302"},
+{section:"SEC005",day:"Thu",slot:"9-10",course:"CE203",faculty:"FAC014",room:"B2-F1-R101"},
+{section:"SEC005",day:"Thu",slot:"10-11",course:"CE204",faculty:"FAC013",room:"B2-F1-R102"},
+{section:"SEC005",day:"Thu",slot:"11-12",course:"CE202",faculty:"FAC014",room:"B2-F1-R103"},
+{section:"SEC005",day:"Thu",slot:"2-3",course:"CE201",faculty:"FAC013",room:"B2-F3-R301"},
+{section:"SEC005",day:"Thu",slot:"3-4",course:"CE203",faculty:"FAC014",room:"B2-F3-R302"},
+{section:"SEC005",day:"Fri",slot:"9-10",course:"CE201",faculty:"FAC013",room:"B2-F1-R101"},
+{section:"SEC005",day:"Fri",slot:"10-11",course:"CE202",faculty:"FAC014",room:"B2-F1-R102"},
+{section:"SEC005",day:"Fri",slot:"11-12",course:"CE204",faculty:"FAC013",room:"B2-F1-R103"},
+{section:"SEC005",day:"Fri",slot:"2-3",course:"CE203",faculty:"FAC014",room:"B2-F3-R301"},
+/* SEC006 IT-A */
+{section:"SEC006",day:"Mon",slot:"9-10",course:"IT201",faculty:"FAC015",room:"B1-F2-R201"},
+{section:"SEC006",day:"Mon",slot:"10-11",course:"IT202",faculty:"FAC016",room:"B1-F2-R202"},
+{section:"SEC006",day:"Mon",slot:"11-12",course:"IT203",faculty:"FAC016",room:"B1-F2-R203"},
+{section:"SEC006",day:"Mon",slot:"2-3",course:"IT204",faculty:"FAC015",room:"B1-F3-R301"},
+{section:"SEC006",day:"Mon",slot:"3-4",course:"IT205",faculty:"FAC016",room:"B1-F3-R302"},
+{section:"SEC006",day:"Tue",slot:"9-10",course:"IT204",faculty:"FAC015",room:"B1-F2-R201"},
+{section:"SEC006",day:"Tue",slot:"10-11",course:"IT201",faculty:"FAC016",room:"B1-F2-R202"},
+{section:"SEC006",day:"Tue",slot:"11-12",course:"IT205",faculty:"FAC015",room:"B1-F2-R203"},
+{section:"SEC006",day:"Tue",slot:"2-3",course:"IT202",faculty:"FAC016",room:"B1-F3-R301"},
+{section:"SEC006",day:"Tue",slot:"3-4",course:"IT203",faculty:"FAC016",room:"B1-F3-R302"},
+{section:"SEC006",day:"Wed",slot:"9-10",course:"IT202",faculty:"FAC016",room:"B1-F2-R201"},
+{section:"SEC006",day:"Wed",slot:"10-11",course:"IT204",faculty:"FAC015",room:"B1-F2-R202"},
+{section:"SEC006",day:"Wed",slot:"11-12",course:"IT201",faculty:"FAC015",room:"B1-F2-R203"},
+{section:"SEC006",day:"Wed",slot:"2-3",course:"IT205",faculty:"FAC016",room:"B1-F3-R301"},
+{section:"SEC006",day:"Wed",slot:"3-4",course:"IT203",faculty:"FAC016",room:"B1-F3-R302"},
+{section:"SEC006",day:"Thu",slot:"9-10",course:"IT203",faculty:"FAC016",room:"B1-F2-R201"},
+{section:"SEC006",day:"Thu",slot:"10-11",course:"IT205",faculty:"FAC015",room:"B1-F2-R202"},
+{section:"SEC006",day:"Thu",slot:"11-12",course:"IT202",faculty:"FAC016",room:"B1-F2-R203"},
+{section:"SEC006",day:"Thu",slot:"2-3",course:"IT201",faculty:"FAC015",room:"B1-F3-R301"},
+{section:"SEC006",day:"Thu",slot:"3-4",course:"IT204",faculty:"FAC016",room:"B1-F3-R302"},
+{section:"SEC006",day:"Fri",slot:"9-10",course:"IT205",faculty:"FAC016",room:"B1-F2-R201"},
+{section:"SEC006",day:"Fri",slot:"10-11",course:"IT203",faculty:"FAC015",room:"B1-F2-R202"},
+{section:"SEC006",day:"Fri",slot:"11-12",course:"IT204",faculty:"FAC016",room:"B1-F2-R203"},
+{section:"SEC006",day:"Fri",slot:"2-3",course:"IT201",faculty:"FAC015",room:"B1-F3-R301"},
+{section:"SEC006",day:"Fri",slot:"3-4",course:"IT202",faculty:"FAC016",room:"B1-F3-R302"},
+/* SEC007 AI-A */
+{section:"SEC007",day:"Mon",slot:"9-10",course:"AI201",faculty:"FAC017",room:"B2-F4-R401"},
+{section:"SEC007",day:"Mon",slot:"10-11",course:"AI202",faculty:"FAC018",room:"B2-F4-R402"},
+{section:"SEC007",day:"Mon",slot:"11-12",course:"AI205",faculty:"FAC019",room:"B2-F4-R403"},
+{section:"SEC007",day:"Mon",slot:"2-3",course:"AI203",faculty:"FAC017",room:"B2-F4-R404"},
+{section:"SEC007",day:"Mon",slot:"3-4",course:"AI204",faculty:"FAC018",room:"B2-F4-R405"},
+{section:"SEC007",day:"Tue",slot:"9-10",course:"AI203",faculty:"FAC017",room:"B2-F4-R401"},
+{section:"SEC007",day:"Tue",slot:"10-11",course:"AI201",faculty:"FAC018",room:"B2-F4-R402"},
+{section:"SEC007",day:"Tue",slot:"11-12",course:"AI204",faculty:"FAC019",room:"B2-F4-R403"},
+{section:"SEC007",day:"Tue",slot:"2-3",course:"AI202",faculty:"FAC017",room:"B2-F4-R404"},
+{section:"SEC007",day:"Tue",slot:"3-4",course:"AI205",faculty:"FAC018",room:"B2-F4-R405"},
+{section:"SEC007",day:"Wed",slot:"9-10",course:"AI202",faculty:"FAC018",room:"B2-F4-R401"},
+{section:"SEC007",day:"Wed",slot:"10-11",course:"AI203",faculty:"FAC017",room:"B2-F4-R402"},
+{section:"SEC007",day:"Wed",slot:"11-12",course:"AI201",faculty:"FAC019",room:"B2-F4-R403"},
+{section:"SEC007",day:"Wed",slot:"2-3",course:"AI205",faculty:"FAC017",room:"B2-F4-R404"},
+{section:"SEC007",day:"Wed",slot:"3-4",course:"AI204",faculty:"FAC018",room:"B2-F4-R405"},
+{section:"SEC007",day:"Thu",slot:"9-10",course:"AI204",faculty:"FAC018",room:"B2-F4-R401"},
+{section:"SEC007",day:"Thu",slot:"10-11",course:"AI205",faculty:"FAC019",room:"B2-F4-R402"},
+{section:"SEC007",day:"Thu",slot:"11-12",course:"AI202",faculty:"FAC017",room:"B2-F4-R403"},
+{section:"SEC007",day:"Thu",slot:"2-3",course:"AI201",faculty:"FAC017",room:"B2-F4-R404"},
+{section:"SEC007",day:"Thu",slot:"3-4",course:"AI203",faculty:"FAC018",room:"B2-F4-R405"},
+{section:"SEC007",day:"Fri",slot:"9-10",course:"AI205",faculty:"FAC019",room:"B2-F4-R401"},
+{section:"SEC007",day:"Fri",slot:"10-11",course:"AI204",faculty:"FAC018",room:"B2-F4-R402"},
+{section:"SEC007",day:"Fri",slot:"11-12",course:"AI203",faculty:"FAC017",room:"B2-F4-R403"},
+{section:"SEC007",day:"Fri",slot:"2-3",course:"AI201",faculty:"FAC017",room:"B2-F4-R404"},
+{section:"SEC007",day:"Fri",slot:"3-4",course:"AI202",faculty:"FAC018",room:"B2-F4-R405"},
+/* SEC008 CSE-C (1st year) */
+{section:"SEC008",day:"Mon",slot:"9-10",course:"CS205",faculty:"FAC001",room:"B1-F3-R303"},
+{section:"SEC008",day:"Mon",slot:"10-11",course:"CS206",faculty:"FAC002",room:"B1-F3-R304"},
+{section:"SEC008",day:"Mon",slot:"11-12",course:"AEC201",faculty:"FAC003",room:"B1-F3-R305"},
+{section:"SEC008",day:"Tue",slot:"9-10",course:"CS206",faculty:"FAC002",room:"B1-F3-R303"},
+{section:"SEC008",day:"Tue",slot:"10-11",course:"AEC201",faculty:"FAC003",room:"B1-F3-R304"},
+{section:"SEC008",day:"Tue",slot:"11-12",course:"CS205",faculty:"FAC001",room:"B1-F3-R305"},
+{section:"SEC008",day:"Wed",slot:"9-10",course:"AEC201",faculty:"FAC003",room:"B1-F3-R303"},
+{section:"SEC008",day:"Wed",slot:"10-11",course:"CS205",faculty:"FAC001",room:"B1-F3-R304"},
+{section:"SEC008",day:"Wed",slot:"11-12",course:"CS206",faculty:"FAC002",room:"B1-F3-R305"},
+{section:"SEC008",day:"Thu",slot:"9-10",course:"CS205",faculty:"FAC001",room:"B1-F3-R303"},
+{section:"SEC008",day:"Thu",slot:"10-11",course:"CS206",faculty:"FAC002",room:"B1-F3-R304"},
+{section:"SEC008",day:"Fri",slot:"9-10",course:"CS206",faculty:"FAC002",room:"B1-F3-R303"},
+{section:"SEC008",day:"Fri",slot:"10-11",course:"CS205",faculty:"FAC001",room:"B1-F3-R304"}];
+
+/* Seed attendance — all students, all sections */
+(function seedAtt(){
+function gen(sid,courses,vary){
+DATA.attendance[sid]={};
+const base={c:40,p:32,a:6,od:2};
+courses.forEach((cc,ci)=>{
+const v={c:base.c+ci*2+(vary%3)*2, p:0, a:0, od:0};
+const pRate=0.7+((vary+ci)%5)*0.05;
+v.p=Math.round(v.c*pRate);v.od=Math.round(v.c*0.04+((vary+ci)%3));v.a=v.c-v.p-v.od;
+if(v.a<0){v.a=0;v.od=v.c-v.p}
+DATA.attendance[sid][cc]={};
+let pi=0,ai=0,oi=0;const s=new Date(2026,0,5);
+for(let d=0;pi+ai+oi<v.c;d++){const dt=new Date(s);dt.setDate(dt.getDate()+d);const dw=dt.getDay();if(dw===0||dw===6)continue;const k=dt.toISOString().split('T')[0];
+if(pi<v.p){DATA.attendance[sid][cc][k]='P';pi++}else if(oi<v.od){DATA.attendance[sid][cc][k]='OD';oi++}else if(ai<v.a){DATA.attendance[sid][cc][k]='A';ai++}}
+})}
+DATA.sections.forEach(sec=>{
+sec.students.forEach((sid,si)=>gen(sid,sec.courses,si*7+sec.id.charCodeAt(5)))
+})})();
+
+function calcAtt(sid,cc){const r=DATA.attendance[sid]?.[cc]||{};let P=0,A=0,OD=0;Object.values(r).forEach(v=>{if(v==='P')P++;else if(v==='A')A++;else if(v==='OD')OD++});const c=P+A+OD;return{conducted:c,present:P,absent:A,odml:OD,pct:c>0?parseFloat(((P+OD)/c*100).toFixed(1)):0}}
+function getSlotStatus(s){const h=new Date().getHours();const p=s.split('-');let sh=+p[0],eh=+p[1];if(sh<8)sh+=12;if(eh<8||eh<=sh)eh+=12;if(h>=eh)return'done';if(h>=sh&&h<eh)return'ongoing';return'upcoming'}
+
+/* Admin timetable pages */
+function showAdminTimetablePage(sub){
+setNav(event?.target?.closest?.('.nl'));
+const pages={Generate:pgGenerate,'Section View':pgSecView,'Faculty View':pgFacView,'Student View':pgStuView,'Room View':pgRoomView};
+$('mainArea').innerHTML=`<div class="page">${(pages[sub]||pgGenerate)()}</div>`;
+if(sub==='Section View')setTimeout(renderTGrid,50);
+if(sub==='Faculty View')setTimeout(renderFGrid,50);
+if(sub==='Student View')setTimeout(renderSGrid,50);
+if(sub==='Room View')setTimeout(renderRGrid,50);
+}
+
+function pgGenerate(){
+return`<div class="hdr"><div><h2>⚡ Generate Timetable</h2><p>Auto-generate conflict-free timetables</p></div></div>
+<div class="card"><div class="card-t">🎯 Select Algorithm</div>
+<div class="algo-g">${[['⚡','Greedy','Fast allocation'],['⚖️','Balanced','Even distribution'],['🧠','Optimized','AI-assisted']].map((a,i)=>`<div class="algo-c ${i===0?'sel':''}" onclick="document.querySelectorAll('.algo-c').forEach(c=>c.classList.remove('sel'));this.classList.add('sel')"><div class="ar"></div><div style="font-weight:700;font-size:.92rem;margin-bottom:3px">${a[0]} ${a[1]}</div><div style="color:var(--muted);font-size:.78rem">${a[2]}</div></div>`).join('')}</div></div>
+<div class="card"><div class="card-t">✅ Checklist</div>
+${[['University',!!DATA.university.name],['Departments',DATA.departments.length>0],['Courses',DATA.courses.length>0],['Faculty',DATA.faculty.length>0],['Students',DATA.students.length>0],['Sections',DATA.sections.length>0]].map(c=>`<div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:.88rem"><span>${c[1]?'✅':'❌'}</span><span style="color:${c[1]?'var(--success)':'var(--danger)'}; font-weight:500">${c[0]}</span></div>`).join('')}
+<button class="btn-gen" id="genBtn" onclick="runGen()">⚡ Generate Timetable</button></div><div id="genRes"></div>`}
+function runGen(){const b=$('genBtn');b.disabled=true;b.innerHTML='<span class="spinner2"></span> Generating...';
+setTimeout(()=>{b.classList.add('ok');b.innerHTML='✓ Generated!';showToast(`✅ ${DATA.timetable.length} timetable entries ready!`,'success');
+$('genRes').innerHTML='<div class="card" style="margin-top:16px"><div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);color:#047857;padding:12px 16px;border-radius:12px;font-weight:500">✅ '+DATA.timetable.length+' entries for '+DATA.sections.length+' sections.</div><div style="margin-top:14px"><button class="btn btn-g" onclick="showAdminTimetablePage(\'Section View\')">📋 View Timetables</button></div></div>';
+setTimeout(()=>{b.classList.remove('ok');b.innerHTML='⚡ Generate Timetable';b.disabled=false},3000)},2800)}
+
+function buildGrid(entries,days,slots,labelFn){
+let h='<div class="th2"></div>';days.forEach(d=>h+=`<div class="th2">${d}</div>`);
+slots.forEach(s=>{if(s==='12-1'){h+=`<div class="ts2">12-1</div>`;days.forEach(()=>h+=`<div class="tc2 lunch">🍽️ Lunch</div>`);return}
+h+=`<div class="ts2">${s}</div>`;days.forEach(d=>{const e=entries.find(x=>x.day===d&&x.slot===s);
+if(e){const ci=DATA.courses.findIndex(c=>c.code===e.course)%7;const fac=DATA.faculty.find(f=>f.id===e.faculty);const abs=fac&&fac.absentDates.includes(getTodayKey())&&d===getTodayDay();
+h+=`<div class="tc2 ${abs?'cancelled':'d'+ci}"><div class="cn2">${e.course}</div><div class="fn2">${labelFn(e)}</div><div class="rn2">${e.room}${abs?' 🚫':''}</div></div>`}
+else h+=`<div class="tc2 empty">—</div>`})});return h}
+
+function pgSecView(){return`<div class="hdr"><div><h2>📋 Section Timetable</h2><p>View by section</p></div></div>
+<div class="card"><select id="svSel" onchange="renderTGrid()" style="padding:9px 14px;border-radius:12px;border:1.5px solid #e5e7eb;font-family:inherit;font-size:.86rem;margin-bottom:14px">${DATA.sections.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</select>
+<div class="tg" id="svGrid" style="grid-template-columns:70px repeat(${DATA.university.days.length},1fr)"></div></div>`}
+function renderTGrid(){const sid=$('svSel').value;$('svGrid').innerHTML=buildGrid(DATA.timetable.filter(t=>t.section===sid),DATA.university.days,DATA.university.slots,e=>{const f=DATA.faculty.find(x=>x.id===e.faculty);return f?f.name:e.faculty})}
+
+function pgFacView(){return`<div class="hdr"><div><h2>👁️ Faculty Timetable</h2><p>View by faculty</p></div></div>
+<div class="card"><select id="fvSel" onchange="renderFGrid()" style="padding:9px 14px;border-radius:12px;border:1.5px solid #e5e7eb;font-family:inherit;font-size:.86rem;margin-bottom:14px">${DATA.faculty.map(f=>`<option value="${f.id}">${f.name}</option>`).join('')}</select>
+<div class="tg" id="fvGrid" style="grid-template-columns:70px repeat(${DATA.university.days.length},1fr)"></div></div>`}
+function renderFGrid(){const fid=$('fvSel').value;$('fvGrid').innerHTML=buildGrid(DATA.timetable.filter(t=>t.faculty===fid),DATA.university.days,DATA.university.slots,e=>{const s=DATA.sections.find(x=>x.id===e.section);return s?s.name:e.section})}
+
+function pgStuView(){return`<div class="hdr"><div><h2>🧑‍💻 Student Timetable</h2><p>View by student</p></div></div>
+<div class="card"><select id="stSel" onchange="renderSGrid()" style="padding:9px 14px;border-radius:12px;border:1.5px solid #e5e7eb;font-family:inherit;font-size:.86rem;margin-bottom:14px">${DATA.students.map(s=>`<option value="${s.id}">${s.name} (${s.id})</option>`).join('')}</select>
+<div class="tg" id="stGrid" style="grid-template-columns:70px repeat(${DATA.university.days.length},1fr)"></div></div>`}
+function renderSGrid(){const sid=$('stSel').value;const stu=DATA.students.find(s=>s.id===sid);if(!stu)return;const sec=DATA.sections.find(s=>s.id===stu.section);if(!sec)return;
+$('stGrid').innerHTML=buildGrid(DATA.timetable.filter(t=>t.section===sec.id),DATA.university.days,DATA.university.slots,e=>{const f=DATA.faculty.find(x=>x.id===e.faculty);return f?f.name:e.faculty})}
+
+function pgRoomView(){const rooms=[...new Set(DATA.timetable.map(t=>t.room))].sort();
+return`<div class="hdr"><div><h2>🚪 Room Timetable</h2><p>View by room</p></div></div>
+<div class="card"><select id="rvSel" onchange="renderRGrid()" style="padding:9px 14px;border-radius:12px;border:1.5px solid #e5e7eb;font-family:inherit;font-size:.86rem;margin-bottom:14px">${rooms.map(r=>`<option value="${r}">${r}</option>`).join('')}</select>
+<div class="tg" id="rvGrid" style="grid-template-columns:70px repeat(${DATA.university.days.length},1fr)"></div></div>`}
+function renderRGrid(){const rm=$('rvSel').value;$('rvGrid').innerHTML=buildGrid(DATA.timetable.filter(t=>t.room===rm),DATA.university.days,DATA.university.slots,e=>{const s=DATA.sections.find(x=>x.id===e.section);return(s?s.name:e.section)+' · '+e.course})}
+
+/* ═══ MODULE 3: ATTENDANCE ═══ */
+function showAdminAttendancePage(){
+setNav(event?.target?.closest?.('.nl'));
+$('mainArea').innerHTML=`<div class="page">${pgMarkAtt()}</div>`;setTimeout(updateAttSlots,50)}
+function pgMarkAtt(){
+return`<div class="hdr"><div><h2>📝 Mark Attendance</h2><p>Record attendance per slot</p></div></div>
+<div class="card"><div class="card-t">📋 Select Slot</div>
+<div class="form-grid c3"><div class="fg"><label>Section</label><select id="atSec" onchange="updateAttSlots()">${DATA.sections.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</select></div>
+<div class="fg"><label>Date</label><input type="date" id="atDt" value="${getTodayKey()}" onchange="updateAttSlots()"></div>
+<div class="fg"><label>Course Slot</label><select id="atSl"></select></div></div>
+<div class="form-row"><button class="btn btn-g" onclick="loadAttStu()">📋 Load Students</button></div></div><div id="attArea"></div>`}
+function updateAttSlots(){const sid=$('atSec').value,dt=$('atDt').value,d=new Date(dt),ds=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+const sl=DATA.timetable.filter(t=>t.section===sid&&t.day===ds);
+$('atSl').innerHTML=sl.length?sl.map(s=>{const c=DATA.courses.find(x=>x.code===s.course);return`<option value="${s.slot}|${s.course}">${s.slot} — ${c?c.name:s.course}</option>`}).join(''):'<option>No slots</option>'}
+function loadAttStu(){const sid=$('atSec').value,dt=$('atDt').value,sel=$('atSl').value;if(!sel||sel==='No slots')return;
+const[slot,cc]=sel.split('|');const sec=DATA.sections.find(s=>s.id===sid);if(!sec)return;
+let h='<div class="card"><div class="card-t">📋 '+cc+' ('+slot+')</div>';
+sec.students.forEach(sid2=>{const stu=DATA.students.find(s=>s.id===sid2);if(!stu)return;const ex=DATA.attendance[sid2]?.[cc]?.[dt]||'';
+h+=`<div class="att-row"><div><b>${stu.name}</b><br><span style="color:var(--muted);font-size:.76rem">${stu.id}</span></div>
+<div class="att-btns"><button class="att-b ${ex==='P'?'sel-p':''}" onclick="setAtt(this,'${sid2}','${cc}','${dt}','P')">✅ P</button>
+<button class="att-b ${ex==='A'?'sel-a':''}" onclick="setAtt(this,'${sid2}','${cc}','${dt}','A')">❌ A</button>
+<button class="att-b ${ex==='OD'?'sel-od':''}" onclick="setAtt(this,'${sid2}','${cc}','${dt}','OD')">📋 OD</button></div></div>`});
+h+='<div class="form-row"><button class="btn btn-s" onclick="showToast(\'✅ Attendance saved!\',\'success\')">💾 Save</button></div></div>';
+$('attArea').innerHTML=h}
+function setAtt(btn,sid,cc,dt,val){if(!DATA.attendance[sid])DATA.attendance[sid]={};if(!DATA.attendance[sid][cc])DATA.attendance[sid][cc]={};DATA.attendance[sid][cc][dt]=val;
+btn.parentElement.querySelectorAll('.att-b').forEach(b=>b.className='att-b');btn.classList.add(val==='P'?'sel-p':val==='A'?'sel-a':'sel-od')}
+
+/* ═══ FACULTY DASHBOARD ═══ */
+function showFacultyDashboard(){
+const f=currentFaculty;
+$('sidebar').innerHTML=`<div class="sb-logo"><h1><span>📚</span> UniSchedule</h1><div class="sub">Faculty Portal</div></div>
+<div class="nsec"><div class="nsec-t">Overview</div>
+<button class="nl act" onclick="setNav(this);showFacPage('dash')"><span class="ni">📊</span>Dashboard</button></div>
+<div class="nsec"><div class="nsec-t">Timetable</div>
+<button class="nl" onclick="setNav(this);showFacPage('tt')"><span class="ni">📅</span>My Timetable</button></div>
+<div class="sb-foot"><button onclick="doLogout()">→ Logout</button></div>`;
+showFacPage('dash');
+}
+function showFacPage(id){
+const f=currentFaculty;if(id==='dash')$('mainArea').innerHTML=`<div class="page">${facDash()}</div>`;
+else if(id==='tt'){$('mainArea').innerHTML=`<div class="page">${facTT()}</div>`;setTimeout(()=>{const g=$('facMyGrid');if(g)g.innerHTML=buildGrid(DATA.timetable.filter(t=>t.faculty===f.id),DATA.university.days,DATA.university.slots,e=>{const s=DATA.sections.find(x=>x.id===e.section);return s?s.name:e.section})},50)}}
+function facDash(){const f=currentFaculty;const myEntries=DATA.timetable.filter(t=>t.faculty===f.id);const today=getTodayDay();const todaySlots=myEntries.filter(t=>t.day===today);const isAbs=f.absentDates.includes(getTodayKey());
+return`<div class="hdr"><div><h2>Welcome, ${f.name} 👋</h2><p>${formatDate()} ${isAbs?'<span class="badge b-rd" style="margin-left:8px">You are marked absent today</span>':''}</p></div></div>
+<div class="sg">${[{i:'📅',c:'background:rgba(79,142,247,.12)',l:'Total Classes/Week',v:myEntries.length},{i:'📚',c:'background:rgba(245,158,11,.12)',l:'Courses Teaching',v:f.canTeach.length},{i:'👥',c:'background:rgba(139,92,246,.12)',l:'Sections Assigned',v:f.assignedSections.length},{i:'📖',c:'background:rgba(16,185,129,.12)',l:'Today\'s Classes',v:todaySlots.length},{i:'🏢',c:'background:rgba(236,72,153,.12)',l:'Department',v:f.dept}].map((s,i)=>`<div class="sc" style="animation-delay:${i*.06}s"><div class="si" style="${s.c}">${s.i}</div><div><div class="sv">${s.v}</div><div class="sl">${s.l}</div></div></div>`).join('')}</div>
+<div class="card"><div class="card-t">📅 Today's Schedule — ${today}</div>
+${todaySlots.length?todaySlots.sort((a,b)=>slotOrder(a.slot)-slotOrder(b.slot)).map(t=>{const c=DATA.courses.find(x=>x.code===t.course);const sec=DATA.sections.find(x=>x.id===t.section);const st=getSlotStatus(t.slot);
+return`<div class="tt-slot ${isAbs?'absent-slot':''}"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:.73rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${t.slot}</div><div style="font-size:1rem;font-weight:700;margin-top:4px">${c?c.name:t.course}</div><div style="font-size:.82rem;color:var(--muted);margin-top:2px">${sec?sec.name:''} · ${t.room}</div></div><div>${isAbs?'<span class="status-pill sp-cancel">🚫 Cancelled</span>':`<span class="status-pill ${st==='ongoing'?'sp-on':st==='done'?'sp-done':'sp-up'}">${st==='ongoing'?'🔴 Ongoing':st==='done'?'✓ Done':'⏳ Upcoming'}</span>`}</div></div></div>`}).join(''):'<p style="color:var(--muted);padding:16px 0;text-align:center">No classes scheduled today.</p>'}</div>`}
+function facTT(){return`<div class="hdr"><div><h2>📅 My Timetable</h2><p>Full weekly schedule</p></div></div>
+<div class="card"><div class="tg" id="facMyGrid" style="grid-template-columns:70px repeat(${DATA.university.days.length},1fr)"></div></div>`}
+
+/* ═══ STUDENT DASHBOARD ═══ */
+function showStudentDashboard(){
+const s=currentStudent;const sec=DATA.sections.find(x=>x.id===s.section);
+$('sidebar').innerHTML=`<div class="sb-logo"><h1><span>📚</span> UniSchedule</h1><div class="sub">Student Portal</div></div>
+<div class="nsec"><div class="nsec-t">Overview</div>
+<button class="nl act" onclick="setNav(this);showStuPage('dash')"><span class="ni">🏠</span>Dashboard</button></div>
+<div class="nsec"><div class="nsec-t">Timetable</div>
+<button class="nl" onclick="setNav(this);showStuPage('tt')"><span class="ni">📅</span>My Timetable</button>
+<button class="nl" onclick="setNav(this);showStuPage('att')"><span class="ni">📊</span>My Attendance</button></div>
+<div class="sb-foot"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--navy),var(--accent));display:flex;align-items:center;justify-content:center;color:#fff;font-size:.7rem;font-weight:700">${getInitials(s.name)}</div><div><div style="color:rgba(255,255,255,.8);font-size:.78rem;font-weight:600">${s.name}</div><div style="color:rgba(255,255,255,.35);font-size:.66rem">${sec?sec.name:''}</div></div></div><button onclick="doLogout()">→ Logout</button></div>`;
+showStuPage('dash');
+}
+function showStuPage(id){
+if(id==='dash')$('mainArea').innerHTML=`<div class="page">${stuDash()}</div>`;
+else if(id==='tt'){$('mainArea').innerHTML=`<div class="page">${stuTT()}</div>`;setTimeout(()=>{const g=$('stuWkGrid');if(g){const sec=DATA.sections.find(x=>x.id===currentStudent.section);if(sec)g.innerHTML=buildGrid(DATA.timetable.filter(t=>t.section===sec.id),DATA.university.days,DATA.university.slots,e=>{const f=DATA.faculty.find(x=>x.id===e.faculty);return f?f.name:e.faculty})}},50)}
+else if(id==='att')$('mainArea').innerHTML=`<div class="page">${stuAtt()}</div>`}
+function stuDash(){
+const s=currentStudent,sec=DATA.sections.find(x=>x.id===s.section),courses=sec?sec.courses:[];
+const today=getTodayDay(),todayEntries=DATA.timetable.filter(t=>t.section===s.section&&t.day===today).sort((a,b)=>slotOrder(a.slot)-slotOrder(b.slot));
+let totalAtt=0,totalCond=0;courses.forEach(cc=>{const a=calcAtt(s.id,cc);totalAtt+=(a.present+a.odml);totalCond+=a.conducted});
+const overallPct=totalCond>0?(totalAtt/totalCond*100).toFixed(1):0;
+const colors=['#4a9eff','#34c759','#ff9f0a','#ff3b30','#5856d6','#af52de','#00bcd4'];
+return`<div class="hero"><div class="hero-l"><div class="hero-av">${getInitials(s.name)}</div><div><div class="hero-name">${s.name}</div><div class="hero-id">${s.id}</div><div class="hero-meta">${s.dept} · ${sec?sec.name:''} · Semester ${s.semester} · Year ${s.year}</div></div></div>
+<div class="hero-r"><div class="hstat"><div class="hv" style="color:${overallPct>=75?'var(--success)':overallPct>=60?'var(--warning)':'var(--danger)'}">${overallPct}%</div><div class="hl">📊 Attendance</div></div>
+<div class="hstat"><div class="hv">${courses.length}</div><div class="hl">📚 Courses</div></div>
+<div class="hstat"><div class="hv">${todayEntries.length}</div><div class="hl">⚡ Today</div></div></div></div>
+<div class="det-grid"><div class="card"><div class="card-t">👤 Personal Details</div>
+${[['Full Name',s.name],['Student ID',s.id],['DOB',s.dob||'—'],['Blood Group',s.blood||'—'],['Email',s.email],['Phone',s.phone||'—']].map(r=>`<div class="det-row"><span class="det-l">${r[0]}</span><span class="det-v">${r[1]}</span></div>`).join('')}</div>
+<div class="card"><div class="card-t">🎓 Academic Details</div>
+${[['Department',s.dept],['Section',sec?sec.name:'—'],['Semester',s.semester],['Year',s.year],['CGPA',s.cgpa],['Advisor',s.advisor||'—']].map(r=>`<div class="det-row"><span class="det-l">${r[0]}</span><span class="det-v">${r[1]}</span></div>`).join('')}</div></div>
+<div class="card"><div class="card-t">📊 Attendance by Course</div><div class="cp-wrap">${courses.map((cc,i)=>{const a=calcAtt(s.id,cc);const c=DATA.courses.find(x=>x.code===cc);const col=colors[i%colors.length];
+return`<div class="cp-card"><div class="cp-ring" style="background:conic-gradient(${col} ${a.pct*3.6}deg,var(--surface2) 0)"><span class="cp-val">${a.pct}%</span></div><div class="cp-code">${cc}</div><div class="cp-name">${c?c.name:cc}</div></div>`}).join('')}</div></div>
+<div class="card"><div class="card-t">📅 Today's Schedule — ${today}</div><div style="display:flex;flex-wrap:wrap">${todayEntries.length?todayEntries.map((t,i)=>{const c=DATA.courses.find(x=>x.code===t.course);const fac=DATA.faculty.find(x=>x.id===t.faculty);const col=colors[DATA.courses.findIndex(x=>x.code===t.course)%colors.length];
+return`<div class="today-chip"><span class="tc-dot" style="background:${col}"></span>${t.slot} · ${c?c.name:t.course}</div>`}).join('')+'<div class="today-chip lunch-chip">🍽️ 12-1 · Lunch</div>':'<div class="today-chip">No classes today 🎉</div>'}</div></div>`}
+
+function stuTT(){const s=currentStudent,sec=DATA.sections.find(x=>x.id===s.section),today=getTodayDay();
+const todayEntries=DATA.timetable.filter(t=>t.section===s.section&&t.day===today).sort((a,b)=>slotOrder(a.slot)-slotOrder(b.slot));
+const colors=['#4a9eff','#34c759','#ff9f0a','#ff3b30','#5856d6','#af52de','#00bcd4'];
+return`<div class="hdr"><div><h2>📅 My Timetable</h2><p>Your class schedule</p></div><button class="btn btn-o" id="wkToggle" onclick="document.getElementById('wkGrid').style.display=document.getElementById('wkGrid').style.display==='none'?'block':'none';this.textContent=this.textContent.includes('Week')?'📅 Today View':'📅 Week View'">📅 Week View</button></div>
+<div class="card"><div class="card-t">📋 Today — ${today}</div>
+${todayEntries.length?todayEntries.map(t=>{const c=DATA.courses.find(x=>x.code===t.course);const fac=DATA.faculty.find(x=>x.id===t.faculty);const isAbs=fac&&fac.absentDates.includes(getTodayKey());const st=getSlotStatus(t.slot);
+return`<div class="tt-slot ${isAbs?'absent-slot':''}"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:.73rem;font-weight:700;color:var(--muted);text-transform:uppercase">${t.slot}</div><span class="badge b-go" style="margin:4px 0">${t.course}</span><div style="font-size:.95rem;font-weight:700">${c?c.name:t.course}</div><div style="font-size:.82rem;color:var(--muted);margin-top:2px">👨‍🏫 ${fac?fac.name:''} · 📍 ${t.room}</div></div><div>${isAbs?'<span class="status-pill sp-cancel">🚫 Cancelled</span>':`<span class="status-pill ${st==='ongoing'?'sp-on':st==='done'?'sp-done':'sp-up'}">${st==='ongoing'?'🔴 Ongoing':st==='done'?'✓ Done':'⏳ Upcoming'}</span>`}</div></div></div>`}).join(''):'<p style="color:var(--muted);text-align:center;padding:20px">No classes today 🎉</p>'}</div>
+<div id="wkGrid" style="display:none"><div class="card"><div class="card-t">📊 Full Week</div><div class="tg" id="stuWkGrid" style="grid-template-columns:70px repeat(${DATA.university.days.length},1fr)"></div></div></div>`}
+
+function stuAtt(){const s=currentStudent,sec=DATA.sections.find(x=>x.id===s.section),courses=sec?sec.courses:[];
+let totC=0,totP=0,totA=0,totOD=0;courses.forEach(cc=>{const a=calcAtt(s.id,cc);totC+=a.conducted;totP+=a.present;totA+=a.absent;totOD+=a.odml});
+const overPct=totC>0?((totP+totOD)/totC*100).toFixed(1):0;
+return`<div class="att-banner"><div><div style="font-size:.93rem;font-weight:600">📊 Attendance Report</div><div style="font-size:.8rem;color:rgba(255,255,255,.55)">Academic Year 2025-2026</div></div><div style="font-size:1.4rem;font-weight:700">${overPct}%</div></div>
+<div class="sum-cards"><div class="sum-c"><div class="sc-v" style="color:var(--success)">${totP}</div><div class="sc-l">Present</div></div>
+<div class="sum-c"><div class="sc-v" style="color:var(--danger)">${totA}</div><div class="sc-l">Absent</div></div>
+<div class="sum-c"><div class="sc-v" style="color:var(--accent)">${totOD}</div><div class="sc-l">OD/ML</div></div></div>
+<div class="card"><div class="card-t">📋 Course-wise Attendance</div><div class="tw"><table><thead><tr><th>Code</th><th>Course Name</th><th>Conducted</th><th>Present</th><th>Absent</th><th>OD</th><th>%</th><th>Status</th></tr></thead><tbody>
+${courses.map(cc=>{const a=calcAtt(s.id,cc);const c=DATA.courses.find(x=>x.code===cc);const pctCls=a.pct>=75?'good':a.pct>=60?'mid':'bad';const barCol=a.pct>=75?'var(--success)':a.pct>=60?'var(--warning)':'var(--danger)';
+return`<tr><td><span class="badge b-go">${cc}</span></td><td>${c?c.name:cc}</td><td>${a.conducted}</td><td>${a.present}</td><td>${a.absent}</td><td>${a.odml}</td><td><span class="att-pct ${pctCls}">${a.pct}%</span><div class="mini-bar"><div class="mini-bar-fill" style="--w:${a.pct}%;background:${barCol}"></div></div></td><td>${a.pct>=75?'<span class="badge b-gn">Safe</span>':a.pct>=60?'<span class="badge b-am">Warning</span>':'<span class="badge b-rd">Danger</span>'}</td></tr>`}).join('')}
+</tbody></table></div></div>
+<div style="background:var(--surface);border-radius:12px;padding:14px 18px;margin-top:16px;font-size:.82rem;color:var(--muted)">⚠️ Minimum <strong>75%</strong> attendance is required. <span style="color:var(--danger);font-style:italic;font-weight:600">Subjects below 75% may face detention.</span></div>`}
+
+/* ═══ ADMIN SIDEBAR ═══ */
+function buildAdminSidebar(){
+$('sidebar').innerHTML=`
+<div class="sb-logo"><h1><span>📚</span> UniSchedule</h1><div class="sub">Admin Panel</div></div>
+<div class="nsec"><div class="nsec-t">Overview</div>
+<button class="nl act" data-p="dashboard" onclick="showPage('dashboard')"><span class="ni">📊</span>Dashboard</button></div>
+<div class="nsec"><div class="nsec-t">Setup</div>
+<button class="nl" data-p="university" onclick="showPage('university')"><span class="ni">🏛️</span>University</button>
+<button class="nl" data-p="departments" onclick="showPage('departments')"><span class="ni">🏢</span>Departments</button>
+<button class="nl" data-p="courses" onclick="showPage('courses')"><span class="ni">📚</span>Courses</button>
+<button class="nl" data-p="faculty" onclick="showPage('faculty')"><span class="ni">👨‍🏫</span>Faculty</button>
+<button class="nl" data-p="students" onclick="showPage('students')"><span class="ni">🎓</span>Students</button>
+<button class="nl" data-p="sections" onclick="showPage('sections')"><span class="ni">👥</span>Sections</button></div>
+<div class="nsec"><div class="nsec-t">Timetable</div>
+<button class="nl" onclick="setNav(this);showAdminTimetablePage('Generate')"><span class="ni">⚡</span>Generate</button>
+<button class="nl" onclick="setNav(this);showAdminTimetablePage('Section View')"><span class="ni">📋</span>Section View</button>
+<button class="nl" onclick="setNav(this);showAdminTimetablePage('Faculty View')"><span class="ni">👁️</span>Faculty View</button>
+<button class="nl" onclick="setNav(this);showAdminTimetablePage('Student View')"><span class="ni">🧑‍💻</span>Student View</button>
+<button class="nl" onclick="setNav(this);showAdminTimetablePage('Room View')"><span class="ni">🚪</span>Room View</button></div>
+<div class="nsec"><div class="nsec-t">Attendance</div>
+<button class="nl" onclick="setNav(this);showAdminAttendancePage()"><span class="ni">📝</span>Mark Attendance</button></div>
+<div class="sb-foot"><button onclick="doLogout()">→ Logout</button></div>`;
+}
+function setNav(btn){document.querySelectorAll('.nl').forEach(b=>b.classList.remove('act'));btn.classList.add('act')}
+function showPage(id){
+document.querySelectorAll('.nl').forEach(b=>{b.classList.toggle('act',b.dataset.p===id)});
+const pages={dashboard:pgDashboard,university:pgUniversity,departments:pgDepartments,courses:pgCourses,faculty:pgFaculty,students:pgStudents,sections:pgSections};
+if(pages[id])$('mainArea').innerHTML=`<div class="page">${pages[id]()}</div>`;
+if(id==='dashboard')initCounters();
+if(id==='departments')renderDeptTable();
+if(id==='courses')renderCourseCards();
+if(id==='faculty')renderFacTable();
+if(id==='students')renderStuTable();
+if(id==='sections')renderSecTable();
+}
+
+/* ═══ DASHBOARD ═══ */
+function pgDashboard(){
+const stats=[
+{i:'🏢',c:'background:rgba(79,142,247,.12)',k:'departments',l:'Departments',v:DATA.departments.length},
+{i:'🎓',c:'background:rgba(16,185,129,.12)',k:'students',l:'Students',v:DATA.students.length},
+{i:'👨‍🏫',c:'background:rgba(139,92,246,.12)',k:'faculty',l:'Faculty',v:DATA.faculty.length},
+{i:'📖',c:'background:rgba(245,158,11,.12)',k:'courses',l:'Courses',v:DATA.courses.length},
+{i:'👥',c:'background:rgba(236,72,153,.12)',k:'sections',l:'Sections',v:DATA.sections.length},
+{i:'📅',c:'background:rgba(20,184,166,.12)',k:'tt',l:'Timetable Slots',v:DATA.timetable.length}];
+const acts=[
+{d:'var(--success)',t:'✅ System initialized with seed data',m:'Today'},
+{d:'var(--accent)',t:`📊 ${DATA.departments.length} departments configured`,m:'Active'},
+{d:'var(--gold)',t:`👤 ${DATA.students.length} students enrolled`,m:'Current'},
+{d:'#8b5cf6',t:`👨‍🏫 ${DATA.faculty.length} faculty members added`,m:'Active'},
+{d:'var(--success)',t:`📚 ${DATA.courses.length} courses in catalog`,m:'Ready'}];
+const deptStudents={};DATA.departments.forEach(d=>deptStudents[d.code]=0);DATA.students.forEach(s=>{if(deptStudents[s.dept]!==undefined)deptStudents[s.dept]++});
+const maxStu=Math.max(1,...Object.values(deptStudents));
+const colors=['linear-gradient(90deg,var(--accent),#6366f1)','linear-gradient(90deg,var(--gold),var(--gold-dark))','linear-gradient(90deg,var(--success),#34d399)','linear-gradient(90deg,#ec4899,#f472b6)','linear-gradient(90deg,#8b5cf6,#a78bfa)','linear-gradient(90deg,#14b8a6,#2dd4bf)'];
+return`<div class="hdr"><div><h2>Welcome back, Admin 👋</h2><p>${formatDate()}</p></div></div>
+<div class="sg">${stats.map((s,i)=>`<div class="sc" style="animation-delay:${i*.06}s" onclick="showPage('${s.k==='tt'?'dashboard':s.k}')"><div class="si" style="${s.c}">${s.i}</div><div><div class="sv" data-ctr="${s.v}">0</div><div class="sl">${s.l}</div></div></div>`).join('')}</div>
+<div class="ql-g">${[{i:'⚡',t:'Generate Timetable',d:'Auto-schedule',p:"showAdminTimetablePage('Generate')"},{i:'📝',t:'Mark Attendance',d:'Record slots',p:"showAdminAttendancePage()"},{i:'👥',t:'Add Section',d:'Create groups',p:"showPage('sections')"},{i:'🎓',t:'Add Student',d:'Enroll new',p:"showPage('students')"}].map(q=>`<div class="ql" onclick="${q.p}"><span class="qi">${q.i}</span><span class="qt">${q.t}</span><span class="qd">${q.d}</span></div>`).join('')}</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+<div class="card"><div class="card-t">📋 Activity Feed</div>${acts.map(a=>`<div class="ai"><span class="ad" style="background:${a.d}"></span><span>${a.t}</span><span class="atm">${a.m}</span></div>`).join('')}</div>
+<div class="card"><div class="card-t">📈 Students by Department</div>${DATA.departments.map((d,i)=>`<div class="pi"><div class="pl"><span>${d.name}</span><span>${deptStudents[d.code]} students</span></div><div class="pt"><div class="pf" style="--w:${(deptStudents[d.code]/maxStu*100)||2}%;background:${colors[i%colors.length]}"></div></div></div>`).join('')}</div>
+</div>`;
+}
+function initCounters(){document.querySelectorAll('[data-ctr]').forEach(el=>animateCounter(el,+el.dataset.ctr))}
+
+/* ═══ UNIVERSITY ═══ */
+function pgUniversity(){
+const u=DATA.university;
+return`<div class="hdr"><div><h2>🏛️ University Setup</h2><p>Configure institution settings</p></div></div>
+<div class="card"><div class="card-t">⚙️ Configuration</div>
+<div class="form-grid"><div class="fg"><label>University Name</label><input id="uN" value="${u.name}"></div>
+<div class="fg"><label>Blocks</label><input id="uB" type="number" value="${u.blocks}"></div>
+<div class="fg"><label>Rooms/Floor</label><input id="uR" type="number" value="${u.roomsPerFloor}"></div>
+<div class="fg"><label>Room Capacity</label><input id="uC" type="number" value="${u.roomCapacity}"></div></div>
+<div class="fg" style="margin-top:14px"><label>Active Days</label>
+<div class="cg">${["Mon","Tue","Wed","Thu","Fri","Sat"].map(d=>`<label><input type="checkbox" class="uday" value="${d}" ${u.days.includes(d)?'checked':''}>${d}</label>`).join('')}</div></div>
+<div class="form-row"><button class="btn btn-g" onclick="saveUni()">💾 Save Settings</button></div></div>`;
+}
+function saveUni(){
+DATA.university.name=$('uN').value;DATA.university.blocks=+$('uB').value;
+DATA.university.roomsPerFloor=+$('uR').value;DATA.university.roomCapacity=+$('uC').value;
+DATA.university.days=[...document.querySelectorAll('.uday:checked')].map(c=>c.value);
+showToast('✅ University settings saved','success');
+}
+
+/* ═══ DEPARTMENTS ═══ */
+function pgDepartments(){
+return`<div class="hdr"><div><h2>🏢 Departments</h2><p>Manage departments</p></div><button class="btn btn-g" onclick="toggleDeptForm()">+ Add Department</button></div>
+<div class="form-panel" id="deptForm" style="display:none"><div class="form-grid">
+<div class="fg"><label>Department Name</label><input id="dN" placeholder="e.g. Computer Science"></div>
+<div class="fg"><label>Code</label><input id="dC" placeholder="e.g. CSE"></div></div>
+<input type="hidden" id="dE" value=""><div class="form-row"><button class="btn btn-g" onclick="saveDept()">💾 Save</button><button class="btn btn-o" onclick="toggleDeptForm()">Cancel</button></div></div>
+<div class="card"><div class="tw"><table><thead><tr><th>#</th><th>Name</th><th>Code</th><th>Students</th><th>Actions</th></tr></thead><tbody id="dTb"></tbody></table></div></div>`;
+}
+function toggleDeptForm(){const f=$('deptForm');f.style.display=f.style.display==='none'?'block':'none';$('dN').value='';$('dC').value='';$('dE').value=''}
+function renderDeptTable(){const tb=$('dTb');if(!tb)return;
+tb.innerHTML=DATA.departments.map((d,i)=>{const cnt=DATA.students.filter(s=>s.dept===d.code).length;
+return`<tr><td>${i+1}</td><td>${d.name}</td><td><span class="badge ${deptBadge(d.code)}">${d.code}</span></td><td>${cnt}</td><td class="ac"><button class="btn btn-o btn-sm" onclick="editDept(${d.id})">✏️</button><button class="btn btn-d btn-sm" onclick="delDept(${d.id})">🗑️</button></td></tr>`}).join('')}
+function saveDept(){
+const n=$('dN').value.trim(),c=$('dC').value.trim().toUpperCase(),eid=$('dE').value;
+if(!n||!c){showToast('⚠️ Fill both fields','warning');return}
+if(eid){const d=DATA.departments.find(x=>x.id==eid);if(d){d.name=n;d.code=c}showToast('✅ Department updated','success')}
+else{DATA.departments.push({id:Date.now(),name:n,code:c});showToast('✅ Department added','success')}
+toggleDeptForm();renderDeptTable()}
+function editDept(id){const d=DATA.departments.find(x=>x.id===id);if(!d)return;$('deptForm').style.display='block';$('dN').value=d.name;$('dC').value=d.code;$('dE').value=d.id}
+function delDept(id){if(!confirm('Delete?'))return;DATA.departments=DATA.departments.filter(x=>x.id!==id);showToast('🗑️ Department deleted','error');renderDeptTable()}
+
+/* ═══ COURSES ═══ */
+let courseFilter='All';
+function pgCourses(){
+return`<div class="hdr"><div><h2>📚 Courses</h2><p>Manage course catalog</p></div><button class="btn btn-g" onclick="openCourseModal()">+ Add Course</button></div>
+<div class="ftabs" id="cTabs"></div><div class="cc-grid" id="cGrid"></div>`;
+}
+function renderCourseCards(){
+const tabs=$('cTabs'),grid=$('cGrid');if(!tabs||!grid)return;
+tabs.innerHTML=['All',...DATA.departments.map(d=>d.code)].map(c=>`<span class="ftab ${courseFilter===c?'active':''}" onclick="courseFilter='${c}';renderCourseCards()">${c}</span>`).join('');
+const filtered=courseFilter==='All'?DATA.courses:DATA.courses.filter(c=>c.dept===courseFilter);
+grid.innerHTML=filtered.length?filtered.map(c=>`<div class="cc"><span class="cc-code">${c.code}</span><div class="cc-name">${c.name}</div><div class="cc-meta"><span class="badge ${deptBadge(c.dept)}">${c.dept}</span><span class="badge ${diffBadge(c.difficulty)}">${c.difficulty}</span><span class="badge b-bl">${c.credits} cr</span><span class="badge b-gy">${c.type}</span><span class="badge b-go">${c.classesPerWeek}/wk</span></div><div class="ac" style="margin-top:12px"><button class="btn btn-o btn-sm" onclick="editCourse('${c.code}')">✏️ Edit</button><button class="btn btn-d btn-sm" onclick="delCourse('${c.code}')">🗑️</button></div></div>`).join(''):'<p style="color:var(--muted);padding:20px">No courses in this department.</p>'}
+function openCourseModal(editCode){
+const c=editCode?DATA.courses.find(x=>x.code===editCode):null;
+const m=document.createElement('div');m.className='modal-bg';m.id='cModal';
+m.innerHTML=`<div class="modal"><h3>${c?'Edit':'Add'} Course</h3>
+<div class="form-grid"><div class="fg"><label>Code</label><input id="cmCode" value="${c?c.code:''}" ${c?'readonly':''}></div>
+<div class="fg"><label>Name</label><input id="cmName" value="${c?c.name:''}"></div>
+<div class="fg"><label>Department</label><select id="cmDept">${DATA.departments.map(d=>`<option value="${d.code}" ${c&&c.dept===d.code?'selected':''}>${d.code} — ${d.name}</option>`).join('')}</select></div>
+<div class="fg"><label>Credits</label><input id="cmCr" type="number" value="${c?c.credits:3}" min="1" max="6"></div>
+<div class="fg"><label>Difficulty</label><select id="cmDf"><option ${c&&c.difficulty==='Easy'?'selected':''}>Easy</option><option ${(!c||c.difficulty==='Medium')?'selected':''}>Medium</option><option ${c&&c.difficulty==='Hard'?'selected':''}>Hard</option></select></div>
+<div class="fg"><label>Classes/Week</label><input id="cmCpw" type="number" value="${c?c.classesPerWeek:3}" min="1" max="6"></div>
+<div class="fg"><label>Type</label><select id="cmTy"><option ${(!c||c.type==='Theory')?'selected':''}>Theory</option><option ${c&&c.type==='Lab'?'selected':''}>Lab</option></select></div></div>
+<div class="form-row"><button class="btn btn-g" onclick="saveCourse(${c?"true":"false"})">💾 Save</button><button class="btn btn-o" onclick="$('cModal').remove()">Cancel</button></div></div>`;
+document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)m.remove()});}
+function editCourse(code){openCourseModal(code)}
+function saveCourse(isEdit){
+const code=$('cmCode').value.trim(),name=$('cmName').value.trim();
+if(!code||!name){showToast('⚠️ Fill code & name','warning');return}
+const obj={code,name,dept:$('cmDept').value,credits:+$('cmCr').value,difficulty:$('cmDf').value,classesPerWeek:+$('cmCpw').value,type:$('cmTy').value};
+if(isEdit){const i=DATA.courses.findIndex(c=>c.code===code);if(i>-1)DATA.courses[i]=obj;showToast('✅ Course updated','success')}
+else{if(DATA.courses.find(c=>c.code===code)){showToast('⚠️ Code already exists','warning');return}DATA.courses.push(obj);showToast('✅ Course added','success')}
+$('cModal').remove();renderCourseCards()}
+function delCourse(code){if(!confirm('Delete?'))return;DATA.courses=DATA.courses.filter(c=>c.code!==code);showToast('🗑️ Course deleted','error');renderCourseCards()}
+
+/* ═══ FACULTY ═══ */
+function pgFaculty(){
+return`<div class="hdr"><div><h2>👨‍🏫 Faculty</h2><p>Manage faculty members</p></div><button class="btn btn-g" onclick="openFacModal()">+ Add Faculty</button></div>
+<div class="card"><div class="tw"><table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Dept</th><th>Sections</th><th>Courses</th><th>Today</th><th>Actions</th></tr></thead><tbody id="fTb"></tbody></table></div></div>`;
+}
+function renderFacTable(){const tb=$('fTb');if(!tb)return;const today=getTodayKey();
+tb.innerHTML=DATA.faculty.map(f=>{const abs=f.absentDates.includes(today);
+return`<tr><td>${f.id}</td><td>${f.name}</td><td style="font-size:.8rem;color:var(--muted)">${f.email}</td><td><span class="badge ${deptBadge(f.dept)}">${f.dept}</span></td><td>${f.assignedSections.join(', ')||'—'}</td><td style="font-size:.78rem">${f.canTeach.join(', ')}</td><td>${abs?'<span class="badge b-rd">Absent</span>':'<span class="badge b-gn">Present</span>'}</td><td class="ac"><button class="btn ${abs?'btn-o':'btn-d'} btn-sm" onclick="toggleAbs('${f.id}')">${abs?'✅':'🚫'}</button><button class="btn btn-o btn-sm" onclick="openFacModal('${f.id}')">✏️</button><button class="btn btn-d btn-sm" onclick="delFac('${f.id}')">🗑️</button></td></tr>`}).join('')}
+function toggleAbs(fid){const f=DATA.faculty.find(x=>x.id===fid);if(!f)return;const today=getTodayKey();
+if(f.absentDates.includes(today)){f.absentDates=f.absentDates.filter(d=>d!==today);showToast(`✅ ${f.name} marked present`,'success')}
+else{f.absentDates.push(today);showToast(`⚠️ ${f.name} marked absent today`,'warning')}renderFacTable()}
+function openFacModal(editId){
+const f=editId?DATA.faculty.find(x=>x.id===editId):null;
+const days=DATA.university.days,slots=DATA.university.slots.filter(s=>s!=='12-1');
+const m=document.createElement('div');m.className='modal-bg';m.id='fModal';
+m.innerHTML=`<div class="modal" style="max-width:720px"><h3>${f?'Edit':'Add'} Faculty</h3>
+<div class="form-grid c3"><div class="fg"><label>Faculty ID</label><input id="fmId" value="${f?f.id:''}" ${f?'readonly':''}></div>
+<div class="fg"><label>Name</label><input id="fmNm" value="${f?f.name:''}" oninput="autoFacEmail()"></div>
+<div class="fg"><label>Department</label><select id="fmDp">${DATA.departments.map(d=>`<option value="${d.code}" ${f&&f.dept===d.code?'selected':''}>${d.code}</option>`).join('')}</select></div>
+<div class="fg"><label>Email</label><input id="fmEm" value="${f?f.email:''}"></div>
+<div class="fg"><label>Password</label><input id="fmPw" value="${f?f.password:''}"></div></div>
+<div class="fg" style="margin-top:14px"><label>Can Teach (Courses)</label>
+<div class="cg">${DATA.courses.map(c=>`<label><input type="checkbox" class="fmCrs" value="${c.code}" ${f&&f.canTeach.includes(c.code)?'checked':''}>${c.code}</label>`).join('')}</div></div>
+<div class="fg" style="margin-top:10px"><label>Assigned Sections</label>
+<div class="cg">${DATA.sections.map(s=>`<label><input type="checkbox" class="fmSec" value="${s.id}" ${f&&f.assignedSections.includes(s.id)?'checked':''}>${s.name}</label>`).join('')}</div></div>
+<div class="fg" style="margin-top:10px"><label>Availability</label>
+<div class="avail-grid" style="grid-template-columns:60px repeat(${slots.length},1fr)">
+<div class="ah"></div>${slots.map(s=>`<div class="ah">${s}</div>`).join('')}
+${days.map(d=>`<div class="ah">${d}</div>${slots.map(s=>`<div class="ac2"><input type="checkbox" class="favl" data-d="${d}" data-s="${s}" ${f&&f.available[d]&&f.available[d].includes(s)?'checked':''}></div>`).join('')}`).join('')}
+</div></div>
+<div class="form-row"><button class="btn btn-g" onclick="saveFac(${f?'true':'false'})">💾 Save</button><button class="btn btn-o" onclick="$('fModal').remove()">Cancel</button></div></div>`;
+document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m)m.remove()});}
+function autoFacEmail(){const nm=$('fmNm').value.trim().toLowerCase().replace(/^dr\.\s*/,'').split(' ');if(nm.length>=2){$('fmEm').value=nm[0]+'.'+nm[nm.length-1]+'@srmap.edu.in';$('fmPw').value=nm[0]+'.'+nm[nm.length-1]+'@123'}}
+function saveFac(isEdit){
+const id=$('fmId').value.trim(),nm=$('fmNm').value.trim(),em=$('fmEm').value.trim(),pw=$('fmPw').value.trim(),dp=$('fmDp').value;
+if(!id||!nm||!em){showToast('⚠️ Fill required fields','warning');return}
+const canTeach=[...document.querySelectorAll('.fmCrs:checked')].map(c=>c.value);
+const assignedSections=[...document.querySelectorAll('.fmSec:checked')].map(c=>c.value);
+const available={};DATA.university.days.forEach(d=>{const s=[...document.querySelectorAll(`.favl[data-d="${d}"]:checked`)].map(c=>c.dataset.s);if(s.length)available[d]=s});
+if(isEdit){const f=DATA.faculty.find(x=>x.id===id);if(f){Object.assign(f,{name:nm,email:em,password:pw,dept:dp,canTeach,assignedSections,available})}showToast('✅ Faculty updated','success')}
+else{if(DATA.faculty.find(f=>f.id===id)){showToast('⚠️ ID exists','warning');return}DATA.faculty.push({id,name:nm,email:em,password:pw,dept:dp,canTeach,assignedSections,available,absentDates:[]});showToast('✅ Faculty added','success')}
+$('fModal').remove();renderFacTable()}
+function delFac(id){if(!confirm('Delete?'))return;DATA.faculty=DATA.faculty.filter(f=>f.id!==id);showToast('🗑️ Faculty deleted','error');renderFacTable()}
+
+/* ═══ STUDENTS ═══ */
+function pgStudents(){
+return`<div class="hdr"><div><h2>🎓 Students</h2><p>Manage enrolled students</p></div><button class="btn btn-g" onclick="toggleStuForm()">+ Add Student</button></div>
+<div class="form-panel" id="stuForm" style="display:none">
+<div class="form-grid c3"><div class="fg"><label>Student ID</label><input id="sId" placeholder="STU2024CS050"></div>
+<div class="fg"><label>Name</label><input id="sNm" placeholder="Full name"></div>
+<div class="fg"><label>Email</label><input id="sEm" placeholder="name@srmap.edu.in"></div>
+<div class="fg"><label>Password</label><input id="sPw" value="student123"></div>
+<div class="fg"><label>Department</label><select id="sDp" onchange="filterStuSec()">${DATA.departments.map(d=>`<option value="${d.code}">${d.code}</option>`).join('')}</select></div>
+<div class="fg"><label>Section</label><select id="sSc"></select></div>
+<div class="fg"><label>DOB</label><input id="sDob" placeholder="e.g. 15 March 2005"></div>
+<div class="fg"><label>Blood Group</label><input id="sBl" placeholder="e.g. B+"></div>
+<div class="fg"><label>Phone</label><input id="sPh" placeholder="+91 98765 43210"></div>
+<div class="fg"><label>Hostel</label><input id="sHo" placeholder="Block-C, Room 214"></div>
+<div class="fg"><label>Advisor</label><input id="sAd" placeholder="Dr. Arun Kumar"></div>
+<div class="fg"><label>CGPA</label><input id="sCg" type="number" step="0.01" value="0"></div></div>
+<input type="hidden" id="sEdit" value=""><div class="form-row"><button class="btn btn-g" onclick="saveStu()">💾 Save</button><button class="btn btn-o" onclick="toggleStuForm()">Cancel</button></div></div>
+<div class="card"><div class="tw"><table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Section</th><th>CGPA</th><th>Actions</th></tr></thead><tbody id="sTb"></tbody></table></div></div>`;
+}
+function toggleStuForm(){const f=$('stuForm');f.style.display=f.style.display==='none'?'block':'none';['sId','sNm','sEm','sDob','sBl','sPh','sHo','sAd'].forEach(i=>$(i).value='');$('sPw').value='student123';$('sCg').value='0';$('sEdit').value='';filterStuSec()}
+function filterStuSec(){const dp=$('sDp').value;$('sSc').innerHTML=DATA.sections.filter(s=>s.dept===dp).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')||'<option value="">No sections</option>'}
+function renderStuTable(){const tb=$('sTb');if(!tb)return;
+tb.innerHTML=DATA.students.map(s=>{const sec=DATA.sections.find(x=>x.id===s.section);
+return`<tr><td>${s.id}</td><td>${s.name}</td><td style="font-size:.8rem;color:var(--muted)">${s.email}</td><td><span class="badge b-go">${sec?sec.name:'—'}</span></td><td>${s.cgpa}</td><td class="ac"><button class="btn btn-o btn-sm" onclick="editStu('${s.id}')">✏️</button><button class="btn btn-d btn-sm" onclick="delStu('${s.id}')">🗑️</button></td></tr>`}).join('')}
+function saveStu(){
+const id=$('sId').value.trim(),nm=$('sNm').value.trim(),em=$('sEm').value.trim(),pw=$('sPw').value,dp=$('sDp').value,sc=$('sSc').value,eid=$('sEdit').value;
+if(!id||!nm){showToast('⚠️ Fill ID & name','warning');return}
+const obj={id,name:nm,email:em,password:pw,dept:dp,section:sc,semester:4,year:2,dob:$('sDob').value,blood:$('sBl').value,phone:$('sPh').value,hostel:$('sHo').value,advisor:$('sAd').value,cgpa:+$('sCg').value};
+if(eid){const i=DATA.students.findIndex(s=>s.id===eid);if(i>-1)DATA.students[i]=obj;showToast('✅ Student updated','success')}
+else{if(DATA.students.find(s=>s.id===id)){showToast('⚠️ ID exists','warning');return}DATA.students.push(obj);
+const sec=DATA.sections.find(s=>s.id===sc);if(sec&&!sec.students.includes(id))sec.students.push(id);
+DATA.attendance[id]={};showToast('✅ Student added','success')}
+toggleStuForm();renderStuTable()}
+function editStu(id){const s=DATA.students.find(x=>x.id===id);if(!s)return;$('stuForm').style.display='block';$('sId').value=s.id;$('sNm').value=s.name;$('sEm').value=s.email;$('sPw').value=s.password;$('sDp').value=s.dept;filterStuSec();$('sSc').value=s.section;$('sDob').value=s.dob;$('sBl').value=s.blood;$('sPh').value=s.phone;$('sHo').value=s.hostel;$('sAd').value=s.advisor;$('sCg').value=s.cgpa;$('sEdit').value=s.id}
+function delStu(id){if(!confirm('Delete?'))return;DATA.students=DATA.students.filter(s=>s.id!==id);DATA.sections.forEach(s=>s.students=s.students.filter(x=>x!==id));showToast('🗑️ Student deleted','error');renderStuTable()}
+
+/* ═══ SECTIONS ═══ */
+function pgSections(){
+return`<div class="hdr"><div><h2>👥 Sections</h2><p>Manage class sections</p></div><button class="btn btn-g" onclick="toggleSecForm()">+ Add Section</button></div>
+<div class="form-panel" id="secForm" style="display:none">
+<div class="form-grid c3"><div class="fg"><label>Section ID</label><input id="xId" placeholder="SEC002"></div>
+<div class="fg"><label>Section Name</label><input id="xNm" placeholder="CSE-B"></div>
+<div class="fg"><label>Department</label><select id="xDp" onchange="filterSecCrs()">${DATA.departments.map(d=>`<option value="${d.code}">${d.code}</option>`).join('')}</select></div>
+<div class="fg"><label>Semester</label><input id="xSm" type="number" value="4" min="1" max="8"></div>
+<div class="fg"><label>Year</label><input id="xYr" type="number" value="2" min="1" max="4"></div></div>
+<div class="fg" style="margin-top:10px"><label>Courses</label><div class="cg" id="xCrs"></div></div>
+<div class="form-row"><button class="btn btn-g" onclick="saveSec()">💾 Save</button><button class="btn btn-o" onclick="toggleSecForm()">Cancel</button></div></div>
+<div class="card"><div class="tw"><table><thead><tr><th>ID</th><th>Name</th><th>Dept</th><th>Semester</th><th>Courses</th><th>Students</th><th>Actions</th></tr></thead><tbody id="xTb"></tbody></table></div></div>`;
+}
+function toggleSecForm(){const f=$('secForm');f.style.display=f.style.display==='none'?'block':'none';['xId','xNm'].forEach(i=>$(i).value='');$('xSm').value='4';$('xYr').value='2';filterSecCrs()}
+function filterSecCrs(){const dp=$('xDp').value;$('xCrs').innerHTML=DATA.courses.filter(c=>c.dept===dp).map(c=>`<label><input type="checkbox" class="xCrsCb" value="${c.code}">${c.code} — ${c.name}</label>`).join('')||'<span style="color:var(--muted);font-size:.82rem">No courses for this department</span>'}
+function renderSecTable(){const tb=$('xTb');if(!tb)return;
+tb.innerHTML=DATA.sections.map(s=>`<tr><td>${s.id}</td><td><span class="badge b-go">${s.name}</span></td><td><span class="badge ${deptBadge(s.dept)}">${s.dept}</span></td><td>Sem ${s.semester}, Yr ${s.year}</td><td>${s.courses.length}</td><td>${s.students.length}</td><td class="ac"><button class="btn btn-d btn-sm" onclick="delSec('${s.id}')">🗑️</button></td></tr>`).join('')}
+function saveSec(){
+const id=$('xId').value.trim(),nm=$('xNm').value.trim(),dp=$('xDp').value;
+if(!id||!nm){showToast('⚠️ Fill ID & name','warning');return}
+if(DATA.sections.find(s=>s.id===id)){showToast('⚠️ ID exists','warning');return}
+const courses=[...document.querySelectorAll('.xCrsCb:checked')].map(c=>c.value);
+DATA.sections.push({id,name:nm,dept:dp,semester:+$('xSm').value,year:+$('xYr').value,courses,students:[]});
+showToast('✅ Section added','success');toggleSecForm();renderSecTable()}
+function delSec(id){if(!confirm('Delete?'))return;DATA.sections=DATA.sections.filter(s=>s.id!==id);showToast('🗑️ Section deleted','error');renderSecTable()}
+
+/* ═══ INIT ═══ */
+$('loginView').style.display='flex';$('appView').style.display='none';
+</script>
+</body>
+</html>

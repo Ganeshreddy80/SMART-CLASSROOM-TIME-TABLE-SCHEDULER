@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Smart Attendance — Student Scanner</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#1e2a5e;--navy-deep:#141d42;--gold:#f5c518;
+  --surface:#f7f8fc;--text:#1a1a2e;--muted:#6b7280;
+  --success:#10b981;--danger:#ef4444;--warning:#f59e0b;--purple:#7c3aed;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--navy-deep);color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.05);opacity:.8}}
+@keyframes scanLine{0%{top:0}100%{top:100%}}
+@keyframes checkPop{0%{transform:scale(0)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+.topbar{width:100%;background:rgba(255,255,255,.04);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.08)}
+.topbar h1{font-size:1rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.topbar .badge{background:var(--gold);color:var(--navy);font-size:.65rem;font-weight:700;padding:2px 9px;border-radius:20px}
+.btn-back{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:7px 16px;border-radius:10px;font-size:.78rem;cursor:pointer;text-decoration:none}
+
+.container{width:100%;max-width:420px;padding:20px;animation:fadeUp .5s}
+
+/* Status Bar */
+.status-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.status-pill{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:.72rem;font-weight:600;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12)}
+.status-pill.ok{background:rgba(16,185,129,.15);border-color:rgba(16,185,129,.4);color:#6ee7b7}
+.status-pill.err{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:#fca5a5}
+.status-pill.loading{background:rgba(255,255,255,.06);color:rgba(255,255,255,.5)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:blink 1.2s infinite}
+
+/* Scanner */
+.scanner-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:20px;margin-bottom:16px}
+.scanner-card h3{font-size:.9rem;margin-bottom:12px;color:rgba(255,255,255,.8)}
+
+.video-wrap{position:relative;width:100%;aspect-ratio:1;border-radius:14px;overflow:hidden;background:#000}
+#envVideo{width:100%;height:100%;object-fit:cover}
+.scan-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.scan-box{width:65%;aspect-ratio:1;border:2px solid var(--gold);border-radius:10px;position:relative}
+.scan-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);animation:scanLine 2s linear infinite}
+.scan-corner{position:absolute;width:20px;height:20px;border-color:var(--gold);border-style:solid}
+.scan-corner.tl{top:-2px;left:-2px;border-width:3px 0 0 3px;border-radius:6px 0 0 0}
+.scan-corner.tr{top:-2px;right:-2px;border-width:3px 3px 0 0;border-radius:0 6px 0 0}
+.scan-corner.bl{bottom:-2px;left:-2px;border-width:0 0 3px 3px;border-radius:0 0 0 6px}
+.scan-corner.br{bottom:-2px;right:-2px;border-width:0 3px 3px 0;border-radius:0 0 6px 0}
+
+.scan-status{margin-top:10px;text-align:center;font-size:.78rem;color:rgba(255,255,255,.55);min-height:20px}
+
+/* Selfie */
+.selfie-wrap{position:relative;width:100%;aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:#111;margin-bottom:10px}
+#selfieVideo{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+#selfieCanvas{display:none}
+
+/* Session Info */
+.session-info{background:rgba(245,197,24,.1);border:1px solid rgba(245,197,24,.3);border-radius:12px;padding:14px;margin-bottom:16px;font-size:.82rem}
+.session-info .si-label{color:var(--gold);font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.session-info .si-val{color:#fff;margin-bottom:8px}
+.session-timer{display:flex;align-items:center;gap:8px;font-size:.72rem;color:rgba(255,255,255,.5)}
+.session-timer .live-dot{width:7px;height:7px;background:var(--success);border-radius:50%;animation:blink 1s infinite}
+
+/* Result Screen */
+#resultScreen{display:none;text-align:center;padding:20px}
+#resultScreen .icon{font-size:5rem;animation:checkPop .5s}
+#resultScreen h2{font-size:1.4rem;margin:12px 0 6px}
+#resultScreen p{color:rgba(255,255,255,.6);font-size:.85rem;margin-bottom:6px}
+#resultScreen .flag-box{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);border-radius:10px;padding:12px;margin:16px 0;font-size:.8rem;color:#fde68a;text-align:left}
+.btn-retry{margin-top:20px;padding:12px 28px;background:var(--gold);color:var(--navy);border:none;border-radius:12px;font-weight:700;font-size:.95rem;cursor:pointer}
+
+/* No session */
+#noSession{text-align:center;padding:48px 20px;animation:fadeUp .5s}
+#noSession .icon{font-size:3rem;margin-bottom:12px}
+#noSession h3{margin-bottom:8px}
+#noSession p{font-size:.85rem;color:rgba(255,255,255,.5);margin-bottom:20px}
+.btn-check{padding:11px 24px;background:var(--purple);border:none;border-radius:10px;color:#fff;font-weight:600;font-size:.88rem;cursor:pointer}
+
+/* Error banner */
+.err-banner{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);border-radius:10px;padding:12px 16px;margin-bottom:12px;font-size:.82rem;color:#fca5a5;display:none}
+
+/* Steps Navigation */
+.steps-wrap{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:24px}
+.step-item{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:rgba(255,255,255,.4);position:relative}
+.step-item.active{background:var(--purple);color:#fff;box-shadow:0 0 12px rgba(124,58,237,.4)}
+.step-item.done{background:var(--success);color:#fff}
+.step-label{position:absolute;top:32px;font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.step-line{width:40px;height:2px;background:rgba(255,255,255,.1)}
+
+.btn-perm{padding:12px 28px;background:linear-gradient(135deg,var(--purple),#4f8ef7);border:none;border-radius:12px;color:#fff;font-weight:700;cursor:pointer;transition:.2s}
+.btn-perm:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(124,58,237,.3)}
+.btn-perm:disabled{opacity:.4;cursor:not-allowed}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>📱 Attendance Scanner <span class="badge">STUDENT</span></h1>
+  <a href="/student-app" class="btn-back">← Dashboard</a>
+</div>
+
+<div class="container">
+
+  <!-- Status bar -->
+  <div class="status-bar">
+    <div class="status-pill loading" id="pillGPS"><div class="dot"></div><span id="gpsLabel">GPS…</span></div>
+    <div class="status-pill loading" id="pillCam"><div class="dot"></div><span id="camLabel">Camera…</span></div>
+    <div class="status-pill loading" id="pillSession"><div class="dot"></div><span id="sessionLabel">Session…</span></div>
+  </div>
+
+  <!-- Error banner -->
+  <div class="err-banner" id="errBanner"></div>
+
+  <!-- STEPS NAVIGATION -->
+  <div class="steps-wrap" id="stepsWrap">
+    <div class="step-item active" id="s1-dot">1<div class="step-label">GPS</div></div>
+    <div class="step-line"></div>
+    <div class="step-item" id="s2-dot">2<div class="step-label">Face AI</div></div>
+    <div class="step-line"></div>
+    <div class="step-item" id="s3-dot">3<div class="step-label">Scan</div></div>
+  </div>
+
+  <!-- STEP 1: GPS & SESSION -->
+  <div id="step1">
+    <div class="scanner-card">
+      <div style="text-align:center;padding:10px 0">
+        <div style="font-size:3rem;margin-bottom:15px">📍</div>
+        <h3 style="margin-bottom:8px">Validating Location</h3>
+        <p style="font-size:.82rem;color:rgba(255,255,255,.5);margin-bottom:20px">Searching for your faculty's active session and verifying your GPS coordinates...</p>
+        <button class="btn-perm" id="btnS1Next" disabled onclick="goToStep2()">Proceed to Verification →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: AI FACE VERIFICATION -->
+  <div id="step2" style="display:none">
+    <div style="
+        background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);
+        border-radius:20px;padding:24px;max-width:420px;margin:0 auto;
+        box-shadow:0 25px 50px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.08)">
+
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:2.2rem;margin-bottom:8px">🛡️</div>
+        <h2 style="color:#fff;font-size:1.2rem;margin:0">Identity Verification</h2>
+        <p style="color:#a0aec0;margin:6px 0 0;font-size:.8rem">AI-powered liveness detection + face matching</p>
+      </div>
+
+      <!-- Progress bar -->
+      <div style="background:#2d3748;border-radius:10px;height:6px;margin-bottom:16px;overflow:hidden">
+        <div id="verifyProgress" style="height:100%;width:0%;background:linear-gradient(90deg,#667eea,#764ba2);border-radius:10px;transition:width .5s ease"></div>
+      </div>
+
+      <!-- Status -->
+      <div id="verifyStatus" style="
+          text-align:center;padding:10px 16px;border-radius:10px;
+          background:rgba(255,255,255,.05);color:#667eea;font-weight:600;
+          margin-bottom:16px;font-size:.85rem;min-height:44px;
+          display:flex;align-items:center;justify-content:center">Initializing…</div>
+
+      <!-- Camera feed -->
+      <div style="position:relative;border-radius:14px;overflow:hidden;background:#000">
+        <video id="verifyVideo" autoplay muted playsinline style="width:100%;display:block;transform:scaleX(-1)"></video>
+        <canvas id="verifyCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1)"></canvas>
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#667eea,transparent);animation:scanLine 2s linear infinite"></div>
+      </div>
+
+      <!-- Challenge box -->
+      <div id="challengeBox" style="
+          margin-top:14px;padding:12px;border-radius:12px;
+          background:rgba(102,126,234,.1);border:1px solid rgba(102,126,234,.3);
+          text-align:center;display:none">
+        <div id="challengeIcon" style="font-size:1.8rem;margin-bottom:6px"></div>
+        <div id="challengeText" style="color:#e2e8f0;font-weight:600;font-size:.88rem"></div>
+        <div id="challengeHint" style="color:#a0aec0;font-size:.77rem;margin-top:4px"></div>
+      </div>
+
+      <!-- Step indicators -->
+      <div style="display:flex;justify-content:center;gap:14px;margin-top:16px">
+        <div class="fv-step" id="fv-liveness" style="display:flex;align-items:center;gap:5px;color:#a0aec0;font-size:.78rem">
+          <div style="width:22px;height:22px;border-radius:50%;background:#2d3748;display:flex;align-items:center;justify-content:center;font-size:.7rem">1</div>Liveness
+        </div>
+        <div style="color:#4a5568;display:flex;align-items:center;font-size:.8rem">→</div>
+        <div class="fv-step" id="fv-matching" style="display:flex;align-items:center;gap:5px;color:#a0aec0;font-size:.78rem">
+          <div style="width:22px;height:22px;border-radius:50%;background:#2d3748;display:flex;align-items:center;justify-content:center;font-size:.7rem">2</div>Face Match
+        </div>
+        <div style="color:#4a5568;display:flex;align-items:center;font-size:.8rem">→</div>
+        <div class="fv-step" id="fv-verified" style="display:flex;align-items:center;gap:5px;color:#a0aec0;font-size:.78rem">
+          <div style="width:22px;height:22px;border-radius:50%;background:#2d3748;display:flex;align-items:center;justify-content:center;font-size:.7rem">3</div>Verified
+        </div>
+      </div>
+
+      <button id="retryVerifyBtn" onclick="retryVerification()" style="
+          display:none;width:100%;margin-top:16px;padding:13px;border:none;
+          border-radius:12px;background:linear-gradient(135deg,#667eea,#764ba2);
+          color:#fff;font-size:.95rem;font-weight:600;cursor:pointer">
+        🔄 Retry Verification
+      </button>
+    </div>
+  </div>
+
+  <style>
+  .fv-step.active div:first-child{background:linear-gradient(135deg,#667eea,#764ba2)!important;color:#fff!important}
+  .fv-step.completed div:first-child{background:#48bb78!important;color:#fff!important}
+  .fv-step.active{color:#667eea!important}
+  .fv-step.completed{color:#48bb78!important}
+  </style>
+
+  <!-- hidden selfie canvas still needed for submitAttendance() fallback -->
+  <canvas id="selfieCanvas" width="320" height="240" style="display:none"></canvas>
+
+  <!-- STEP 3: SCAN QR -->
+  <div id="step3" style="display:none">
+    <div class="scanner-card" id="scannerCard">
+      <h3>📷 Scan QR Code</h3>
+      <p style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:16px">Point at the live QR code on your faculty's screen.</p>
+      <div class="video-wrap">
+        <video id="envVideo" autoplay playsinline muted></video>
+        <div class="scan-overlay">
+          <div class="scan-box">
+            <div class="scan-corner tl"></div>
+            <div class="scan-corner tr"></div>
+            <div class="scan-corner bl"></div>
+            <div class="scan-corner br"></div>
+          </div>
+        </div>
+      </div>
+      <div class="scan-status" id="scanStatus">Scanning… hold steady</div>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div id="resultScreen"></div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="/static/js/face-verification.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+// ── State ──────────────────────────────────────────────────────
+let gpsLat = null, gpsLng = null, gpsAccuracy = 999;
+let envStream = null, selfieStream = null;
+let scanLoopId = null;
+let sessionData = null;     // { session_token, course_name, faculty_name, expires_in }
+let submitting = false;
+let faceEngine = null;
+let faceVerifiedSelfie = '';  // captured by face engine, used in submitAttendance
+
+// ── Helpers ────────────────────────────────────────────────────
+function setPill(id, state, text) {
+  const el = document.getElementById(id);
+  el.className = 'status-pill ' + state;
+  el.querySelector('span').textContent = text;
+}
+
+function showError(msg) {
+  const b = document.getElementById('errBanner');
+  b.textContent = msg;
+  b.style.display = 'block';
+  setTimeout(() => b.style.display = 'none', 5000);
+}
+
+// ── GPS ────────────────────────────────────────────────────────
+function startGPS() {
+  setPill('pillGPS', 'loading', 'GPS…');
+  navigator.geolocation.watchPosition(pos => {
+    gpsLat = pos.coords.latitude;
+    gpsLng = pos.coords.longitude;
+    gpsAccuracy = Math.round(pos.coords.accuracy);
+    setPill('pillGPS', 'ok', `📍 ±${gpsAccuracy}m`);
+  }, err => {
+    setPill('pillGPS', 'err', 'GPS off');
+    showError('Enable GPS/location for attendance');
+  }, { enableHighAccuracy: true, maximumAge: 3000 });
+}
+
+// ── Face Verification (face-api.js) ────────────────────────────
+async function startFaceVerification() {
+  document.getElementById('step2').style.display = 'block';
+  setPill('pillCam', 'loading', 'Face AI…');
+
+  // Fetch profile photo from server
+  let profilePhotoUrl;
+  try {
+    const res  = await fetch('/api/attendance/verify-face', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selfie: 'init' })
+    });
+    const data = await res.json();
+    if (!data.profile_photo) {
+      showError(data.error || 'No profile photo on file. Contact admin.');
+      setPill('pillCam', 'err', 'No Photo');
+      return;
+    }
+    profilePhotoUrl = data.profile_photo;
+  } catch(e) {
+    showError('Network error fetching profile. Try again.');
+    return;
+  }
+
+  document.getElementById('fv-liveness').classList.add('active');
+
+  faceEngine = new FaceVerificationEngine({
+    videoEl:    document.getElementById('verifyVideo'),
+    canvasEl:   document.getElementById('verifyCanvas'),
+    statusEl:   document.getElementById('verifyStatus'),
+    progressEl: document.getElementById('verifyProgress'),
+
+    onProgress: (pct) => {
+      if (pct >= 60 && pct < 75) {
+        document.getElementById('fv-liveness').classList.add('active');
+      }
+      if (pct >= 75) {
+        document.getElementById('fv-liveness').classList.remove('active');
+        document.getElementById('fv-liveness').classList.add('completed');
+        document.getElementById('fv-matching').classList.add('active');
+        document.getElementById('challengeBox').style.display = 'none';
+      }
+      if (pct >= 100) {
+        document.getElementById('fv-matching').classList.remove('active');
+        document.getElementById('fv-matching').classList.add('completed');
+        document.getElementById('fv-verified').classList.add('completed');
+      }
+    },
+
+    onSuccess: async (result) => {
+      faceVerifiedSelfie = result.selfie;
+      setPill('pillCam', 'ok', `Face ✓ ${result.confidence.toFixed(0)}%`);
+
+      // Confirm with server (stores face_verified in session)
+      await fetch('/api/attendance/verify-face', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verified: true, confidence: result.confidence, selfie: result.selfie })
+      });
+
+      // Transition to QR scan after brief pause
+      setTimeout(() => startQRScan(), 1500);
+    },
+
+    onFailure: (err) => {
+      setPill('pillCam', 'err', 'Retry');
+      document.getElementById('retryVerifyBtn').style.display = 'block';
+    }
+  });
+
+  await faceEngine.initialize(profilePhotoUrl);
+}
+
+function retryVerification() {
+  document.getElementById('retryVerifyBtn').style.display = 'none';
+  // Reset step indicators
+  ['fv-liveness','fv-matching','fv-verified'].forEach(id => {
+    document.getElementById(id).classList.remove('active','completed');
+  });
+  if (faceEngine) faceEngine.stopCamera();
+  startFaceVerification();
+}
+
+async function startQRScan() {
+  const ok = await setupQRCamera();
+  if (ok) {
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('step3').style.display = 'block';
+    document.getElementById('s2-dot').classList.replace('active', 'done');
+    document.getElementById('s3-dot').classList.add('active');
+    startScanLoop();
+  }
+}
+
+// ── Legacy camera setup (QR camera only now) ────────────────────
+
+async function setupQRCamera() {
+  setPill('pillCam', 'loading', 'QR Cam…');
+  try {
+    if (envStream) stopStream(envStream);
+    if (selfieStream) stopStream(selfieStream); // Stop selfie cam to free resources
+    
+    envStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: 640, height: 640 }
+    });
+    document.getElementById('envVideo').srcObject = envStream;
+    setPill('pillCam', 'ok', 'Scanner Cam ✓');
+    return true;
+  } catch(e) {
+    console.error("QR cam error:", e);
+    setPill('pillCam', 'err', 'Scanner Denied');
+    showError('Back camera access is required to scan the QR code.');
+    return false;
+  }
+}
+
+function stopStream(stream) {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+}
+
+// ── Selfie Capture ─────────────────────────────────────────────
+function captureSelfie() {
+  const video = document.getElementById('selfieVideo');
+  const canvas = document.getElementById('selfieCanvas');
+  if (!video.srcObject || video.readyState < 2) return '';
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, 320, 240);
+  return canvas.toDataURL('image/jpeg', 0.7);
+}
+
+// ── Navigation ──────────────────────────────────────────────────
+function goToStep2() {
+  document.getElementById('step1').style.display = 'none';
+  document.getElementById('s1-dot').classList.replace('active', 'done');
+  document.getElementById('s2-dot').classList.add('active');
+  startFaceVerification();
+}
+
+// ── Session Check (modified) ──────────────────────────────────
+async function checkSession() {
+  setPill('pillSession', 'loading', 'Checking…');
+  try {
+    const res = await fetch('/api/attendance/active-session');
+    const data = await res.json();
+    if (data.active) {
+      sessionData = data;
+      setPill('pillSession', 'ok', 'Session ✓');
+      // Step 1: Wait for GPS before enabling next
+      checkStep1Ready();
+    } else {
+      setPill('pillSession', 'err', 'No session');
+      showError('No active attendance session found.');
+    }
+  } catch(e) {
+    setPill('pillSession', 'err', 'Error');
+  }
+}
+
+function checkStep1Ready() {
+  const btn = document.getElementById('btnS1Next');
+  if (gpsReady && sessionData) {
+    btn.disabled = false;
+    btn.classList.add('pulse');
+  }
+}
+
+// ... existing GPS code ...
+// Modified startGPS to call checkStep1Ready
+function startGPS() {
+  setPill('pillGPS', 'loading', 'GPS…');
+  navigator.geolocation.watchPosition(pos => {
+    gpsLat = pos.coords.latitude;
+    gpsLng = pos.coords.longitude;
+    gpsAccuracy = Math.round(pos.coords.accuracy);
+    setPill('pillGPS', 'ok', `📍 ±${gpsAccuracy}m`);
+    gpsReady = true;
+    checkStep1Ready();
+  }, err => {
+    setPill('pillGPS', 'err', 'GPS off');
+    const label = document.getElementById('gpsLabel');
+    label.innerHTML = 'GPS Off <button onclick="mockGPS()" style="margin-left:5px;padding:1px 5px;font-size:9px;cursor:pointer;background:var(--purple);color:#fff;border:none;border-radius:4px">Mock</button>';
+  }, { enableHighAccuracy: true, maximumAge: 3000 });
+}
+
+function mockGPS() {
+  gpsLat = 16.5062;
+  gpsLng = 80.5062;
+  gpsAccuracy = 10;
+  setPill('pillGPS', 'ok', `📍 MOCKED`);
+  gpsReady = true;
+  checkStep1Ready();
+  showError('Using mock location (SRM AP)');
+}
+
+function startExpiryCountdown(secs) {
+  let remaining = secs;
+  const el = document.getElementById('sessionExpiry');
+  el.textContent = `Expires in ${remaining}s`;
+  const iv = setInterval(() => {
+    remaining--;
+    if (remaining <= 0) { clearInterval(iv); el.textContent = 'Session expired'; stopScan(); return; }
+    const m = Math.floor(remaining / 60), s = remaining % 60;
+    el.textContent = `Expires in ${m}m ${s}s`;
+  }, 1000);
+}
+
+// ── QR Scan Loop (200ms) ───────────────────────────────────────
+function startScanLoop() {
+  const video = document.getElementById('envVideo');
+  const tmpCanvas = document.createElement('canvas');
+  const ctx = tmpCanvas.getContext('2d');
+  tmpCanvas.width = 640; tmpCanvas.height = 640;
+
+  function tick() {
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      ctx.drawImage(video, 0, 0, 640, 640);
+      const imageData = ctx.getImageData(0, 0, 640, 640);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert'
+      });
+      if (code && code.data.startsWith('SMARTATTEND|')) {
+        const parts = code.data.split('|');
+        if (parts.length === 3) {
+          document.getElementById('scanStatus').textContent = '✅ QR detected! Submitting…';
+          submitAttendance(parts[1], parts[2]);
+          return; // pause loop
+        }
+      }
+    }
+    scanLoopId = setTimeout(tick, 200);
+  }
+
+  // Wait for video to be ready
+  video.onloadedmetadata = () => { tmpCanvas.width = video.videoWidth || 640; tmpCanvas.height = video.videoHeight || 640; tick(); };
+  if (video.readyState >= 2) tick();
+}
+
+function stopScan() {
+  if (scanLoopId) clearTimeout(scanLoopId);
+}
+
+// ── Attendance Submission ──────────────────────────────────────
+async function submitAttendance(session_token, qr_token) {
+  if (submitting) return;
+  submitting = true;
+
+  const selfie = faceVerifiedSelfie || captureSelfie();
+
+  try {
+    const res = await fetch('/api/attendance/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_token,
+        qr_token,
+        lat: gpsLat,
+        lng: gpsLng,
+        accuracy: gpsAccuracy,
+        selfie
+      })
+    });
+    const data = await res.json();
+    showResult(res.ok, data);
+  } catch(e) {
+    showResult(false, { message: 'Network error. Please try again.' });
+    submitting = false;
+    scanLoopId = setTimeout(() => { submitting = false; startScanLoop(); }, 3000);
+  }
+}
+
+// ── Result Screen ──────────────────────────────────────────────
+const ERROR_MSGS = {
+  VPN_DETECTED: '🚫 Disable your VPN/proxy to mark attendance.',
+  TOO_FAR:      data => `📍 You are ${data.distance}m away. Must be within 100m of your faculty.`,
+  QR_EXPIRED:   '⏱ QR code expired. Please scan the new code shown on screen.',
+  NO_SESSION:   '❌ No active session found. Ask your faculty to start attendance.',
+  ALREADY_MARKED: '✅ Your attendance is already marked for this session.',
+  NOT_ENROLLED: '🚫 You are not enrolled in this section.',
+  GPS_INACCURATE: '📍 GPS signal too weak. Move to an open area.',
+  NO_GPS:       '📍 GPS unavailable. Enable location services.',
+};
+
+function showResult(success, data) {
+  stopScan();
+  document.getElementById('scannerCard').style.display = 'none';
+  document.getElementById('sessionInfo').style.display = 'none';
+
+  const screen = document.getElementById('resultScreen');
+  screen.style.display = 'block';
+
+  if (success) {
+    const flagBox = data.flagged
+      ? `<div class="flag-box">⚠️ <strong>Flagged for review:</strong><br>${data.flag_reasons?.join('<br>') || 'Manual review required'}</div>`
+      : '';
+    screen.innerHTML = `
+      <div class="icon">✅</div>
+      <h2 style="color:var(--success)">Attendance Marked!</h2>
+      <p>${data.message || 'Your attendance has been recorded.'}</p>
+      ${flagBox}`;
+  } else {
+    const code = data.code || '';
+    let msg = data.message || 'Something went wrong.';
+    if (code === 'TOO_FAR' && data.distance) msg = `📍 You are ${data.distance}m away. Must be within 100m.`;
+    else if (ERROR_MSGS[code]) msg = typeof ERROR_MSGS[code] === 'function' ? ERROR_MSGS[code](data) : ERROR_MSGS[code];
+
+    const retryable = ['QR_EXPIRED', 'GPS_INACCURATE', 'NO_GPS'].includes(code);
+    screen.innerHTML = `
+      <div class="icon">❌</div>
+      <h2 style="color:var(--danger)">${retryable ? 'Try Again' : 'Blocked'}</h2>
+      <p>${msg}</p>
+      ${retryable ? `<button class="btn-retry" onclick="resetScanner()">🔄 Retry</button>` : ''}`;
+  }
+}
+
+function resetScanner() {
+  submitting = false;
+  document.getElementById('resultScreen').style.display = 'none';
+  document.getElementById('resultScreen').innerHTML = '';
+  document.getElementById('errBanner').style.display = 'none';
+  // Re-check session and restart scan
+  checkSession();
+}
+
+// ── Init ───────────────────────────────────────────────────────
+async function init() {
+  setPill('pillCam', 'off', 'Waiting…');
+  startGPS();
+  await checkSession();
+  
+  // Periodically re-check session if not found
+  setInterval(() => {
+    if (!sessionData) checkSession();
+  }, 10000);
+}
+
+init();
+</script>
+</body>
+</html>

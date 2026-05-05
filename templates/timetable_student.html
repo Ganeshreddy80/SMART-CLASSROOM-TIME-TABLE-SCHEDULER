@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% block title %}Student Timetable – UniSchedule{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>🎓 Student Timetable View</h2>
+    <p>{% if session.get('role') != 'student' %}Select a student to view their schedule{% else %}Your personal class schedule{% endif %}</p>
+</div>
+
+<div class="card no-print">
+    <div class="filter-bar">
+        {% if session.get('role') != 'student' %}
+        <select id="sectionSelect" onchange="loadStudents()" style="padding:8px; border-radius:6px; border:1px solid #e5e7eb; background:#fff; color:#333; font-family:inherit;">
+            <option value="">Select Section...</option>
+        </select>
+        <select id="studentSelect" onchange="onStudentSelect()" style="padding:8px; border-radius:6px; border:1px solid #e5e7eb; background:#fff; color:#333; font-family:inherit; min-width: 150px;">
+            <option value="">Select Student...</option>
+        </select>
+        {% endif %}
+        <span id="viewLabel" style="font-weight:600; color: var(--text-primary, #e0e0e0); margin-right: 10px;">Showing: Today's Schedule</span>
+        <button class="btn btn-outline" id="toggleViewBtn" onclick="toggleView()">📅 View Full Week</button>
+        <button class="btn btn-outline" onclick="exportPrint()">🖨️ Print / PDF</button>
+    </div>
+</div>
+
+<div id="timetableArea"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let university = {}, allEntries = [], todayEntries = [], attendanceData = null;
+    let showingFullWeek = false;
+    
+    // Read from URL if present, otherwise use session if student, otherwise 0
+    let studentId = new URLSearchParams(window.location.search).get('id') 
+                    || {{ session.get('user_id', 0) if session.get('role') == 'student' else 0 }};
+    const isStudentRole = {{ 'true' if session.get('role') == 'student' else 'false' }};
+
+    function getTodayName() {
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        return days[new Date().getDay()];
+    }
+
+    async function init() {
+        university = await api('/api/university');
+        
+        if (!isStudentRole) {
+            await initAdminDropdowns();
+        }
+
+        if (studentId && studentId != 0) {
+            await loadStudentData(studentId);
+        } else {
+            document.getElementById('timetableArea').innerHTML = `
+                <div class="card"><div class="empty-state">
+                    <div class="icon">🔍</div><p>Please select a section and student to view their timetable.</p>
+                </div></div>`;
+        }
+    }
+
+    async function initAdminDropdowns() {
+        const sections = await api('/api/sections');
+        const secSel = document.getElementById('sectionSelect');
+        if (!secSel) return;
+        secSel.innerHTML = '<option value="">Select Section...</option>' + 
+            sections.map(s => `<option value="${s.id}">${s.department_name} - ${s.name}</option>`).join('');
+    }
+
+    async function loadStudents() {
+        const secId = document.getElementById('sectionSelect').value;
+        const stuSel = document.getElementById('studentSelect');
+        if (!secId) {
+            stuSel.innerHTML = '<option value="">Select Student...</option>';
+            return;
+        }
+        stuSel.innerHTML = '<option value="">Loading...</option>';
+        const students = await api(`/api/students?section_id=${secId}`);
+        stuSel.innerHTML = '<option value="">Select Student...</option>' + 
+            students.map(s => `<option value="${s.id}">${s.student_uid} - ${s.name}</option>`).join('');
+    }
+
+    async function onStudentSelect() {
+        const stuId = document.getElementById('studentSelect').value;
+        if (!stuId) {
+            studentId = 0;
+            document.getElementById('timetableArea').innerHTML = `
+                <div class="card"><div class="empty-state">
+                    <div class="icon">🔍</div><p>Please select a student to view their timetable.</p>
+                </div></div>`;
+            return;
+        }
+        studentId = stuId;
+        // Update URL to make it shareable/refreshable
+        window.history.replaceState(null, '', `/timetable/student?id=${stuId}`);
+        await loadStudentData(studentId);
+    }
+
+    async function loadStudentData(id) {
+        studentId = id;
+        const area = document.getElementById('timetableArea');
+        area.innerHTML = '<div class="card"><div class="empty-state"><div class="loading-spinner"></div><p>Loading timetable...</p></div></div>';
+        
+        try {
+            // Load attendance data
+            try {
+                attendanceData = await api(`/api/attendance/student/${id}`);
+            } catch(e) {
+                console.error("Attendance load failed", e);
+                attendanceData = null;
+            }
+
+            // Load today's timetable first
+            const today = getTodayName();
+            todayEntries = await api(`/api/timetable/student/${id}?day=${today}`);
+            
+            if (showingFullWeek) {
+                allEntries = await api(`/api/timetable/student/${id}`);
+                renderTimetable(allEntries, false);
+            } else {
+                renderTimetable(todayEntries, true);
+            }
+        } catch (err) {
+            console.error("Timetable load failed", err);
+            area.innerHTML = `
+                <div class="card"><div class="empty-state">
+                    <div class="icon">❌</div>
+                    <p>Failed to load timetable data. ${err.message || ''}</p>
+                    <button class="btn btn-primary" onclick="loadStudentData(${id})">Retry</button>
+                </div></div>`;
+        }
+    }
+
+    async function toggleView() {
+        showingFullWeek = !showingFullWeek;
+        const btn = document.getElementById('toggleViewBtn');
+        const label = document.getElementById('viewLabel');
+
+        if (showingFullWeek) {
+            // Load full week if not loaded
+            if (allEntries.length === 0) {
+                allEntries = await api(`/api/timetable/student/${studentId}`);
+            }
+            btn.textContent = '📆 View Today Only';
+            label.textContent = 'Showing: Full Week Schedule';
+            renderTimetable(allEntries, false);
+        } else {
+            btn.textContent = '📅 View Full Week';
+            label.textContent = "Showing: Today's Schedule";
+            renderTimetable(todayEntries, true);
+        }
+    }
+
+    // Build a set of course_ids that have attendance < 75%
+    function getLowAttendanceCourseIds() {
+        if (!attendanceData || !attendanceData.subjects) return new Set();
+        const low = new Set();
+        attendanceData.subjects.forEach(s => {
+            if (s.percentage < 75) low.add(s.course_id);
+        });
+        return low;
+    }
+
+    function renderTimetable(entries, isTodayView) {
+        const days = university.days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        const timeslots = university.timeslots || [];
+        const area = document.getElementById('timetableArea');
+        const lowCourses = getLowAttendanceCourseIds();
+
+        if (entries.length === 0) {
+            const msg = isTodayView 
+                ? 'No classes scheduled for today. Click "View Full Week" to see your complete schedule.'
+                : 'No classes scheduled. You may not be assigned to a section yet.';
+            area.innerHTML = `<div class="card"><div class="empty-state"><div class="icon">🎓</div><p>${msg}</p></div></div>`;
+            return;
+        }
+
+        // Determine which days to show
+        const displayDays = isTodayView ? [getTodayName()] : days;
+
+        area.innerHTML = `
+        <div class="card">
+            <div class="card-title">📅 ${isTodayView ? "Today's Schedule (" + getTodayName() + ")" : 'Weekly Schedule'}</div>
+            <div class="timetable-grid" id="ttGrid"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">📋 Class Details</div>
+            <div class="table-wrapper">
+                <table>
+                    <thead><tr><th>Day</th><th>Time</th><th>Course</th><th>Faculty</th><th>Room</th><th>Attendance</th></tr></thead>
+                    <tbody>${entries.map(e => {
+                        const isLow = lowCourses.has(e.course_id);
+                        const attInfo = getAttendanceForCourse(e.course_id);
+                        const rowStyle = isLow ? ' style="background:rgba(255,60,60,0.15);"' : '';
+                        return `
+                        <tr${rowStyle}>
+                            <td>${e.day}</td>
+                            <td>${e.timeslot}</td>
+                            <td>${e.course_code} – ${e.course_name}${isLow ? ' <span style="color:#ff4444;font-weight:700;" title="Attendance below 75%">⚠</span>' : ''}</td>
+                            <td>${e.faculty_name}</td>
+                            <td>${e.room_number}</td>
+                            <td>${attInfo}</td>
+                        </tr>
+                    `}).join('')}</tbody>
+                </table>
+            </div>
+        </div>
+        `;
+        // Render grid with attendance highlighting
+        renderTimetableGridWithAttendance('ttGrid', entries, displayDays, timeslots, lowCourses);
+    }
+
+    function getAttendanceForCourse(courseId) {
+        if (!attendanceData || !attendanceData.subjects) return '—';
+        const subj = attendanceData.subjects.find(s => s.course_id === courseId);
+        if (!subj) return '—';
+        const color = subj.percentage < 75 ? '#ff4444' : '#4caf50';
+        return `<span style="color:${color};font-weight:700;">${subj.percentage}%</span>`;
+    }
+
+    function renderTimetableGridWithAttendance(containerId, entries, days, timeslots, lowCourses) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        container.style.gridTemplateColumns = `100px repeat(${days.length}, 1fr)`;
+
+        let html = '<div class="tt-header"></div>';
+        days.forEach(d => { html += `<div class="tt-header">${d.substring(0, 3)}</div>`; });
+
+        timeslots.forEach(ts => {
+            html += `<div class="tt-time">${ts}</div>`;
+            days.forEach(day => {
+                const entry = entries.find(e => e.day === day && e.timeslot === ts);
+                if (entry) {
+                    const isLow = lowCourses.has(entry.course_id);
+                    const deptIdx = (entry.course_id || 0) % 8;
+                    const cellStyle = isLow 
+                        ? 'style="background:rgba(255,60,60,0.25); border: 2px solid #ff4444;"' 
+                        : '';
+                    html += `<div class="tt-cell dept-${deptIdx}" ${cellStyle}>
+                        <div class="course-name">${entry.course_code || entry.course_name}${isLow ? ' ⚠' : ''}</div>
+                        <div class="faculty-name">${entry.faculty_name}</div>
+                        <div class="room-name">${entry.room_number}</div>
+                    </div>`;
+                } else {
+                    html += '<div class="tt-cell empty">—</div>';
+                }
+            });
+        });
+
+        container.innerHTML = html;
+    }
+
+    init();
+</script>
+{% endblock %}

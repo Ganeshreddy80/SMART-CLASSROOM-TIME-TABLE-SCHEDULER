@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}University Setup – UniSchedule{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>🏛️ University Setup</h2>
+    <p>Configure your university's basic settings</p>
+</div>
+
+<div class="card">
+    <div class="card-title">University Configuration</div>
+    <form id="uniForm" onsubmit="saveUniversity(event)">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>University Name</label>
+                <input type="text" id="uniName" required placeholder="e.g. ABC University">
+            </div>
+            <div class="form-group">
+                <label>Total Blocks</label>
+                <input type="number" id="uniBlocks" min="1" max="20" value="2" required onchange="renderFloorInputs()">
+            </div>
+            <div class="form-group">
+                <label>Rooms per Floor</label>
+                <input type="number" id="uniRooms" min="1" max="50" value="5" required>
+            </div>
+            <div class="form-group">
+                <label>Room Capacity</label>
+                <input type="number" id="uniCapacity" min="20" max="300" value="60" required>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-top:16px">
+            <label>Floors per Block</label>
+            <p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px">Set the number of floors for each
+                block separately</p>
+            <div id="floorsGrid" class="form-grid" style="grid-template-columns:repeat(auto-fill, minmax(160px, 1fr))">
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-top:16px">
+            <label>Days of Week</label>
+            <div class="checkbox-grid" id="daysGrid">
+                <label><input type="checkbox" value="Monday" checked> Monday</label>
+                <label><input type="checkbox" value="Tuesday" checked> Tuesday</label>
+                <label><input type="checkbox" value="Wednesday" checked> Wednesday</label>
+                <label><input type="checkbox" value="Thursday" checked> Thursday</label>
+                <label><input type="checkbox" value="Friday" checked> Friday</label>
+                <label><input type="checkbox" value="Saturday"> Saturday</label>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-top:16px">
+            <label>Time Slots (one per line, e.g. 9:00-10:00)</label>
+            <textarea id="uniTimeslots" rows="7"
+                placeholder="9:00-10:00&#10;10:00-11:00&#10;11:00-12:00&#10;12:00-1:00&#10;2:00-3:00&#10;3:00-4:00&#10;4:00-5:00">9:00-10:00
+10:00-11:00
+11:00-12:00
+12:00-1:00
+2:00-3:00
+3:00-4:00
+4:00-5:00</textarea>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💾 Save Settings</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-title">Classrooms (Auto-Generated)</div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Block</th>
+                    <th>Floor</th>
+                    <th>Room Number</th>
+                    <th>Capacity</th>
+                    <th>Type</th>
+                </tr>
+            </thead>
+            <tbody id="roomsTable"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let savedFloors = {};
+
+    function renderFloorInputs() {
+        const numBlocks = parseInt(document.getElementById('uniBlocks').value) || 2;
+        const grid = document.getElementById('floorsGrid');
+        let html = '';
+        for (let b = 1; b <= numBlocks; b++) {
+            const val = savedFloors[String(b)] || 3;
+            html += `
+            <div class="form-group">
+                <label style="font-size:0.75rem">Block ${b}</label>
+                <input type="number" id="blockFloor_${b}" min="1" max="10" value="${val}" 
+                       style="text-align:center">
+            </div>`;
+        }
+        grid.innerHTML = html;
+    }
+
+    function getFloorsMap() {
+        const numBlocks = parseInt(document.getElementById('uniBlocks').value) || 2;
+        const map = {};
+        for (let b = 1; b <= numBlocks; b++) {
+            const input = document.getElementById(`blockFloor_${b}`);
+            map[String(b)] = input ? parseInt(input.value) || 3 : 3;
+        }
+        return map;
+    }
+
+    async function loadUniversity() {
+        const data = await api('/api/university');
+        if (data && data.id) {
+            document.getElementById('uniName').value = data.name || '';
+            document.getElementById('uniBlocks').value = data.total_blocks || 2;
+            document.getElementById('uniRooms').value = data.rooms_per_block || 5;
+            document.getElementById('uniCapacity').value = data.room_capacity || 60;
+            savedFloors = data.floors_per_block || {};
+            if (data.days) {
+                document.querySelectorAll('#daysGrid input').forEach(cb => {
+                    cb.checked = data.days.includes(cb.value);
+                });
+            }
+            if (data.timeslots) {
+                document.getElementById('uniTimeslots').value = data.timeslots.join('\n');
+            }
+        }
+        renderFloorInputs();
+        loadClassrooms();
+    }
+
+    async function loadClassrooms() {
+        const rooms = await api('/api/classrooms');
+        const tbody = document.getElementById('roomsTable');
+        if (rooms.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">No classrooms yet. Save university settings to auto-generate.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = rooms.map(r => `
+        <tr>
+            <td>Block ${r.block}</td>
+            <td>Floor ${r.floor}</td>
+            <td>${r.room_number}</td>
+            <td>${r.capacity}</td>
+            <td><span class="badge badge-blue">${r.room_type}</span></td>
+        </tr>
+    `).join('');
+    }
+
+    async function saveUniversity(e) {
+        e.preventDefault();
+        const days = Array.from(document.querySelectorAll('#daysGrid input:checked')).map(cb => cb.value);
+        const timeslots = document.getElementById('uniTimeslots').value.split('\n').map(s => s.trim()).filter(s => s);
+
+        await api('/api/university', 'POST', {
+            name: document.getElementById('uniName').value,
+            total_blocks: parseInt(document.getElementById('uniBlocks').value),
+            floors_per_block: getFloorsMap(),
+            rooms_per_block: parseInt(document.getElementById('uniRooms').value),
+            room_capacity: parseInt(document.getElementById('uniCapacity').value),
+            days, timeslots
+        });
+        showToast('University settings saved!');
+        loadClassrooms();
+    }
+
+    loadUniversity();
+</script>
+{% endblock %}

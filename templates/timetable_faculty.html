@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Faculty Timetable – UniSchedule{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>👤 Faculty Timetable View</h2>
+    <p>View teaching schedule for each faculty member</p>
+</div>
+
+<div class="card no-print">
+    <div class="filter-bar">
+        <select id="filterFaculty" onchange="loadTimetable()">
+            <option value="">Select Faculty</option>
+        </select>
+        <button class="btn btn-outline" onclick="exportPrint()">🖨️ Print / PDF</button>
+    </div>
+</div>
+
+<div id="timetableArea"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let facultyList = [], university = {};
+
+    async function init() {
+        [facultyList, university] = await Promise.all([
+            api('/api/faculty'),
+            api('/api/university')
+        ]);
+        populateSelect('filterFaculty', facultyList, f => f.id, f => `${f.faculty_uid} – ${f.name} (${f.department_name})`, 'Select Faculty');
+        
+        // Auto-select from URL param
+        const urlParams = new URLSearchParams(window.location.search);
+        const facId = urlParams.get('id');
+        if (facId) {
+            const select = document.getElementById('filterFaculty');
+            select.value = facId;
+            if (select.value) loadTimetable();
+        }
+    }
+
+    async function loadTimetable() {
+        const facId = document.getElementById('filterFaculty').value;
+        if (!facId) return;
+
+        const entries = await api(`/api/timetable/faculty/${facId}`);
+        const days = university.days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        const timeslots = university.timeslots || [];
+
+        const area = document.getElementById('timetableArea');
+        const fac = facultyList.find(f => f.id == facId);
+
+        if (entries.length === 0) {
+            area.innerHTML = '<div class="card"><div class="empty-state"><div class="icon">👤</div><p>No classes assigned to this faculty</p></div></div>';
+            return;
+        }
+
+        // For faculty view, show section name instead of faculty name
+        const modEntries = entries.map(e => ({
+            ...e,
+            faculty_name: e.section_name  // Show section instead
+        }));
+
+        area.innerHTML = `
+        <div class="card">
+            <div class="card-title">Schedule: ${fac ? fac.name : ''} (${fac ? fac.department_name : ''})</div>
+            <div class="timetable-grid" id="ttGrid"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">Teaching Summary</div>
+            <div class="table-wrapper">
+                <table>
+                    <thead><tr><th>Day</th><th>Time</th><th>Course</th><th>Section</th><th>Room</th></tr></thead>
+                    <tbody>${entries.map(e => `
+                        <tr>
+                            <td>${e.day}</td>
+                            <td>${e.timeslot}</td>
+                            <td>${e.course_code} – ${e.course_name}</td>
+                            <td><span class="badge badge-purple">${e.section_name}</span></td>
+                            <td>${e.room_number}</td>
+                        </tr>
+                    `).join('')}</tbody>
+                </table>
+            </div>
+        </div>
+    `;
+        renderTimetableGrid('ttGrid', modEntries, days, timeslots, 'faculty');
+    }
+
+    init();
+</script>
+{% endblock %}

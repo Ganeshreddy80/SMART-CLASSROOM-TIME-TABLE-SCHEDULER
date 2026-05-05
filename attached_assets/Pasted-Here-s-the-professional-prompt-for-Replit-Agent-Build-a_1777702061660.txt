@@ -1,0 +1,283 @@
+Here's the professional prompt for Replit Agent:
+
+Build a world-class complaint management system for this Flask university app. Follow every detail exactly.
+
+STEP 1 — Database Model
+
+Add to models.py:
+
+python
+from datetime import datetime
+
+class Complaint(db.Model):
+    __tablename__ = 'complaint'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(db.String(20), unique=True, nullable=False)  # e.g. CMP-2026-0001
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(50), nullable=False)
+    # categories: infrastructure, faculty_issue, course_content, hostel, transport, academic, other
+    
+    priority = db.Column(db.String(20), default='medium')  # low, medium, high, urgent
+    
+    submitted_by_role = db.Column(db.String(20), nullable=False)  # student, faculty
+    submitted_by_id = db.Column(db.Integer, nullable=False)
+    submitted_by_name = db.Column(db.String(100), nullable=False)
+    submitted_by_email = db.Column(db.String(150), nullable=False)
+    department_id = db.Column(db.Integer, db.ForeignKey('department.id'), nullable=True)
+    department_name = db.Column(db.String(100), nullable=True)
+    
+    assigned_to = db.Column(db.String(100), nullable=True)
+    assigned_to_role = db.Column(db.String(50), nullable=True)  # admin, hod
+    
+    status = db.Column(db.String(20), default='open')
+    # statuses: open, under_review, in_progress, resolved, closed, rejected
+    
+    is_anonymous = db.Column(db.Boolean, default=False)
+    is_urgent = db.Column(db.Boolean, default=False)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    resolved_at = db.Column(db.DateTime, nullable=True)
+    
+    resolution_note = db.Column(db.Text, nullable=True)
+    admin_remarks = db.Column(db.Text, nullable=True)
+    
+    def generate_ticket_id(self):
+        from datetime import datetime
+        year = datetime.utcnow().year
+        self.ticket_id = f"CMP-{year}-{self.id:04d}"
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'ticket_id': self.ticket_id,
+            'title': self.title,
+            'description': self.description,
+            'category': self.category,
+            'priority': self.priority,
+            'submitted_by_role': self.submitted_by_role,
+            'submitted_by_name': 'Anonymous' if self.is_anonymous else self.submitted_by_name,
+            'submitted_by_email': '' if self.is_anonymous else self.submitted_by_email,
+            'department_name': self.department_name,
+            'assigned_to': self.assigned_to,
+            'assigned_to_role': self.assigned_to_role,
+            'status': self.status,
+            'priority': self.priority,
+            'is_anonymous': self.is_anonymous,
+            'is_urgent': self.is_urgent,
+            'created_at': self.created_at.isoformat() if self.created_at else '',
+            'updated_at': self.updated_at.isoformat() if self.updated_at else '',
+            'resolved_at': self.resolved_at.isoformat() if self.resolved_at else None,
+            'resolution_note': self.resolution_note,
+            'admin_remarks': self.admin_remarks
+        }
+STEP 2 — Create blueprints/complaints.py
+
+python
+from flask import Blueprint, request, jsonify, session, render_template
+from models import db, Complaint, Student, Faculty, Department
+from blueprints.utils import login_required, role_required
+from datetime import datetime
+
+complaints_bp = Blueprint('complaints_bp', __name__)
+
+CATEGORY_ROUTING = {
+    'infrastructure': ('Admin', 'admin'),
+    'faculty_issue': ('HOD', 'hod'),
+    'course_content': ('HOD', 'hod'),
+    'hostel': ('Admin', 'admin'),
+    'transport': ('Admin', 'admin'),
+    'academic': ('HOD', 'hod'),
+    'other': ('Admin', 'admin'),
+}
+
+@complaints_bp.route('/complaints')
+@login_required
+def complaints_page():
+    return render_template('complaints.html')
+
+@complaints_bp.route('/api/complaints', methods=['POST'])
+@login_required
+def submit_complaint():
+    data = request.json or {}
+    role = session.get('role')
+    user_id = session.get('user_id')
+    
+    if role == 'student':
+        user = Student.query.get(user_id)
+        dept_id = user.department_id if user else None
+        dept = Department.query.get(dept_id) if dept_id else None
+        email = user.email if user else ''
+    elif role == 'faculty':
+        user = Faculty.query.get(user_id)
+        dept_id = user.department_id if user else None
+        dept = Department.query.get(dept_id) if dept_id else None
+        email = user.email if user else ''
+    else:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    category = data.get('category', 'other')
+    assigned_label, assigned_role = CATEGORY_ROUTING.get(category, ('Admin', 'admin'))
+    
+    if assigned_role == 'hod' and dept:
+        assigned_to = f"HOD - {dept.name}"
+    else:
+        assigned_to = 'Admin'
+    
+    is_anonymous = data.get('is_anonymous', False)
+    
+    complaint = Complaint(
+        title=data.get('title', '').strip(),
+        description=data.get('description', '').strip(),
+        category=category,
+        priority=data.get('priority', 'medium'),
+        submitted_by_role=role,
+        submitted_by_id=user_id,
+        submitted_by_name=session.get('user_name', ''),
+        submitted_by_email=email,
+        department_id=dept_id,
+        department_name=dept.name if dept else '',
+        assigned_to=assigned_to,
+        assigned_to_role=assigned_role,
+        is_anonymous=is_anonymous,
+        is_urgent=data.get('priority') == 'urgent',
+        status='open'
+    )
+    
+    db.session.add(complaint)
+    db.session.flush()
+    complaint.generate_ticket_id()
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Complaint submitted successfully',
+        'ticket_id': complaint.ticket_id,
+        'complaint': complaint.to_dict()
+    }), 201
+
+@complaints_bp.route('/api/complaints', methods=['GET'])
+@login_required
+def get_complaints():
+    role = session.get('role')
+    user_id = session.get('user_id')
+    
+    if role == 'admin':
+        complaints = Complaint.query.order_by(Complaint.created_at.desc()).all()
+    elif role in ['student', 'faculty']:
+        complaints = Complaint.query.filter_by(
+            submitted_by_id=user_id,
+            submitted_by_role=role
+        ).order_by(Complaint.created_at.desc()).all()
+    else:
+        return jsonify([])
+    
+    return jsonify([c.to_dict() for c in complaints])
+
+@complaints_bp.route('/api/complaints/<int:id>/status', methods=['PUT'])
+@login_required
+@role_required('admin')
+def update_complaint_status(id):
+    complaint = Complaint.query.get_or_404(id)
+    data = request.json or {}
+    
+    complaint.status = data.get('status', complaint.status)
+    complaint.resolution_note = data.get('resolution_note', complaint.resolution_note)
+    complaint.admin_remarks = data.get('admin_remarks', complaint.admin_remarks)
+    complaint.updated_at = datetime.utcnow()
+    
+    if complaint.status in ['resolved', 'closed']:
+        complaint.resolved_at = datetime.utcnow()
+    
+    db.session.commit()
+    return jsonify({'message': 'Updated successfully', 'complaint': complaint.to_dict()})
+
+@complaints_bp.route('/api/complaints/stats', methods=['GET'])
+@login_required
+@role_required('admin')
+def complaint_stats():
+    total = Complaint.query.count()
+    open_count = Complaint.query.filter_by(status='open').count()
+    in_progress = Complaint.query.filter_by(status='in_progress').count()
+    resolved = Complaint.query.filter_by(status='resolved').count()
+    urgent = Complaint.query.filter_by(is_urgent=True).count()
+    
+    return jsonify({
+        'total': total,
+        'open': open_count,
+        'in_progress': in_progress,
+        'resolved': resolved,
+        'urgent': urgent
+    })
+STEP 3 — Create templates/complaints.html
+
+Create a world-class professional UI with:
+
+Header section with page title "📋 Complaint Management" and a prominent "Submit New Complaint" button
+Stats bar (admin only) showing: Total, Open, In Progress, Resolved, Urgent counts as colored cards
+Submit Complaint Modal/Form with:
+Title field
+Category dropdown: Infrastructure, Faculty Issue, Course Content, Hostel, Transport, Academic, Other
+Priority dropdown: Low, Medium, High, Urgent (Urgent shows red warning)
+Description textarea (min 20 characters)
+Anonymous checkbox with explanation "Your name will be hidden from the complaint"
+Submit button
+Complaints Table with columns: Ticket ID, Title, Category, Priority, Assigned To, Status, Date, Actions
+Priority badges: urgent=red, high=orange, medium=yellow, low=green
+Status badges: open=red, under_review=blue, in_progress=yellow, resolved=green, closed=gray
+Category icons: 🏗️ infrastructure, 👨‍🏫 faculty, 📚 course, 🏠 hostel, 🚌 transport, 🎓 academic
+Admin update modal — when admin clicks a complaint:
+Shows full complaint details
+Status dropdown to update
+Resolution note textarea
+Admin remarks textarea
+Save button
+Filter bar: filter by status, category, priority
+Search bar: search by ticket ID or title
+Match the existing app's dark blue theme and card styling from other templates like dashboard.html
+STEP 4 — Register in app.py
+
+Add:
+
+python
+from blueprints.complaints import complaints_bp
+app.register_blueprint(complaints_bp)
+csrf.exempt(complaints_bp)
+STEP 5 — Add nav links
+
+In student dashboard sidebar template — add:
+
+📋 My Complaints → /complaints
+In faculty dashboard sidebar — add:
+
+📋 My Complaints → /complaints
+In admin dashboard sidebar — add:
+
+📋 All Complaints → /complaints
+STEP 6 — Run database migration
+
+Run in shell:
+
+bash
+flask db migrate -m "Add complaint table"
+flask db upgrade
+Or if migrations fail:
+
+python
+with app.app_context():
+    db.create_all()
+STEP 7 — Test
+
+Login as student → go to /complaints → submit a complaint → confirm ticket ID generated like CMP-2026-0001
+Login as admin → go to /complaints → see all complaints → update status to resolved → add resolution note
+Login as student again → confirm complaint shows as resolved
+Do NOT push to git yet. Show me the complaints page UI screenshot and confirm all API endpoints work.
+
+Paste this into Replit Agent and send me what it builds!
+
+
+
+
+
+Claude is AI and can make mistakes. Please double-check responses.

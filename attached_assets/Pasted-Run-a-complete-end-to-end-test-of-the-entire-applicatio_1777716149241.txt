@@ -1,0 +1,452 @@
+Run a complete end-to-end test of the entire application. 
+Test all features in parallel. Report PASS/FAIL for every single check.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AGENT 1 — Authentication & Core
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+python3 << 'EOF'
+import requests
+BASE = 'http://localhost:5000'
+s = requests.Session()
+
+tests = []
+
+# Test 1 - Admin login
+r = s.post(f'{BASE}/api/login', json={'username':'admin','password':'sukuna@123','role':'admin'})
+tests.append(('Admin login', r.status_code == 200))
+
+# Test 2 - Admin dashboard loads
+r = s.get(f'{BASE}/admin/dashboard')
+tests.append(('Admin dashboard', r.status_code == 200))
+
+# Test 3 - Student login
+s2 = requests.Session()
+r = s2.post(f'{BASE}/api/login', json={'roll_number':'STU0001','password':'STU0001','role':'student'})
+tests.append(('Student login', r.status_code == 200))
+
+# Test 4 - Faculty login
+s3 = requests.Session()
+r = s3.post(f'{BASE}/api/login', json={'employee_id':'FAC001','password':'FAC001','role':'faculty'})
+tests.append(('Faculty login', r.status_code == 200))
+
+# Test 5 - Logout
+r = s.post(f'{BASE}/api/logout')
+tests.append(('Logout', r.status_code == 200))
+
+# Test 6 - Protected route blocks unauthenticated
+s4 = requests.Session()
+r = s4.get(f'{BASE}/admin/dashboard')
+tests.append(('Auth protection works', r.status_code in [302, 401, 403]))
+
+for name, passed in tests:
+    print(f"{'✅' if passed else '❌'} AGENT1 — {name}")
+EOF
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AGENT 2 — Complaint System
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+python3 << 'EOF'
+import requests, json
+BASE = 'http://localhost:5000'
+
+# Login as student
+s = requests.Session()
+s.post(f'{BASE}/api/login', json={'roll_number':'STU0001','password':'STU0001','role':'student'})
+
+tests = []
+
+# Test 1 - Complaints page loads
+r = s.get(f'{BASE}/complaints')
+tests.append(('Complaints page loads', r.status_code == 200))
+
+# Test 2 - Submit complaint
+r = s.post(f'{BASE}/api/complaints', json={
+    'title': 'Test Complaint from Agent',
+    'description': 'This is a test complaint with enough detail to be valid for testing purposes',
+    'category': 'infrastructure',
+    'priority': 'high',
+    'is_anonymous': False
+})
+tests.append(('Submit complaint', r.status_code == 201))
+complaint_id = None
+if r.status_code == 201:
+    data = r.json()
+    complaint_id = data.get('complaint', {}).get('id')
+    tests.append(('Ticket ID generated', 'CMP-' in data.get('ticket_id', '')))
+
+# Test 3 - Student sees own complaints
+r = s.get(f'{BASE}/api/complaints')
+tests.append(('Student gets own complaints', r.status_code == 200 and len(r.json()) > 0))
+
+# Test 4 - AI categorizer
+r = s.post(f'{BASE}/api/complaints/analyze', json={
+    'text': 'The projector in room 302 has been broken for 2 weeks and faculty cannot teach properly'
+})
+tests.append(('AI categorizer works', r.status_code == 200 and 'category' in r.json()))
+if r.status_code == 200:
+    data = r.json()
+    tests.append(('AI suggests infrastructure', data.get('category') == 'infrastructure'))
+
+# Test 5 - Admin sees all complaints
+sa = requests.Session()
+sa.post(f'{BASE}/api/login', json={'username':'admin','password':'sukuna@123','role':'admin'})
+r = sa.get(f'{BASE}/api/complaints')
+tests.append(('Admin sees all complaints', r.status_code == 200))
+
+# Test 6 - Admin updates status
+if complaint_id:
+    r = sa.put(f'{BASE}/api/complaints/{complaint_id}/status', json={
+        'status': 'resolved',
+        'resolution_note': 'Fixed by maintenance team',
+        'admin_remarks': 'Issue resolved within 24 hours'
+    })
+    tests.append(('Admin resolves complaint', r.status_code == 200))
+
+# Test 7 - AI reply suggestions
+if complaint_id:
+    r = sa.get(f'{BASE}/api/complaints/{complaint_id}/suggest-reply')
+    tests.append(('AI reply suggestions', r.status_code == 200 and len(r.json()) > 0))
+
+# Test 8 - Non-admin blocked from stats
+r = s.get(f'{BASE}/api/complaints/stats')
+tests.append(('Non-admin blocked from stats', r.status_code == 403))
+
+for name, passed in tests:
+    print(f"{'✅' if passed else '❌'} AGENT2 — {name}")
+EOF
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AGENT 3 — Attendance System
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+python3 << 'EOF'
+import requests, json
+from datetime import date
+BASE = 'http://localhost:5000'
+
+# Login as faculty
+sf = requests.Session()
+sf.post(f'{BASE}/api/login', json={'employee_id':'FAC001','password':'FAC001','role':'faculty'})
+
+# Login as student
+ss = requests.Session()
+ss.post(f'{BASE}/api/login', json={'roll_number':'STU0001','password':'STU0001','role':'student'})
+
+tests = []
+today = str(date.today())
+
+# Test 1 - Get courses for faculty
+r = sf.get(f'{BASE}/api/faculty/courses')
+tests.append(('Faculty gets courses', r.status_code == 200))
+course_id = None
+section_id = None
+if r.status_code == 200 and r.json():
+    course_id = r.json()[0].get('id')
+
+# Test 2 - Get sections
+if course_id:
+    r = sf.get(f'{BASE}/api/sections?course_id={course_id}')
+    tests.append(('Faculty gets sections', r.status_code == 200))
+    if r.status_code == 200 and r.json():
+        section_id = r.json()[0].get('id')
+
+# Test 3 - Manual attendance save
+if course_id and section_id:
+    r = sf.post(f'{BASE}/api/attendance/manual', json={
+        'course_id': course_id,
+        'section_id': section_id,
+        'date': today,
+        'present_student_ids': [1916, 1917, 1918]
+    })
+    tests.append(('Manual attendance save', r.status_code == 200))
+    if r.status_code == 200:
+        data = r.json()
+        tests.append(('Present count correct', data.get('present', 0) >= 3))
+
+# Test 4 - Student sees attendance
+r = ss.get(f'{BASE}/student/api/attendance')
+tests.append(('Student gets attendance', r.status_code == 200))
+
+# Test 5 - Attendance risk predictor
+r = ss.get(f'{BASE}/api/student/attendance-risk')
+tests.append(('Risk predictor works', r.status_code == 200))
+
+# Test 6 - Update single student attendance
+if course_id:
+    r = sf.put(f'{BASE}/api/attendance/update-student', json={
+        'student_id': 1916,
+        'course_id': course_id,
+        'date': today,
+        'status': 'absent'
+    })
+    tests.append(('Update single student', r.status_code == 200))
+
+# Test 7 - Faculty absences route
+r = sf.get(f'{BASE}/api/faculty-absences')
+tests.append(('Faculty absences no 404', r.status_code == 200))
+
+# Test 8 - QR session start
+if course_id and section_id:
+    r = sf.post(f'{BASE}/api/attendance/start-session', json={
+        'course_id': course_id,
+        'section_id': section_id
+    })
+    tests.append(('QR session starts', r.status_code == 200))
+    session_token = r.json().get('token') if r.status_code == 200 else None
+    
+    # Test 9 - Stop session
+    if session_token:
+        r = sf.post(f'{BASE}/api/attendance/stop-session', json={
+            'token': session_token
+        })
+        tests.append(('QR session stops', r.status_code == 200))
+
+for name, passed in tests:
+    print(f"{'✅' if passed else '❌'} AGENT3 — {name}")
+EOF
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AGENT 4 — AI Anomaly Detection
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+python3 << 'EOF'
+import requests, json
+from datetime import date
+BASE = 'http://localhost:5000'
+
+sa = requests.Session()
+sa.post(f'{BASE}/api/login', json={'username':'admin','password':'sukuna@123','role':'admin'})
+
+ss = requests.Session()
+ss.post(f'{BASE}/api/login', json={'roll_number':'STU0001','password':'STU0001','role':'student'})
+
+tests = []
+
+# Test 1 - Anomalies page loads
+r = sa.get(f'{BASE}/anomalies')
+tests.append(('Anomalies page loads', r.status_code == 200))
+
+# Test 2 - Get anomalies list
+r = sa.get(f'{BASE}/api/anomalies')
+tests.append(('Get anomalies list', r.status_code == 200))
+anomaly_id = None
+if r.status_code == 200 and r.json():
+    anomaly_id = r.json()[0].get('id')
+
+# Test 3 - Anomaly stats
+r = sa.get(f'{BASE}/api/anomalies/stats')
+tests.append(('Anomaly stats work', r.status_code == 200))
+if r.status_code == 200:
+    data = r.json()
+    tests.append(('Stats has required fields', all(k in data for k in ['total','critical','high','warning'])))
+
+# Test 4 - Dismiss anomaly
+if anomaly_id:
+    r = sa.put(f'{BASE}/api/anomalies/{anomaly_id}/dismiss', json={'note':'Test dismiss'})
+    tests.append(('Dismiss anomaly works', r.status_code == 200))
+
+# Test 5 - Manually trigger anomaly engine
+from app import app
+from blueprints.anomaly_engine import run_all_checks
+with app.app_context():
+    try:
+        run_all_checks(section_id=51, course_id=217, attendance_date=date.today())
+        tests.append(('Anomaly engine runs', True))
+    except Exception as e:
+        tests.append(('Anomaly engine runs', False))
+        print(f'  Error: {e}')
+
+# Test 6 - Non-admin blocked
+r = ss.get(f'{BASE}/api/anomalies')
+tests.append(('Non-admin blocked', r.status_code == 403))
+
+# Test 7 - Confirm fraud
+r = sa.get(f'{BASE}/api/anomalies?status=open')
+if r.status_code == 200 and r.json():
+    new_id = r.json()[0]['id']
+    r2 = sa.put(f'{BASE}/api/anomalies/{new_id}/confirm', json={'note':'Confirmed test'})
+    tests.append(('Confirm fraud works', r2.status_code == 200))
+
+for name, passed in tests:
+    print(f"{'✅' if passed else '❌'} AGENT4 — {name}")
+EOF
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AGENT 5 — Faculty Features
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+python3 << 'EOF'
+import requests
+BASE = 'http://localhost:5000'
+
+sf = requests.Session()
+sf.post(f'{BASE}/api/login', json={'employee_id':'FAC001','password':'FAC001','role':'faculty'})
+
+tests = []
+
+# Test 1 - Faculty dashboard loads
+r = sf.get(f'{BASE}/faculty/dashboard')
+tests.append(('Faculty dashboard loads', r.status_code == 200))
+
+# Test 2 - Faculty attendance management page
+r = sf.get(f'{BASE}/faculty/attendance-management')
+tests.append(('Attendance management page', r.status_code == 200))
+
+# Test 3 - Performance insights
+r = sf.get(f'{BASE}/api/faculty/performance-insights')
+tests.append(('Performance insights works', r.status_code == 200))
+if r.status_code == 200:
+    data = r.json()
+    tests.append(('Insight has text', 'insight' in data))
+
+# Test 4 - Faculty complaints page
+r = sf.get(f'{BASE}/complaints')
+tests.append(('Faculty complaints page', r.status_code == 200))
+
+# Test 5 - Faculty submit complaint
+r = sf.post(f'{BASE}/api/complaints', json={
+    'title': 'Faculty Test Complaint',
+    'description': 'Testing complaint submission from faculty account for system verification',
+    'category': 'academic',
+    'priority': 'medium',
+    'is_anonymous': False
+})
+tests.append(('Faculty submits complaint', r.status_code == 201))
+
+# Test 6 - Faculty sees only own complaints
+r = sf.get(f'{BASE}/api/complaints')
+tests.append(('Faculty gets own complaints', r.status_code == 200))
+
+# Test 7 - Faculty absences no 404
+r = sf.get(f'{BASE}/api/faculty-absences')
+tests.append(('Faculty absences fixed', r.status_code == 200))
+
+# Test 8 - Timetable data
+r = sf.get(f'{BASE}/api/faculty/timetable')
+tests.append(('Faculty timetable works', r.status_code == 200))
+
+for name, passed in tests:
+    print(f"{'✅' if passed else '❌'} AGENT5 — {name}")
+EOF
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AGENT 6 — Student Features
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+python3 << 'EOF'
+import requests
+BASE = 'http://localhost:5000'
+
+ss = requests.Session()
+ss.post(f'{BASE}/api/login', json={'roll_number':'STU0001','password':'STU0001','role':'student'})
+
+tests = []
+
+# Test 1 - Student dashboard loads
+r = ss.get(f'{BASE}/student/dashboard')
+tests.append(('Student dashboard loads', r.status_code == 200))
+
+# Test 2 - Student profile
+r = ss.get(f'{BASE}/api/student/profile')
+tests.append(('Student profile works', r.status_code == 200))
+
+# Test 3 - Student timetable
+r = ss.get(f'{BASE}/api/student/timetable')
+tests.append(('Student timetable works', r.status_code == 200))
+
+# Test 4 - Attendance data
+r = ss.get(f'{BASE}/student/api/attendance')
+tests.append(('Student attendance data', r.status_code == 200))
+
+# Test 5 - Risk predictor
+r = ss.get(f'{BASE}/api/student/attendance-risk')
+tests.append(('Risk predictor returns', r.status_code == 200))
+if r.status_code == 200:
+    tests.append(('Risk predictor is list', isinstance(r.json(), list)))
+
+# Test 6 - Complaints page
+r = ss.get(f'{BASE}/complaints')
+tests.append(('Student complaints page', r.status_code == 200))
+
+# Test 7 - Submit and verify ticket
+r = ss.post(f'{BASE}/api/complaints', json={
+    'title': 'Student Test Complaint Agent6',
+    'description': 'Automated test complaint from agent 6 for full system verification testing',
+    'category': 'hostel',
+    'priority': 'low',
+    'is_anonymous': True
+})
+tests.append(('Student submits complaint', r.status_code == 201))
+if r.status_code == 201:
+    ticket = r.json().get('ticket_id','')
+    tests.append(('Anonymous complaint hidden', 
+        r.json().get('complaint',{}).get('submitted_by_name') == 'Anonymous'))
+
+# Test 8 - Scanner page loads
+r = ss.get(f'{BASE}/student/attendance-scanner')
+tests.append(('Scanner page loads', r.status_code == 200))
+
+for name, passed in tests:
+    print(f"{'✅' if passed else '❌'} AGENT6 — {name}")
+EOF
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AGENT 7 — Admin Features
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+python3 << 'EOF'
+import requests
+BASE = 'http://localhost:5000'
+
+sa = requests.Session()
+sa.post(f'{BASE}/api/login', json={'username':'admin','password':'sukuna@123','role':'admin'})
+
+tests = []
+
+# Test 1 - Admin dashboard
+r = sa.get(f'{BASE}/admin/dashboard')
+tests.append(('Admin dashboard loads', r.status_code == 200))
+
+# Test 2 - Complaint stats
+r = sa.get(f'{BASE}/api/complaints/stats')
+tests.append(('Complaint stats work', r.status_code == 200))
+if r.status_code == 200:
+    data = r.json()
+    tests.append(('Stats complete', all(k in data for k in ['total','open','resolved'])))
+
+# Test 3 - All complaints visible
+r = sa.get(f'{BASE}/api/complaints')
+tests.append(('Admin sees all complaints', r.status_code == 200))
+
+# Test 4 - Anomalies page
+r = sa.get(f'{BASE}/anomalies')
+tests.append(('Anomalies page', r.status_code == 200))
+
+# Test 5 - All API routes respond correctly
+routes = [
+    '/api/anomalies/stats',
+    '/api/anomalies',
+    '/api/complaints/stats',
+    '/api/faculty-absences',
+]
+for route in routes:
+    r = sa.get(f'{BASE}{route}')
+    tests.append((f'Route {route}', r.status_code == 200))
+
+# Test 6 - Student management
+r = sa.get(f'{BASE}/api/admin/students')
+tests.append(('Admin gets students', r.status_code == 200))
+
+# Test 7 - Faculty management  
+r = sa.get(f'{BASE}/api/admin/faculty')
+tests.append(('Admin gets faculty', r.status_code == 200))
+
+for name, passed in tests:
+    print(f"{'✅' if passed else '❌'} AGENT7 — {name}")
+EOF
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FINAL — Count Results
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+echo ""
+echo "═══════════════════════════════════"
+echo "   MASTER TEST SUMMARY"
+echo "═══════════════════════════════════"
+echo "If any ❌ appear above, list them"
+echo "and fix each one before pushing."
+echo "═══════════════════════════════════"

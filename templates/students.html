@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}Students – UniSchedule{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>🎓 Student Enrollment</h2>
+    <p>Enroll students and assign courses</p>
+</div>
+
+<div class="card">
+    <div class="card-title" id="formTitle">Add New Student</div>
+    <form id="stuForm" onsubmit="saveStudent(event)">
+        <input type="hidden" id="editId" value="">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Student ID</label>
+                <input type="text" id="stuUid" required placeholder="e.g. STU001">
+            </div>
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="stuName" required placeholder="e.g. John Doe">
+            </div>
+            <div class="form-group">
+                <label>Department</label>
+                <select id="stuDept" required onchange="filterCourses()"></select>
+            </div>
+            <div class="form-group">
+                <label>Courses Enrolled</label>
+                <select id="stuCourses" multiple></select>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💾 Save</button>
+            <button type="button" class="btn btn-outline" onclick="resetForm()">Cancel</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-title">Enrollment Summary</div>
+    <div class="stats-grid" id="enrollStats"></div>
+</div>
+
+<div class="card">
+    <div class="card-title">All Students</div>
+    <div class="filter-bar no-print">
+        <select id="filterDept" onchange="loadStudents()">
+            <option value="">All Departments</option>
+        </select>
+    </div>
+    <div class="table-wrapper">
+        <table id="stuDataTable" class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Courses</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="stuTable"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let studentList = [], departments = [], allCourses = [];
+
+    async function init() {
+        departments = await api('/api/departments');
+        allCourses = await api('/api/courses');
+        populateSelect('stuDept', departments, d => d.id, d => `${d.code} – ${d.name}`, 'Select Department');
+        populateSelect('filterDept', departments, d => d.id, d => `${d.code} – ${d.name}`, 'All Departments');
+        filterCourses();
+        loadStudents();
+    }
+
+    function filterCourses() {
+        const deptId = document.getElementById('stuDept').value;
+        const filtered = deptId ? allCourses.filter(c => c.department_id == deptId) : allCourses;
+        populateSelect('stuCourses', filtered, c => c.id, c => `${c.code} – ${c.name}`);
+    }
+
+    async function loadStudents() {
+        studentList = await api('/api/students');
+        const filter = document.getElementById('filterDept').value;
+        let filtered = studentList;
+        if (filter) filtered = studentList.filter(s => s.department_id == filter);
+
+        const tbody = document.getElementById('stuTable');
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No students enrolled yet</td></tr>';
+        } else {
+            tbody.innerHTML = filtered.map(s => `
+            <tr>
+                <td><span class="badge badge-purple">${s.student_uid}</span></td>
+                <td>${s.name}</td>
+                <td>${s.department_name}</td>
+                <td>${(s.courses_enrolled_names || []).join(', ') || '—'}</td>
+                <td class="actions-cell">
+                    <button class="btn btn-outline btn-sm" title="View Timetable" onclick="window.location.href='/timetable/student?id=${s.id}'">📅</button>
+                    <button class="btn btn-outline btn-sm" onclick="editStu(${s.id})">✏️</button>
+                    <button class="btn btn-outline btn-sm" title="Upload Photo" onclick="uploadPhoto(${s.id}, '${s.name}')">📷</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteStu(${s.id})">🗑️</button>
+                </td>
+            </tr>
+        `).join('');
+        }
+        
+        if ($.fn.DataTable) {
+            if ($.fn.DataTable.isDataTable('#stuDataTable')) {
+                $('#stuDataTable').DataTable().destroy();
+            }
+            if (filtered.length > 0) {
+                $('#stuDataTable').DataTable({ pageLength: 25 });
+            }
+        }
+
+        // Enrollment summary
+        const stats = document.getElementById('enrollStats');
+        const deptCounts = {};
+        studentList.forEach(s => {
+            deptCounts[s.department_name] = (deptCounts[s.department_name] || 0) + 1;
+        });
+        stats.innerHTML = Object.entries(deptCounts).map(([name, count]) => `
+        <div class="stat-card">
+            <div class="stat-value">${count}</div>
+            <div class="stat-label">${name}</div>
+        </div>
+    `).join('') || '<div class="empty-state"><p>No enrollment data</p></div>';
+    }
+
+    async function saveStudent(e) {
+        e.preventDefault();
+        const id = document.getElementById('editId').value;
+        const data = {
+            student_uid: document.getElementById('stuUid').value,
+            name: document.getElementById('stuName').value,
+            department_id: document.getElementById('stuDept').value,
+            courses_enrolled: getSelectedValues('stuCourses')
+        };
+        if (id) {
+            await api(`/api/students/${id}`, 'PUT', data);
+            showToast('Student updated!');
+        } else {
+            await api('/api/students', 'POST', data);
+            showToast('Student enrolled!');
+        }
+        resetForm();
+        loadStudents();
+    }
+
+    function editStu(id) {
+        const s = studentList.find(x => x.id === id);
+        if (!s) return;
+        document.getElementById('editId').value = s.id;
+        document.getElementById('stuUid').value = s.student_uid;
+        document.getElementById('stuName').value = s.name;
+        document.getElementById('stuDept').value = s.department_id;
+        filterCourses();
+        setTimeout(() => {
+            const sel = document.getElementById('stuCourses');
+            Array.from(sel.options).forEach(o => {
+                o.selected = s.courses_enrolled.includes(parseInt(o.value));
+            });
+        }, 100);
+        document.getElementById('formTitle').textContent = 'Edit Student';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.getElementById('stuUid').focus();
+    }
+
+    async function deleteStu(id) {
+        if (!confirmAction('Delete this student?')) return;
+        await api(`/api/students/${id}`, 'DELETE');
+        showToast('Student removed!', 'danger');
+        loadStudents();
+    }
+
+    function uploadPhoto(id, name) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        document.body.appendChild(input);
+        input.style.display = 'none';
+        input.onchange = async () => {
+            const file = input.files[0];
+            if (!file) return;
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.onload = async () => {
+                // Resize to max 300x300
+                const MAX = 300;
+                let w = img.width, h = img.height;
+                if (w > h) { h = h * MAX / w; w = MAX; }
+                else { w = w * MAX / h; h = MAX; }
+                canvas.width = w;
+                canvas.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+                const base64 = canvas.toDataURL('image/jpeg', 0.7);
+                try {
+                    const res = await fetch(`/api/students/${id}/photo`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ photo: base64 })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        alert(`✅ Photo uploaded for ${name}!`);
+                    } else {
+                        alert(`❌ Failed: ${data.error || 'Unknown error'}`);
+                    }
+                } catch(e) {
+                    alert('❌ Upload failed: ' + e.message);
+                }
+            };
+            img.src = URL.createObjectURL(file);
+        };
+        input.click();
+    }
+
+    function resetForm() {
+        document.getElementById('editId').value = '';
+        document.getElementById('stuForm').reset();
+        document.getElementById('formTitle').textContent = 'Add New Student';
+    }
+
+    init();
+</script>
+{% endblock %}

@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Attendance – UniSchedule{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>📋 My Attendance</h2>
+    <p>Subject-wise and overall attendance summary</p>
+</div>
+
+<div id="attendanceArea">
+    <div class="card">
+        <div class="empty-state">
+            <div class="icon">⏳</div>
+            <p>Loading attendance data...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const studentId = {{ session.get('user_id', 0) }};
+
+    async function init() {
+        try {
+            const data = await api(`/api/attendance/student/${studentId}`);
+            renderAttendance(data);
+        } catch(e) {
+            document.getElementById('attendanceArea').innerHTML = `
+                <div class="card">
+                    <div class="empty-state">
+                        <div class="icon">❌</div>
+                        <p>Failed to load attendance data. Please try again later.</p>
+                    </div>
+                </div>`;
+        }
+    }
+
+    function renderAttendance(data) {
+        const area = document.getElementById('attendanceArea');
+
+        if (!data.subjects || data.subjects.length === 0) {
+            area.innerHTML = `
+                <div class="card">
+                    <div class="empty-state">
+                        <div class="icon">📋</div>
+                        <p>No attendance records found yet. Attendance will appear here once your faculty marks it.</p>
+                    </div>
+                </div>`;
+            return;
+        }
+
+        const overallColor = data.overall_percentage < 75 ? '#ff4444' : '#4caf50';
+        const overallBg = data.overall_percentage < 75 ? 'rgba(255,60,60,0.1)' : 'rgba(76,175,80,0.1)';
+
+        area.innerHTML = `
+        <!-- Overall Stats -->
+        <div class="card">
+            <div class="card-title">📊 Overall Attendance</div>
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 16px;">
+                <div style="flex:1; min-width: 200px; padding: 24px; border-radius: 12px; background: ${overallBg}; text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: 800; color: ${overallColor};">${data.overall_percentage}%</div>
+                    <div style="font-size: 0.9rem; opacity: 0.7; margin-top: 4px;">Overall Attendance</div>
+                </div>
+                <div style="flex:1; min-width: 200px; padding: 24px; border-radius: 12px; background: rgba(255,255,255,0.05); text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: 800; color: var(--text-primary, #e0e0e0);">${data.total_present}</div>
+                    <div style="font-size: 0.9rem; opacity: 0.7; margin-top: 4px;">Classes Attended</div>
+                </div>
+                <div style="flex:1; min-width: 200px; padding: 24px; border-radius: 12px; background: rgba(255,255,255,0.05); text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: 800; color: var(--text-primary, #e0e0e0);">${data.total_classes}</div>
+                    <div style="font-size: 0.9rem; opacity: 0.7; margin-top: 4px;">Total Classes</div>
+                </div>
+            </div>
+            ${data.overall_percentage < 75 ? '<div style="margin-top: 16px; padding: 12px 16px; background: rgba(255,60,60,0.12); border-left: 4px solid #ff4444; border-radius: 6px; color: #ff6b6b; font-size: 0.9rem;">⚠ Your overall attendance is below 75%. Please attend more classes to avoid issues.</div>' : ''}
+        </div>
+
+        <!-- Subject-wise Breakdown -->
+        <div class="card">
+            <div class="card-title">📚 Subject-wise Attendance</div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Course Code</th>
+                            <th>Course Name</th>
+                            <th>Classes Attended</th>
+                            <th>Total Classes</th>
+                            <th>Percentage</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.subjects.map(s => {
+                            const isLow = s.percentage < 75;
+                            const rowStyle = isLow ? ' style="background:rgba(255,60,60,0.15);"' : '';
+                            const pctColor = isLow ? '#ff4444' : '#4caf50';
+                            const statusBadge = isLow 
+                                ? '<span style="background:rgba(255,60,60,0.2); color:#ff4444; padding:4px 10px; border-radius:20px; font-size:0.8rem; font-weight:600;">Low ⚠</span>'
+                                : '<span style="background:rgba(76,175,80,0.2); color:#4caf50; padding:4px 10px; border-radius:20px; font-size:0.8rem; font-weight:600;">Good ✓</span>';
+                            return `
+                            <tr${rowStyle}>
+                                <td><strong>${s.course_code}</strong></td>
+                                <td>${s.course_name}</td>
+                                <td>${s.classes_attended}</td>
+                                <td>${s.total_classes}</td>
+                                <td><span style="color:${pctColor}; font-weight:700;">${s.percentage}%</span></td>
+                                <td>${statusBadge}</td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Attendance Trend Graph -->
+        <div class="card" style="margin-top: 20px;">
+            <div class="card-title">📈 Attendance Trend (Last 4 Weeks)</div>
+            <div style="height: 300px; width: 100%;">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+        `;
+        
+        // Render Chart
+        if (data.trend && data.trend.length > 0) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.trend.map(t => t.label),
+                    datasets: [{
+                        label: 'Attendance %',
+                        data: data.trend.map(t => t.percentage),
+                        borderColor: '#gold',
+                        backgroundColor: 'rgba(255, 215, 0, 0.2)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) { return value + '%' }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    init();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}

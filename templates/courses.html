@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Courses – UniSchedule{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>📖 Course Management</h2>
+    <p>Define courses for each department</p>
+</div>
+
+<div class="card">
+    <div class="card-title" id="formTitle">Add New Course</div>
+    <form id="courseForm" onsubmit="saveCourse(event)">
+        <input type="hidden" id="editId" value="">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Course Code</label>
+                <input type="text" id="courseCode" required placeholder="e.g. CSE101">
+            </div>
+            <div class="form-group">
+                <label>Course Name</label>
+                <input type="text" id="courseName" required placeholder="e.g. Data Structures">
+            </div>
+            <div class="form-group">
+                <label>Department</label>
+                <select id="courseDept" required></select>
+            </div>
+            <div class="form-group">
+                <label>Credits (1–5)</label>
+                <input type="number" id="courseCredits" min="1" max="5" value="3" required>
+            </div>
+            <div class="form-group">
+                <label>Difficulty</label>
+                <select id="courseDifficulty">
+                    <option value="Easy">Easy</option>
+                    <option value="Medium" selected>Medium</option>
+                    <option value="Hard">Hard</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Type</label>
+                <select id="courseType">
+                    <option value="Theory">Theory</option>
+                    <option value="Lab">Lab</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💾 Save</button>
+            <button type="button" class="btn btn-outline" onclick="resetForm()">Cancel</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-title">All Courses</div>
+    <div class="filter-bar no-print">
+        <select id="filterDept" onchange="loadCourses()">
+            <option value="">All Departments</option>
+        </select>
+    </div>
+    <div class="table-wrapper">
+        <table id="courseDataTable" class="data-table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Credits</th>
+                    <th>Difficulty</th>
+                    <th>Classes/Week</th>
+                    <th>Type</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="courseTable"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let courses = [];
+    let departments = [];
+
+    async function init() {
+        departments = await api('/api/departments');
+        populateSelect('courseDept', departments, d => d.id, d => `${d.code} – ${d.name}`, 'Select Department');
+        populateSelect('filterDept', departments, d => d.id, d => `${d.code} – ${d.name}`, 'All Departments');
+        loadCourses();
+    }
+
+    async function loadCourses() {
+        courses = await api('/api/courses');
+        const filter = document.getElementById('filterDept').value;
+        let filtered = courses;
+        if (filter) filtered = courses.filter(c => c.department_id == filter);
+
+        const tbody = document.getElementById('courseTable');
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No courses yet</td></tr>';
+            return;
+        }
+        const diffBadge = d => d === 'Hard' ? 'badge-red' : d === 'Medium' ? 'badge-yellow' : 'badge-green';
+        tbody.innerHTML = filtered.map(c => `
+        <tr>
+            <td><span class="badge badge-purple">${c.code}</span></td>
+            <td>${c.name}</td>
+            <td>${c.department_name}</td>
+            <td>${c.credits}</td>
+            <td><span class="badge ${diffBadge(c.difficulty)}">${c.difficulty}</span></td>
+            <td>${c.classes_per_week}</td>
+            <td><span class="badge badge-blue">${c.course_type}</span></td>
+            <td class="actions-cell">
+                <button class="btn btn-outline btn-sm" onclick="editCourse(${c.id})">✏️</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteCourse(${c.id})">🗑️</button>
+            </td>
+        </tr>
+    `).join('');
+    
+        if ($.fn.DataTable) {
+            if ($.fn.DataTable.isDataTable('#courseDataTable')) {
+                $('#courseDataTable').DataTable().destroy();
+            }
+            if (courses.length > 0) {
+                $('#courseDataTable').DataTable({ pageLength: 25 });
+            }
+        }
+    }
+
+    async function saveCourse(e) {
+        e.preventDefault();
+        const id = document.getElementById('editId').value;
+        const data = {
+            code: document.getElementById('courseCode').value,
+            name: document.getElementById('courseName').value,
+            department_id: document.getElementById('courseDept').value,
+            credits: parseInt(document.getElementById('courseCredits').value),
+            difficulty: document.getElementById('courseDifficulty').value,
+            course_type: document.getElementById('courseType').value
+        };
+        if (id) {
+            await api(`/api/courses/${id}`, 'PUT', data);
+            showToast('Course updated!');
+        } else {
+            await api('/api/courses', 'POST', data);
+            showToast('Course created!');
+        }
+        resetForm();
+        loadCourses();
+    }
+
+    function editCourse(id) {
+        const c = courses.find(x => x.id === id);
+        if (!c) return;
+        document.getElementById('editId').value = c.id;
+        document.getElementById('courseCode').value = c.code;
+        document.getElementById('courseName').value = c.name;
+        document.getElementById('courseDept').value = c.department_id;
+        document.getElementById('courseCredits').value = c.credits;
+        document.getElementById('courseDifficulty').value = c.difficulty;
+        document.getElementById('courseType').value = c.course_type;
+        document.getElementById('formTitle').textContent = 'Edit Course';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.getElementById('courseCode').focus();
+    }
+
+    async function deleteCourse(id) {
+        if (!confirmAction('Delete this course?')) return;
+        await api(`/api/courses/${id}`, 'DELETE');
+        showToast('Course deleted!', 'danger');
+        loadCourses();
+    }
+
+    function resetForm() {
+        document.getElementById('editId').value = '';
+        document.getElementById('courseForm').reset();
+        document.getElementById('formTitle').textContent = 'Add New Course';
+    }
+
+    init();
+</script>
+{% endblock %}

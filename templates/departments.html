@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Departments – UniSchedule{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>🏢 Department Management</h2>
+    <p>Create and manage university departments</p>
+</div>
+
+<div class="card">
+    <div class="card-title" id="formTitle">Add New Department</div>
+    <form id="deptForm" onsubmit="saveDepartment(event)">
+        <input type="hidden" id="editId" value="">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Department Name</label>
+                <input type="text" id="deptName" required placeholder="e.g. Computer Science">
+            </div>
+            <div class="form-group">
+                <label>Department Code</label>
+                <input type="text" id="deptCode" required placeholder="e.g. CSE">
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💾 Save</button>
+            <button type="button" class="btn btn-outline" onclick="resetForm()">Cancel</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-title">All Departments</div>
+    <div class="table-wrapper">
+        <table id="deptDataTable" class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Code</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="deptTable"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let departments = [];
+
+    async function loadDepartments() {
+        departments = await api('/api/departments');
+        const tbody = document.getElementById('deptTable');
+        if (departments.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No departments yet</td></tr>';
+            return;
+        }
+        tbody.innerHTML = departments.map(d => `
+        <tr>
+            <td>${d.id}</td>
+            <td>${d.name}</td>
+            <td><span class="badge badge-purple">${d.code}</span></td>
+            <td class="actions-cell">
+                <button class="btn btn-outline btn-sm" onclick="editDept(${d.id})">✏️ Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteDept(${d.id})">🗑️ Delete</button>
+            </td>
+        </tr>
+    `).join('');
+    
+        if ($.fn.DataTable) {
+            if ($.fn.DataTable.isDataTable('#deptDataTable')) {
+                $('#deptDataTable').DataTable().destroy();
+            }
+            if (departments.length > 0) {
+                $('#deptDataTable').DataTable({ pageLength: 25 });
+            }
+        }
+    }
+
+    async function saveDepartment(e) {
+        e.preventDefault();
+        const id = document.getElementById('editId').value;
+        const data = {
+            name: document.getElementById('deptName').value,
+            code: document.getElementById('deptCode').value
+        };
+        if (id) {
+            await api(`/api/departments/${id}`, 'PUT', data);
+            showToast('Department updated!');
+        } else {
+            await api('/api/departments', 'POST', data);
+            showToast('Department created!');
+        }
+        resetForm();
+        loadDepartments();
+    }
+
+    function editDept(id) {
+        const d = departments.find(x => x.id === id);
+        if (!d) return;
+        document.getElementById('editId').value = d.id;
+        document.getElementById('deptName').value = d.name;
+        document.getElementById('deptCode').value = d.code;
+        document.getElementById('formTitle').textContent = 'Edit Department';
+    }
+
+    async function deleteDept(id) {
+        if (!confirmAction('Delete this department? This will also delete its courses and sections.')) return;
+        await api(`/api/departments/${id}`, 'DELETE');
+        showToast('Department deleted!', 'danger');
+        loadDepartments();
+    }
+
+    function resetForm() {
+        document.getElementById('editId').value = '';
+        document.getElementById('deptForm').reset();
+        document.getElementById('formTitle').textContent = 'Add New Department';
+    }
+
+    loadDepartments();
+</script>
+{% endblock %}

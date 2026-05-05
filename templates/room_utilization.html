@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Room Utilization Dashboard – UniSchedule{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🚪 Room Utilization Dashboard</h2>
+    <p>Live heatmap of classroom availability and usage</p>
+    <div class="header-actions">
+        <button class="btn btn-primary" onclick="exportHeatmapPDF()">📄 Export to PDF</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">Room Heatmap</div>
+    <div class="table-container" style="overflow-x: auto;">
+        <table class="data-table" id="utilizationTable">
+            <thead>
+                <tr id="heatmapHeader">
+                    <th>Room</th>
+                    <th>Capacity</th>
+                    <th>Type</th>
+                    <th>Utilization</th>
+                    <!-- Timeslot columns will be injected here -->
+                </tr>
+            </thead>
+            <tbody id="heatmapBody">
+                <tr><td colspan="10" style="text-align: center;">Loading heatmap...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .heatmap-cell {
+        text-align: center;
+        font-size: 0.8rem;
+        padding: 4px !important;
+        border: 1px solid #ddd;
+        min-width: 80px;
+    }
+    .dark-mode .heatmap-cell {
+        border-color: #444;
+    }
+    .slot-free {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+    }
+    .dark-mode .slot-free {
+        background-color: #1b5e20;
+        color: #a5d6a7;
+    }
+    .slot-used {
+        background-color: #ffebee;
+        color: #c62828;
+        font-weight: 600;
+    }
+    .dark-mode .slot-used {
+        background-color: #b71c1c;
+        color: #ef9a9a;
+    }
+    .util-bar-container {
+        width: 100%;
+        background-color: #e0e0e0;
+        border-radius: 4px;
+        height: 8px;
+        margin-top: 4px;
+    }
+    .dark-mode .util-bar-container {
+        background-color: #424242;
+    }
+    .util-bar {
+        height: 100%;
+        border-radius: 4px;
+        background-color: var(--primary-color);
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadUtilization() {
+        try {
+            const res = await api('/api/room-utilization');
+            if (!res || !res.rooms) return;
+
+            // Build headers
+            const headerRow = document.getElementById('heatmapHeader');
+            let headerHTML = `
+                <th>Room</th>
+                <th>Capacity</th>
+                <th>Type</th>
+                <th>Utilization</th>
+            `;
+            res.days.forEach(day => {
+                res.timeslots.forEach(ts => {
+                    headerHTML += `<th title="${day} ${ts}">${day.substring(0,3)}<br>${ts}</th>`;
+                });
+            });
+            headerRow.innerHTML = headerHTML;
+
+            // Build body
+            const tbody = document.getElementById('heatmapBody');
+            tbody.innerHTML = '';
+            
+            res.rooms.forEach(item => {
+                const tr = document.createElement('tr');
+                let rowHTML = `
+                    <td><strong>${item.room.room_number}</strong></td>
+                    <td>${item.room.capacity}</td>
+                    <td>${item.room.room_type}</td>
+                    <td>
+                        ${item.utilization_pct}%
+                        <div class="util-bar-container">
+                            <div class="util-bar" style="width: ${item.utilization_pct}%;"></div>
+                        </div>
+                    </td>
+                `;
+
+                res.days.forEach(day => {
+                    res.timeslots.forEach(ts => {
+                        const slot = item.schedule[day][ts];
+                        if (slot) {
+                            rowHTML += `<td class="heatmap-cell slot-used" title="${slot.course_code} (${slot.section})">${slot.course_code}<br>${slot.section}</td>`;
+                        } else {
+                            rowHTML += `<td class="heatmap-cell slot-free">Free</td>`;
+                        }
+                    });
+                });
+
+                tr.innerHTML = rowHTML;
+                tbody.appendChild(tr);
+            });
+            
+            if ($.fn.DataTable) {
+                if ($.fn.DataTable.isDataTable('#utilizationTable')) {
+                    $('#utilizationTable').DataTable().destroy();
+                }
+                $('#utilizationTable').DataTable({
+                    scrollX: true,
+                    pageLength: 25,
+                    ordering: true,
+                    fixedColumns: {
+                        left: 4
+                    }
+                });
+            }
+
+        } catch (e) {
+            console.error(e);
+            showToast('Failed to load utilization matrix', 'error');
+        }
+    }
+
+    function exportHeatmapPDF() {
+        window.location.href = '/api/export-timetable/pdf?view=utilization';
+    }
+
+    document.addEventListener('DOMContentLoaded', loadUtilization);
+</script>
+{% endblock %}
