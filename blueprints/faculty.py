@@ -35,7 +35,6 @@ def faculty_app():
             "experience": "5 years",
             "canTeach": [c.code for c in f.courses_can_teach],
             "assignedSections": assigned_secs,
-            "password": "password",
             "photo": f.photo_url or None
         })
 

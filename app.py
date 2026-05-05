@@ -72,8 +72,6 @@ def index():
     return redirect('/login')
 
 # ─── CSRF Exemptions ────────────────────────────────────────
-csrf.exempt(api)
-csrf.exempt(auth)
 csrf.exempt(student_bp)
 csrf.exempt(faculty_bp)
 csrf.exempt(chatbot_admin_bp)
