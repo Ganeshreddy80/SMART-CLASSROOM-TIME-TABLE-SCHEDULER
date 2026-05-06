@@ -97,14 +97,32 @@ app.register_blueprint(anomalies_bp)
 def index():
     return redirect('/login')
 
+@app.route('/health')
+def health():
+    """Health check endpoint for monitoring and load balancers."""
+    try:
+        from models import db
+        db.session.execute("SELECT 1")
+        db_status = "ok"
+    except Exception as e:
+        db_status = f"error: {e}"
 
-@app.after_request
-def set_csp_headers(response):
-    response.headers['Content-Security-Policy'] = (
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data: blob:; font-src 'self'; frame-ancestors 'self'; base-uri 'self';"
-    )
-    return response
+    import time
+    return {
+        "status": "ok" if db_status == "ok" else "degraded",
+        "database": db_status,
+        "timestamp": time.time()
+    }
+
+# ─── Request Logging Middleware ─────────────────────────────
+@app.before_request
+def log_request():
+    """Log every incoming request with method, path, and remote address."""
+    from flask import request
+    import logging, time
+    app.logger.setLevel(logging.INFO)
+    if not app.debug:
+        app.logger.info(f"{request.method} {request.path} [{request.remote_addr}]")
 
 # ─── CSRF Exemptions ────────────────────────────────────────
 csrf.exempt(student_bp)
