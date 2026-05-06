@@ -186,10 +186,10 @@ def faculty_attendance_api():
         query = query.filter_by(section_id=filter_section)
     if filter_date:
         try:
-            from datetime import datetime
-            dt = datetime.strptime(filter_date, '%Y-%m-%d').date()
+            from utils.date_helpers import parse_date
+            dt = parse_date(filter_date)
             query = query.filter_by(date=dt)
-        except Exception:
+        except ValueError:
             pass
 
     records = query.order_by(Attendance.date.desc()).all()
