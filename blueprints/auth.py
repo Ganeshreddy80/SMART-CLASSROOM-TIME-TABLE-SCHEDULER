@@ -76,16 +76,14 @@ def login_page():
         if not password:
             return render_template('login.html', error='Wrong credentials')
 
-        # Check admin
-        if email == ADMIN_EMAIL:
-            if check_password_hash(get_admin_password_hash(), password):
-                session.permanent = True
-                session['role'] = 'admin'
-                session['user_id'] = 'admin'
-                session['user_name'] = 'Admin User'
-                return redirect(url_for('admin.dashboard'))
-            else:
-                return render_template('login.html', error='Wrong credentials')
+        # Check admin (uses database User model, consistent with other logins)
+        admin_user = Student.query.filter_by(email=email).first()
+        if admin_user and admin_user.check_password(password) and admin_user.role == 'admin':
+            session.permanent = True
+            session['role'] = 'admin'
+            session['user_id'] = admin_user.id
+            session['user_name'] = admin_user.name
+            return redirect(url_for('admin.dashboard'))
 
         # Check faculty
         f = Faculty.query.filter_by(email=email).first()

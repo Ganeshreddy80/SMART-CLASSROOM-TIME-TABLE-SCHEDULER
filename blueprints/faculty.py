@@ -72,14 +72,14 @@ def faculty_app():
             "section": sec.id if sec else None,
             "email": s.email,
             "dept": s.department.code if s.department else "",
-            "semester": int(_DEFAULT_STUDENT_SEMESTER),
-            "year": int(_DEFAULT_STUDENT_YEAR),
-            "phone": "+91 00000 00000",
-            "dob": "01 Jan 2005",
-            "blood": "O+",
-            "hostel": "Day Scholar",
-            "advisor": "Faculty",
-            "cgpa": 8.5,
+            "semester": 4,
+            "year": 2,
+            "phone": os.environ.get('DEFAULT_STUDENT_PHONE', '+91 00000 00000'),
+            "dob": os.environ.get('DEFAULT_STUDENT_DOB', '01 Jan 2005'),
+            "blood": os.environ.get('DEFAULT_STUDENT_BLOOD', 'O+'),
+            "hostel": os.environ.get('DEFAULT_STUDENT_HOSTEL', 'Day Scholar'),
+            "advisor": os.environ.get('DEFAULT_STUDENT_ADVISOR', 'Faculty'),
+            "cgpa": float(os.environ.get('DEFAULT_STUDENT_CGPA', '8.5')),
             "photo": s.photo_url or None
         })
 
