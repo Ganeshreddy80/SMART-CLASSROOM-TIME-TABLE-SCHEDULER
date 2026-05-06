@@ -31,37 +31,42 @@ def generate_default_password(name):
     return f"{firstname}@123"
 
 
+from sqlalchemy import or_, exists
+from operator import or_
+
 def ensure_unique_email(email, exclude_faculty_id=None, exclude_student_id=None):
     """Check if email is unique across Faculty and Student tables. If not, append a number."""
     base_local, domain = email.split('@')
     candidate = email
     counter = 2
+    # Check if base candidate is already unique with a single query
+    fac_exists = db.session.query(exists().where(Faculty.email == candidate)).scalar()
+    stu_exists = db.session.query(exists().where(Student.email == candidate)).scalar()
+    if not fac_exists and not stu_exists:
+        return candidate
     while True:
-        fac_query = Faculty.query.filter_by(email=candidate)
-        stu_query = Student.query.filter_by(email=candidate)
-        if exclude_faculty_id:
-            fac_query = fac_query.filter(Faculty.id != exclude_faculty_id)
-        if exclude_student_id:
-            stu_query = stu_query.filter(Student.id != exclude_student_id)
-        if not fac_query.first() and not stu_query.first():
+        # Use exists() for efficient check without fetching rows
+        fac_exists = db.session.query(exists().where(Faculty.email == candidate)).scalar()
+        stu_exists = db.session.query(exists().where(Student.email == candidate)).scalar()
+        if not fac_exists and not stu_exists:
             return candidate
         candidate = f"{base_local}{counter}@{domain}"
         counter += 1
 
 # --- Association Tables ---
 faculty_courses = db.Table('faculty_courses',
-    db.Column('faculty_id', db.Integer, db.ForeignKey('faculty.id'), primary_key=True),
-    db.Column('course_id', db.Integer, db.ForeignKey('course.id'), primary_key=True)
+    db.Column('faculty_id', db.Integer, db.ForeignKey('faculty.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('course_id', db.Integer, db.ForeignKey('course.id', ondelete='CASCADE'), primary_key=True)
 )
 
 student_courses = db.Table('student_courses',
-    db.Column('student_id', db.Integer, db.ForeignKey('student.id'), primary_key=True),
-    db.Column('course_id', db.Integer, db.ForeignKey('course.id'), primary_key=True)
+    db.Column('student_id', db.Integer, db.ForeignKey('student.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('course_id', db.Integer, db.ForeignKey('course.id', ondelete='CASCADE'), primary_key=True)
 )
 
 section_students = db.Table('section_students',
-    db.Column('section_id', db.Integer, db.ForeignKey('section.id'), primary_key=True),
-    db.Column('student_id', db.Integer, db.ForeignKey('student.id'), primary_key=True)
+    db.Column('section_id', db.Integer, db.ForeignKey('section.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('student_id', db.Integer, db.ForeignKey('student.id', ondelete='CASCADE'), primary_key=True)
 )
 
 
@@ -121,7 +126,7 @@ class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(20), nullable=False, unique=True)
     name = db.Column(db.String(100), nullable=False)
-    department_id = db.Column(db.Integer, db.ForeignKey('department.id'), nullable=False)
+    department_id = db.Column(db.Integer, db.ForeignKey('department.id', ondelete='RESTRICT'), nullable=False)
     credits = db.Column(db.Integer, nullable=False, default=3)
     difficulty = db.Column(db.String(20), nullable=False, default='Medium')  # Hard, Medium, Easy
     classes_per_week = db.Column(db.Integer, nullable=False, default=4)
@@ -146,7 +151,7 @@ class Faculty(db.Model):
     faculty_uid = db.Column(db.String(20), nullable=False, unique=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(150), nullable=True, unique=True)
-    department_id = db.Column(db.Integer, db.ForeignKey('department.id'), nullable=False)
+    department_id = db.Column(db.Integer, db.ForeignKey('department.id', ondelete='RESTRICT'), nullable=False)
     available_slots = db.Column(db.Text, default='{}')  # JSON: {"Monday": ["9:00-10:00", ...], ...}
     password_hash = db.Column(db.String(255), nullable=True)
     photo_url = db.Column(db.Text, nullable=True)
@@ -183,7 +188,7 @@ class Student(db.Model):
     student_uid = db.Column(db.String(20), nullable=False, unique=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(150), nullable=True, unique=True)
-    department_id = db.Column(db.Integer, db.ForeignKey('department.id'), nullable=False)
+    department_id = db.Column(db.Integer, db.ForeignKey('department.id', ondelete='RESTRICT'), nullable=False)
     password_hash = db.Column(db.String(255), nullable=True)
     photo_url = db.Column(db.Text, nullable=True)
     courses_enrolled = db.relationship('Course', secondary=student_courses, lazy='subquery',
@@ -213,7 +218,7 @@ class Student(db.Model):
 class Section(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(10), nullable=False)  # A, B, C...
-    department_id = db.Column(db.Integer, db.ForeignKey('department.id'), nullable=False)
+    department_id = db.Column(db.Integer, db.ForeignKey('department.id', ondelete='RESTRICT'), nullable=False)
     student_count = db.Column(db.Integer, default=0)
     students = db.relationship('Student', secondary=section_students, lazy='subquery',
                                 backref=db.backref('sections', lazy=True))
@@ -251,12 +256,12 @@ class Classroom(db.Model):
 
 class TimetableEntry(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    section_id = db.Column(db.Integer, db.ForeignKey('section.id'), nullable=False)
+    section_id = db.Column(db.Integer, db.ForeignKey('section.id', ondelete='CASCADE'), nullable=False)
     day = db.Column(db.String(20), nullable=False)
     timeslot = db.Column(db.String(20), nullable=False)
-    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
-    faculty_id = db.Column(db.Integer, db.ForeignKey('faculty.id'), nullable=False)
-    classroom_id = db.Column(db.Integer, db.ForeignKey('classroom.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id', ondelete='CASCADE'), nullable=False)
+    faculty_id = db.Column(db.Integer, db.ForeignKey('faculty.id', ondelete='CASCADE'), nullable=False)
+    classroom_id = db.Column(db.Integer, db.ForeignKey('classroom.id', ondelete='CASCADE'), nullable=False)
 
     section = db.relationship('Section', backref='timetable_entries')
     course = db.relationship('Course', backref='timetable_entries')
@@ -282,13 +287,18 @@ class TimetableEntry(db.Model):
 
 
 class PasswordResetToken(db.Model):
+    __tablename__ = 'password_reset_token'
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(150), nullable=False)
+    email = db.Column(db.String(150), nullable=False, index=True)
     otp_hash = db.Column(db.String(255), nullable=False)
     reset_token = db.Column(db.String(100), nullable=True, unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    expires_at = db.Column(db.DateTime, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
     used = db.Column(db.Boolean, default=False)
+
+    __table_args__ = (
+        db.Index('idx_prt_expires_at', 'expires_at'),
+    )
 
     def set_otp(self, otp):
         self.otp_hash = generate_password_hash(str(otp), method='pbkdf2:sha256')
@@ -302,11 +312,11 @@ class PasswordResetToken(db.Model):
 
 class Attendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
-    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
-    section_id = db.Column(db.Integer, db.ForeignKey('section.id'), nullable=False)
-    date = db.Column(db.Date, nullable=False)
-    status = db.Column(db.String(10), nullable=False, default='absent')  # 'present' or 'absent'
+    student_id = db.Column(db.Integer, db.ForeignKey('student.id', ondelete='CASCADE'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id', ondelete='CASCADE'), nullable=False)
+    section_id = db.Column(db.Integer, db.ForeignKey('section.id', ondelete='CASCADE'), nullable=False)
+    date = db.Column(db.Date, nullable=False, index=True)
+    status = db.Column(db.String(10), nullable=False, default='absent', index=True)  # 'present' or 'absent'
 
     student = db.relationship('Student', backref='attendance_records')
     course = db.relationship('Course', backref='attendance_records')
