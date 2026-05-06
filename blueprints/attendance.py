@@ -61,7 +61,7 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
 
 
 # Known VPN / datacenter CIDR ranges (IPv4) — extend this list as needed
-_VPN_RANGES = [
+_VPN_RANGES = json.loads(os.environ.get('VPN_RANGES', json.dumps([
     "104.16.0.0/12", "172.64.0.0/13", "162.158.0.0/15",
     "193.138.218.0/24", "185.213.154.0/23",
     "80.240.0.0/13", "5.180.0.0/14",
@@ -72,7 +72,7 @@ _VPN_RANGES = [
     "104.196.0.0/14", "107.178.192.0/18", "130.211.0.0/16",
     "139.59.0.0/16", "142.93.0.0/16", "159.203.0.0/16",
     "165.22.0.0/15", "167.71.0.0/16", "167.99.0.0/16",
-]
+]))
 
 _VPN_NETWORKS = [ipaddress.ip_network(cidr, strict=False) for cidr in _VPN_RANGES]
 

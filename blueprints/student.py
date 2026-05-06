@@ -31,69 +31,9 @@ def student_attendance_page():
     return render_template('student_attendance.html')
 
 
-@student_bp.route('/student/logout')
-def student_logout():
-    session.clear()
-    return redirect(url_for('auth.login_page'))
-
-
-@student_bp.route('/student/upload-photo', methods=['POST'])
-@login_required
-def student_upload_photo():
-    if session.get('role') != 'student':
-        return jsonify({'error': 'Unauthorized'}), 403
-
-    student_id = session.get('user_id')
-    if not student_id:
-        return jsonify({'error': 'Unauthorized'}), 403
-
-    s = Student.query.get_or_404(student_id)
-    data = request.json or {}
-    photo_data = data.get('photo')
-
-    if not photo_data:
-        return jsonify({'error': 'No photo provided'}), 400
-    if not photo_data.startswith('data:image'):
-        return jsonify({'error': 'Invalid image format'}), 400
-
-    s.photo_url = photo_data
-    db.session.commit()
-
-    return jsonify({'message': 'Photo saved', 'photo_url': s.photo_url})
-
-
 @student_bp.route('/student/api/profile')
 @login_required
 def student_profile():
-    if session.get('role') != 'student':
-        return jsonify({'error': 'Unauthorized'}), 403
-    s = Student.query.get(session.get('user_id'))
-    if not s:
-        return jsonify({'error': 'Student not found'}), 404
-
-    return jsonify({
-        'id': s.id,
-        'name': s.name,
-        'regNo': s.student_uid,
-        'dept': s.department.name if s.department else '',
-        'section': s.sections[0].id if s.sections else None,
-        'sectionName': s.sections[0].name if s.sections else 'Unassigned',
-        'year': 2,
-        'semester': 4,
-        'email': s.email,
-        'phone': '+91 9876543210',
-        'hostel': 'Hostel Block A',
-        'advisor': 'Dr. Rajesh Kumar',
-        'blood': 'O+',
-        'dob': '2004-05-15',
-        'cgpa': 8.75,
-        'photo': s.photo_url or ''
-    })
-
-
-@student_bp.route('/student/api/courses')
-@login_required
-def student_courses_api():
     if session.get('role') != 'student':
         return jsonify({'error': 'Unauthorized'}), 403
     s = Student.query.get(session.get('user_id'))
