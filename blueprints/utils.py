@@ -2,7 +2,7 @@
 Shared utilities — auth decorators, email helper, admin password, constants.
 """
 from functools import wraps
-import os, smtplib, random
+import os, smtplib
 
 from flask import session, request, jsonify, redirect, url_for
 from email.mime.text import MIMEText
