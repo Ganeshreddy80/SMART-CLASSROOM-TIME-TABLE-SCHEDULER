@@ -1,6 +1,7 @@
 """
 Faculty blueprint — faculty dashboard, timetable, attendance APIs and pages.
 """
+import os
 from flask import Blueprint, render_template, request, session, jsonify
 import json
 
@@ -8,6 +9,15 @@ from models import (Faculty, Student, Section, Course, TimetableEntry, Attendanc
 from blueprints.utils import login_required, role_required
 
 faculty_bp = Blueprint('faculty_bp', __name__)
+
+_DEFAULT_DESIGNATION = os.environ.get('DEFAULT_FACULTY_DESIGNATION', 'Assistant Professor')
+_DEFAULT_SPECIALIZATION = os.environ.get('DEFAULT_FACULTY_SPECIALIZATION', 'Specialization')
+_DEFAULT_PHONE = os.environ.get('DEFAULT_FACULTY_PHONE', '+91 00000 00000')
+_DEFAULT_CABIN = os.environ.get('DEFAULT_FACULTY_CABIN', 'Faculty Cabin')
+_DEFAULT_JOINING_DATE = os.environ.get('DEFAULT_FACULTY_JOINING_DATE', '01 Jan 2020')
+_DEFAULT_EXPERIENCE = os.environ.get('DEFAULT_FACULTY_EXPERIENCE', '5 years')
+_DEFAULT_STUDENT_SEMESTER = os.environ.get('DEFAULT_STUDENT_SEMESTER', '4')
+_DEFAULT_STUDENT_YEAR = os.environ.get('DEFAULT_STUDENT_YEAR', '2')
 
 
 @faculty_bp.route('/faculty-app')
@@ -27,12 +37,12 @@ def faculty_app():
             "name": f.name,
             "email": f.email,
             "dept": f.department.code if f.department else "",
-            "designation": "Assistant Professor",
-            "specialization": "Specialization",
-            "phone": "+91 00000 00000",
-            "cabinNo": "Faculty Cabin",
-            "joiningDate": "01 Jan 2020",
-            "experience": "5 years",
+            "designation": _DEFAULT_DESIGNATION,
+            "specialization": _DEFAULT_SPECIALIZATION,
+            "phone": _DEFAULT_PHONE,
+            "cabinNo": _DEFAULT_CABIN,
+            "joiningDate": _DEFAULT_JOINING_DATE,
+            "experience": _DEFAULT_EXPERIENCE,
             "canTeach": [c.code for c in f.courses_can_teach],
             "assignedSections": assigned_secs,
             "photo": f.photo_url or None
@@ -45,8 +55,8 @@ def faculty_app():
             "id": s.id,
             "name": s.name,
             "dept": s.department.code if s.department else "",
-            "semester": 4,
-            "year": 2,
+            "semester": int(_DEFAULT_STUDENT_SEMESTER),
+            "year": int(_DEFAULT_STUDENT_YEAR),
             "courses": list(set([t.course.code for t in s.timetable_entries])),
             "students": [st.student_uid for st in s.students]
         })
@@ -62,8 +72,8 @@ def faculty_app():
             "section": sec.id if sec else None,
             "email": s.email,
             "dept": s.department.code if s.department else "",
-            "semester": 4,
-            "year": 2,
+            "semester": int(_DEFAULT_STUDENT_SEMESTER),
+            "year": int(_DEFAULT_STUDENT_YEAR),
             "phone": "+91 00000 00000",
             "dob": "01 Jan 2005",
             "blood": "O+",

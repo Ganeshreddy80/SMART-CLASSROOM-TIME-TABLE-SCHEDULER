@@ -20,9 +20,9 @@ from models import db, TimetableEntry, Section, Course, Faculty, Classroom, Univ
 from sqlalchemy import func
 import json, copy
 
-MAX_CLASSES_PER_DAY = 6   # per section (allows up to 30 classes per week with 6 slots/day)
-MAX_BACKTRACK_DEPTH = 10  # increased to allow resolving complex conflicts
-LUNCH_SLOT = "12:00-1:00"
+MAX_CLASSES_PER_DAY = int(os.environ.get('MAX_CLASSES_PER_DAY', '6'))  # per section (allows up to 30 classes per week with 6 slots/day)
+MAX_BACKTRACK_DEPTH = int(os.environ.get('MAX_BACKTRACK_DEPTH', '10'))  # increased to allow resolving complex conflicts
+LUNCH_SLOT = os.environ.get('LUNCH_SLOT', '12:00-1:00')
 
 
 # ═══════════════════════════════════════════════════════════════

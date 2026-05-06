@@ -42,8 +42,8 @@ SESSION_LIFETIME = int(os.environ.get('SESSION_LIFETIME', '900'))        # 15 mi
 QR_TOKEN_INTERVAL = int(os.environ.get('QR_TOKEN_INTERVAL', '3'))         # seconds — new token every 3 s
 QR_TOKEN_GRACE = 1            # extra grace seconds → max valid window = 4 s
 QR_HISTORY_LIMIT = 5          # keep at most 5 tokens to bound memory
-GPS_MAX_DISTANCE = 100        # metres — must be within 100 m of faculty
-GPS_MAX_ACCURACY = 50         # metres — reject if accuracy > 50 m
+GPS_MAX_DISTANCE = int(os.environ.get('GPS_MAX_DISTANCE', '100'))       # metres — must be within this distance of faculty
+GPS_MAX_ACCURACY = int(os.environ.get('GPS_MAX_ACCURACY', '50'))      # metres — reject if accuracy exceeds this
 
 
 # ──────────────────────────────────────────────────────────────────────────────
