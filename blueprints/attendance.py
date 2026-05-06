@@ -8,7 +8,7 @@ Handles proxy-proof attendance via:
   5. Duplicate submission guard
   6. Section enrollment check
 
-ACTIVE_SESSIONS dict (in-memory) is the source of truth during a live session.
+ACTIVE_SESSIONS is backed by Flask-Session for persistence across restarts.
 On session stop, data is committed to Attendance table.
 """
 
@@ -21,6 +21,7 @@ from datetime import datetime
 import pytz
 
 from flask import Blueprint, request, jsonify, session, render_template
+from flask_session import Session
 
 from models import db, Student, Faculty, Course, Section, Attendance, TimetableEntry
 from blueprints.utils import login_required, role_required
@@ -35,7 +36,9 @@ def ist_today():
     """Return today's date in IST."""
     return datetime.now(IST).date()
 
-# ─── In-memory Session Store ─────────────────────────────────────────────────
+# ─── Persistent Session Store ─────────────────────────────────────────────────
+# Use Flask-Session with filesystem backend for persistence across restarts.
+# Configured in app.py with app.config['SESSION_TYPE'] = 'filesystem'.
 ACTIVE_SESSIONS: dict = {}
 
 SESSION_LIFETIME = int(os.environ.get('SESSION_LIFETIME', '900'))        # 15 minutes
@@ -217,6 +220,8 @@ def start_session():
         'submissions': {},
         'flagged': []
     }
+    # Persist to Flask session for cross-restart survival
+    session['active_attendance_session'] = session_token
 
     qr_data = f"SMARTATTEND|{session_token}|{first_qr['token']}"
 
@@ -378,7 +383,9 @@ def stop_session():
         db.session.add(att)
 
     db.session.commit()
-    del ACTIVE_SESSIONS[session_token]
+    # Remove from in-memory store and clear session reference
+    ACTIVE_SESSIONS.pop(session_token, None)
+    session.pop('active_attendance_session', None)
 
     try:
         run_all_checks(
@@ -415,7 +422,8 @@ def manual_save():
         return jsonify({'error': 'Missing parameters'}), 400
 
     try:
-        dt = datetime.strptime(date_str, '%Y-%m-%d').date()
+        from utils.date_helpers import parse_date
+        dt = parse_date(date_str)
     except Exception:
         dt = ist_today()
 
@@ -458,7 +466,8 @@ def manual_attendance():
         return jsonify({'error': 'course_id, section_id, and date are required'}), 400
 
     try:
-        dt = datetime.strptime(date_str, '%Y-%m-%d').date()
+        from utils.date_helpers import parse_date
+        dt = parse_date(date_str)
     except Exception:
         return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
 
@@ -534,7 +543,8 @@ def update_student_attendance():
         return jsonify({'error': "status must be 'present', 'absent', or 'od'"}), 400
 
     try:
-        dt = datetime.strptime(date_str, '%Y-%m-%d').date()
+        from utils.date_helpers import parse_date
+        dt = parse_date(date_str)
     except Exception:
         return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
 
@@ -601,7 +611,8 @@ def get_roll():
         return jsonify({'error': 'Missing parameters'}), 400
 
     try:
-        dt = datetime.strptime(date_str, '%Y-%m-%d').date()
+        from utils.date_helpers import parse_date
+        dt = parse_date(date_str)
     except Exception:
         dt = ist_today()
 

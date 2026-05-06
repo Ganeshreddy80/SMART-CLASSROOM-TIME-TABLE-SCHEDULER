@@ -638,7 +638,8 @@ def mark_attendance():
         return jsonify({'error': 'section_id, course_id, and date are required'}), 400
 
     try:
-        att_date = date_type.fromisoformat(date_str)
+        from utils.date_helpers import parse_iso_date
+        att_date = parse_iso_date(date_str)
     except ValueError:
         return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
 
@@ -822,9 +823,22 @@ OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY', '')
 OPENROUTER_MODEL = 'openai/gpt-4o-mini'
 OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
+# Simple in-memory cache for AI system context (refreshes every 60 seconds)
+import threading
+_context_cache = None
+_context_cache_lock = threading.RLock()
+_context_cache_last = 0
+_CONTEXT_CACHE_TTL = 60
+
 
 def _get_system_context():
-    """Gather all database data as context for the AI."""
+    """Gather all database data as context for the AI with caching."""
+    global _context_cache, _context_cache_last
+    with _context_cache_lock:
+        now = time.time()
+        if _context_cache is not None and (now - _context_cache_last) < _CONTEXT_CACHE_TTL:
+            return _context_cache
+
     uni = University.query.first()
     depts = Department.query.all()
     courses = Course.query.all()
@@ -851,34 +865,34 @@ Total Classrooms: {len(classrooms)}
         dept_students = [s for s in students if s.department_id == d.id]
         dept_courses = [c for c in courses if c.department_id == d.id]
         dept_faculty = [f for f in faculty if f.department_id == d.id]
-        ctx += f"• {d.code} - {d.name}: {len(dept_students)} students, {len(dept_courses)} courses, {len(dept_faculty)} faculty\n"
+        ctx += f"• {d.code} - {d.name}: {len(dept_students)} students, {len(dept_courses)} courses, {len(dept_faculty)} faculty\\n"
 
-    ctx += f"\n=== COURSES ({len(courses)}) ===\n"
+    ctx += f"\\n=== COURSES ({len(courses)}) ===\\n"
     for c in courses:
         dept = next((d for d in depts if d.id == c.department_id), None)
         fac_list = [f.name for f in c.faculty_members]
-        ctx += f"• {c.code} {c.name} ({dept.code if dept else '?'}) - {c.credits}cr, {c.difficulty}, {c.course_type}, {c.classes_per_week}cls/wk, Faculty: {', '.join(fac_list) or 'None'}\n"
+        ctx += f"• {c.code} {c.name} ({dept.code if dept else '?'}) - {c.credits}cr, {c.difficulty}, {c.course_type}, {c.classes_per_week}cls/wk, Faculty: {', '.join(fac_list) or 'None'}\\n"
 
-    ctx += f"\n=== FACULTY ({len(faculty)}) ===\n"
+    ctx += f"\\n=== FACULTY ({len(faculty)}) ===\\n"
     for f in faculty:
         dept = next((d for d in depts if d.id == f.department_id), None)
         teaching = [c.code for c in f.courses_can_teach]
         fac_entries = [e for e in entries if e.faculty_id == f.id]
-        ctx += f"• {f.faculty_uid} {f.name} ({dept.code if dept else '?'}) - teaches: {', '.join(teaching)}, {len(fac_entries)} classes/week\n"
+        ctx += f"• {f.faculty_uid} {f.name} ({dept.code if dept else '?'}) - teaches: {', '.join(teaching)}, {len(fac_entries)} classes/week\\n"
 
-    ctx += f"\n=== SECTIONS ({len(sections)}) ===\n"
+    ctx += f"\\n=== SECTIONS ({len(sections)}) ===\\n"
     for s in sections:
         dept = next((d for d in depts if d.id == s.department_id), None)
         sec_entries = [e for e in entries if e.section_id == s.id]
-        ctx += f"• {dept.code if dept else '?'}-{s.name}: {s.student_count} students, {len(sec_entries)} timetable slots\n"
+        ctx += f"• {dept.code if dept else '?'}-{s.name}: {s.student_count} students, {len(sec_entries)} timetable slots\\n"
 
-    ctx += f"\n=== TIMETABLE SUMMARY ===\n"
-    ctx += f"Total entries: {len(entries)}\n"
+    ctx += f"\\n=== TIMETABLE SUMMARY ===\\n"
+    ctx += f"Total entries: {len(entries)}\\n"
 
     # Room utilization
     total_slots = len(uni.get_days()) * len(uni.get_timeslots()) * len(classrooms) if uni else 0
     utilization = (len(entries) / total_slots * 100) if total_slots > 0 else 0
-    ctx += f"Room utilization: {utilization:.1f}% ({len(entries)}/{total_slots} slots used)\n"
+    ctx += f"Room utilization: {utilization:.1f}% ({len(entries)}/{total_slots} slots used)\\n"
 
     # Faculty workload summary
     fac_loads = {}
@@ -889,9 +903,12 @@ Total Classrooms: {len(classrooms)}
         min_load = min(fac_loads.values())
         avg_load = sum(fac_loads.values()) / len(fac_loads)
         busiest = next((f.name for f in faculty if f.id == max(fac_loads, key=fac_loads.get)), '?')
-        ctx += f"Faculty workload: min={min_load}, max={max_load}, avg={avg_load:.1f}\n"
-        ctx += f"Busiest faculty: {busiest} ({max_load} classes/week)\n"
+        ctx += f"Faculty workload: min={min_load}, max={max_load}, avg={avg_load:.1f}\\n"
+        ctx += f"Busiest faculty: {busiest} ({max_load} classes/week)\\n"
 
+    with _context_cache_lock:
+        _context_cache = ctx
+        _context_cache_last = time.time()
     return ctx
 
 
@@ -1090,7 +1107,8 @@ def report_faculty_absence():
         return jsonify({'error': 'faculty_id and date are required'}), 400
 
     try:
-        abs_date = date_type.fromisoformat(date_str)
+        from utils.date_helpers import parse_iso_date
+        abs_date = parse_iso_date(date_str)
     except ValueError:
         return jsonify({'error': 'Invalid date format'}), 400
 

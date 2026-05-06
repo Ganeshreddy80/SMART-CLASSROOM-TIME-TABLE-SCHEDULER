@@ -12,13 +12,39 @@ from models import db
 load_dotenv()
 
 # ─── Mandatory env var checks ───────────────────────────────
-_secret_key = os.getenv('FLASK_SECRET_KEY')
-if not _secret_key:
-    sys.exit("FATAL: FLASK_SECRET_KEY is not set.")
+def _validate_config():
+    """Validate all required configuration on startup."""
+    required_vars = {
+        'FLASK_SECRET_KEY': 'Flask secret key (min 16 chars)',
+        'ADMIN_PASSWORD': 'Admin login password (min 8 chars)',
+    }
+    errors = []
+    for var, desc in required_vars.items():
+        val = os.getenv(var)
+        if not val:
+            errors.append(f"  - {var}: {desc}")
+    
+    # Validate specific constraints
+    secret_key = os.getenv('FLASK_SECRET_KEY', '')
+    if len(secret_key) < 16:
+        errors.append(f"  - FLASK_SECRET_KEY: must be at least 16 characters (got {len(secret_key)})")
+    
+    admin_password = os.getenv('ADMIN_PASSWORD', '')
+    if len(admin_password) < 8:
+        errors.append(f"  - ADMIN_PASSWORD: must be at least 8 characters (got {len(admin_password)})")
+    
+    db_url = os.getenv('DATABASE_URL', 'sqlite:///university.db')
+    if not db_url.startswith(('sqlite://', 'postgresql://', 'postgres://', 'mysql://')):
+        errors.append(f"  - DATABASE_URL: unsupported database URL scheme")
+    
+    if errors:
+        print("FATAL: Configuration validation failed:\n" + "\n".join(errors))
+        sys.exit(1)
 
-_admin_password = os.getenv('ADMIN_PASSWORD')
-if not _admin_password:
-    sys.exit("FATAL: ADMIN_PASSWORD is not set.")
+_validate_config()
+
+_secret_key = os.environ['FLASK_SECRET_KEY']
+_admin_password = os.environ['ADMIN_PASSWORD']
 
 # ─── Create app ─────────────────────────────────────────────
 app = Flask(__name__)
