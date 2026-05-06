@@ -651,19 +651,21 @@ def mark_attendance():
         section_id=section_id, course_id=course_id, date=att_date
     ).delete()
 
-    # Create attendance records
+    # Create attendance records in bulk
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+    attendance_records = []
     for sid in all_student_ids:
         status = 'present' if sid in present_student_ids else 'absent'
-        att = Attendance(
-            student_id=sid,
-            course_id=course_id,
-            section_id=section_id,
-            date=att_date,
-            status=status
-        )
-        db.session.add(att)
-
-    db.session.commit()
+        attendance_records.append({
+            'student_id': sid,
+            'course_id': course_id,
+            'section_id': section_id,
+            'date': att_date,
+            'status': status
+        })
+    if attendance_records:
+        db.session.bulk_insert_mappings(Attendance, attendance_records)
+        db.session.commit()
     return jsonify({
         'message': f'Attendance marked for {len(all_student_ids)} students',
         'present': len(present_student_ids),
