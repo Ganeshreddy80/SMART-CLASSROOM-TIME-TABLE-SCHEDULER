@@ -79,6 +79,7 @@ def login_page():
         # Check admin
         if email == ADMIN_EMAIL:
             if check_password_hash(get_admin_password_hash(), password):
+                session.permanent = True
                 session['role'] = 'admin'
                 session['user_id'] = 'admin'
                 session['user_name'] = 'Admin User'
