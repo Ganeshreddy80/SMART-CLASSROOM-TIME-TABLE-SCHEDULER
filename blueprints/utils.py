@@ -11,7 +11,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 
 # ─── Constants ───────────────────────────────────────────────
-ADMIN_EMAIL = 'admin@srmap.edu.in'
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@srmap.edu.in')
 
 
 # ─── Admin Password ─────────────────────────────────────────

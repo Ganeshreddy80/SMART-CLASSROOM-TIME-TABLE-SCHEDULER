@@ -3,7 +3,7 @@ API blueprint — all /api/* JSON routes.
 Registered with url_prefix='/api', so route decorators omit the /api prefix.
 """
 from flask import Blueprint, request, jsonify, session
-import json, math, os
+import json, math, os, re
 from datetime import date as date_type
 
 import requests as http_requests

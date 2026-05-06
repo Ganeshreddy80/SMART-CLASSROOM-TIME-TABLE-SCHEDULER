@@ -323,6 +323,20 @@ class Attendance(db.Model):
         }
 
 
+class StudentMark(db.Model):
+    __tablename__ = 'student_marks'
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
+    sem = db.Column(db.Integer, nullable=False)
+    grade = db.Column(db.String(2), nullable=True)
+    points = db.Column(db.Float, nullable=True)
+    sgpa = db.Column(db.Float, nullable=True)
+
+    student = db.relationship('Student', backref='marks')
+    course = db.relationship('Course', backref='student_marks')
+
+
 class FacultyAbsence(db.Model):
     __tablename__ = 'faculty_absence'
     id = db.Column(db.Integer, primary_key=True)
@@ -381,7 +395,9 @@ class Complaint(db.Model):
 
     def generate_ticket_id(self):
         year = datetime.utcnow().year
-        self.ticket_id = f"CMP-{year}-{self.id:04d}"
+        import uuid
+        uid = uuid.uuid4().hex[:8].upper()
+        self.ticket_id = f"CMP-{year}-{uid}"
 
     def to_dict(self):
         return {

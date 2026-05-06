@@ -4,7 +4,7 @@ Student blueprint — student dashboard, timetable, attendance, marks pages + AP
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, make_response
 
 import json
-from models import (db, Student, TimetableEntry, FacultyAbsence, Attendance)
+from models import (db, Student, TimetableEntry, FacultyAbsence, Attendance, StudentMark)
 from blueprints.utils import login_required, role_required
 
 student_bp = Blueprint('student_bp', __name__)
@@ -40,7 +40,26 @@ def student_logout():
 @student_bp.route('/student/upload-photo', methods=['POST'])
 @login_required
 def student_upload_photo():
-    return jsonify({"message": "Photo uploaded successfully"})
+    if session.get('role') != 'student':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    student_id = session.get('user_id')
+    if not student_id:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    s = Student.query.get_or_404(student_id)
+    data = request.json or {}
+    photo_data = data.get('photo')
+
+    if not photo_data:
+        return jsonify({'error': 'No photo provided'}), 400
+    if not photo_data.startswith('data:image'):
+        return jsonify({'error': 'Invalid image format'}), 400
+
+    s.photo_url = photo_data
+    db.session.commit()
+
+    return jsonify({'message': 'Photo saved', 'photo_url': s.photo_url})
 
 
 @student_bp.route('/student/api/profile')
@@ -174,30 +193,67 @@ def student_attendance_api():
 @student_bp.route('/student/api/today-attendance')
 @login_required
 def student_today_attendance():
-    return jsonify([])
+    if session.get('role') != 'student':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    student_id = session.get('user_id')
+    if not student_id:
+        return jsonify([])
+
+    from datetime import date as _date
+    today = _date.today()
+
+    records = Attendance.query.filter_by(
+        student_id=student_id, date=today
+    ).all()
+
+    result = []
+    for r in records:
+        result.append({
+            'course_id': r.course_id,
+            'course_name': r.course.name if r.course else '',
+            'status': r.status,
+            'date': r.date.isoformat()
+        })
+
+    return jsonify(result)
 
 
 @student_bp.route('/student/api/marks')
 @login_required
 def student_marks():
-    return jsonify([
-        {
-            'sem': 1,
-            'sgpa': 8.8,
-            'subjects': [
-                {'code': 'CS101', 'name': 'Data Structures', 'credits': 4, 'grade': 'A', 'points': 9},
-                {'code': 'MA101', 'name': 'Calculus', 'credits': 4, 'grade': 'B+', 'points': 8}
-            ]
-        },
-        {
-            'sem': 2,
-            'sgpa': 8.6,
-            'subjects': [
-                {'code': 'CS102', 'name': 'Algorithms', 'credits': 4, 'grade': 'A', 'points': 9},
-                {'code': 'PH101', 'name': 'Physics', 'credits': 4, 'grade': 'A-', 'points': 8}
-            ]
-        }
-    ])
+    if session.get('role') != 'student':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    student_id = session.get('user_id')
+    if not student_id:
+        return jsonify([])
+
+    try:
+        marks = StudentMark.query.filter_by(student_id=student_id).all()
+    except Exception:
+        # Table might not exist yet; return empty gracefully
+        return jsonify([])
+
+    # Group by semester
+    semesters = {}
+    for m in marks:
+        if m.sem not in semesters:
+            semesters[m.sem] = {
+                'sem': m.sem,
+                'sgpa': m.sgpa,
+                'subjects': []
+            }
+        semesters[m.sem]['subjects'].append({
+            'code': m.course.code if m.course else '',
+            'name': m.course.name if m.course else '',
+            'credits': m.course.credits if m.course else 0,
+            'grade': m.grade,
+            'points': m.points
+        })
+
+    result = list(semesters.values())
+    return jsonify(result)
 
 
 @student_bp.route('/student/api/faculty-absence')

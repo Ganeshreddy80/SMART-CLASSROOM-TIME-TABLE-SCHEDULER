@@ -71,6 +71,15 @@ app.register_blueprint(anomalies_bp)
 def index():
     return redirect('/login')
 
+
+@app.after_request
+def set_csp_headers(response):
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; font-src 'self'; frame-ancestors 'self'; base-uri 'self';"
+    )
+    return response
+
 # ─── CSRF Exemptions ────────────────────────────────────────
 csrf.exempt(student_bp)
 csrf.exempt(faculty_bp)
