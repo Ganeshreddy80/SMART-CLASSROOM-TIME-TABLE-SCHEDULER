@@ -17,7 +17,6 @@ from blueprints.utils import (
 auth = Blueprint('auth', __name__)
 
 
-fix/medium-issues
 # ─── In-memory Rate Limiter ──────────────────────────────────
 _rate_limit_store = defaultdict(list)
 RATELIMIT_LOGIN_MAX = 10       # attempts per 15 min window
@@ -57,7 +56,6 @@ def debug_users():
     return result, 200, {'Content-Type': 'text/plain'}
 
 
- main
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login_page():
@@ -79,6 +77,7 @@ def login_page():
         # Check admin (uses database User model, consistent with other logins)
         admin_user = Student.query.filter_by(email=email).first()
         if admin_user and admin_user.check_password(password) and admin_user.role == 'admin':
+            session.clear()
             session.permanent = True
             session['role'] = 'admin'
             session['user_id'] = admin_user.id
@@ -88,6 +87,7 @@ def login_page():
         # Check faculty
         f = Faculty.query.filter_by(email=email).first()
         if f and f.check_password(password):
+            session.clear()
             session.permanent = True
             session['role'] = 'faculty'
             session['user_id'] = f.id
@@ -98,6 +98,7 @@ def login_page():
         # Check student
         s = Student.query.filter_by(email=email).first()
         if s and s.check_password(password):
+            session.clear()
             session.permanent = True
             session['role'] = 'student'
             session['user_id'] = s.id

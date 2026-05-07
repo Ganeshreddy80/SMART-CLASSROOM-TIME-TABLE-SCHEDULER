@@ -75,7 +75,7 @@ def send_otp_email(to_email, otp):
     smtp_password = os.getenv('SMTP_PASSWORD', '')
 
     if not smtp_email or not smtp_password:
-        print(f"[DEBUG] SMTP not configured. OTP for {to_email}: {otp}")
+        print(f"[DEBUG] SMTP not configured. OTP for {to_email}: <hidden>")
         return True  # Return True so flow continues in dev mode
 
     try:
