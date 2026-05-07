@@ -3,7 +3,7 @@ API blueprint — all /api/* JSON routes.
 Registered with url_prefix='/api', so route decorators omit the /api prefix.
 """
 from flask import Blueprint, request, jsonify, session
-import json, math, os, re
+import json, math, os, threading, time as _time
 from datetime import date as date_type
 
 import requests as http_requests
@@ -14,8 +14,40 @@ from models import (db, University, Department, Course, Faculty, Student, Sectio
                     generate_email_from_name, generate_default_password, ensure_unique_email)
 from timetable_generator import generate_timetable
 from blueprints.utils import login_required, role_required, calc_classes_per_week
+from utils.date_helpers import parse_iso_date
 
 api = Blueprint('api', __name__, url_prefix='/api')
+
+# ─── AI Context Cache (thread-safe, 60s TTL) ────────────────
+_context_cache = {}
+_context_lock = threading.RLock()
+CACHE_TTL = 60  # seconds
+
+
+def _cache_key():
+    """Generate a simple cache key for the AI context."""
+    return "system_context"
+
+
+def _get_cached_context(raw_fn):
+    """Return cached context if valid; otherwise compute and cache."""
+    key = _cache_key()
+    now = _time.time()
+    with _context_lock:
+        entry = _context_cache.get(key)
+        if entry and (now - entry['timestamp'] < CACHE_TTL):
+            return entry['data']
+    # Compute outside lock to avoid holding it during DB reads
+    data = raw_fn()
+    with _context_lock:
+        _context_cache[key] = {'timestamp': _time.time(), 'data': data}
+    return data
+
+
+def invalidate_context_cache():
+    """Call after any mutating operation to clear stale AI context."""
+    with _context_lock:
+        _context_cache.clear()
 
 
 # ─── Dashboard ───────────────────────────────────────────────
@@ -638,7 +670,6 @@ def mark_attendance():
         return jsonify({'error': 'section_id, course_id, and date are required'}), 400
 
     try:
-        from utils.date_helpers import parse_iso_date
         att_date = parse_iso_date(date_str)
     except ValueError:
         return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
@@ -1107,7 +1138,6 @@ def report_faculty_absence():
         return jsonify({'error': 'faculty_id and date are required'}), 400
 
     try:
-        from utils.date_helpers import parse_iso_date
         abs_date = parse_iso_date(date_str)
     except ValueError:
         return jsonify({'error': 'Invalid date format'}), 400
