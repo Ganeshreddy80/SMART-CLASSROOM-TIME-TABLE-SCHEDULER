@@ -15,19 +15,6 @@ from blueprints.utils import (
 auth = Blueprint('auth', __name__)
 
 
-@auth.route('/debug-users')
-def debug_users():
-    from models import Faculty, Student
-    faculty = Faculty.query.limit(3).all()
-    students = Student.query.limit(3).all()
-    result = "FACULTY:\n"
-    for f in faculty:
-        result += f"{f.email} | hash_exists={bool(f.password_hash)}\n"
-    result += "\nSTUDENTS:\n"
-    for s in students:
-        result += f"{s.email} | hash_exists={bool(s.password_hash)}\n"
-    return result, 200, {'Content-Type': 'text/plain'}
-
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login_page():
