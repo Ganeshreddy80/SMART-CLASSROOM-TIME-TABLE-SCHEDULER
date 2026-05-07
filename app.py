@@ -5,6 +5,7 @@ import os, sys
 from flask import Flask, redirect
 from flask_wtf.csrf import CSRFProtect
 from flask_migrate import Migrate
+from flask_cors import CORS
 from dotenv import load_dotenv
 from models import db
 
@@ -62,6 +63,13 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = 86400
 app.config['WTF_CSRF_TIME_LIMIT'] = 86400
+
+# ─── CORS configuration ──────────────────────────────────────────────────────
+# Read allowed origins from env; default to local dev.  In production set
+# CORS_ALLOWED_ORIGINS=https://yourdomain.com https://app.yourdomain.com
+cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5000,http://127.0.0.1:5000')
+allowed_origins = [o.strip() for o in cors_origins.split(',') if o.strip()]
+CORS(app, origins=allowed_origins, supports_credentials=True)
 
 # ─── Extensions ─────────────────────────────────────────────
 csrf = CSRFProtect(app)

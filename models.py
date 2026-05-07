@@ -23,12 +23,18 @@ def generate_email_from_name(name):
 
 
 def generate_default_password(name):
-    """Generate default password in format firstname@123."""
-    cleaned = re.sub(r'^(Dr\.?|Prof\.?|Mr\.?|Mrs\.?|Ms\.?)\s+', '', name.strip(), flags=re.IGNORECASE)
-    parts = cleaned.strip().split()
-    firstname = parts[0].lower() if parts else 'user'
-    firstname = re.sub(r'[^a-z0-9]', '', firstname)
-    return f"{firstname}@123"
+    """Generate a secure random default password."""
+    import secrets, string
+    length = 8
+    alphabet = string.ascii_letters + string.digits + string.punctuation
+    while True:
+        password = ''.join(secrets.choice(alphabet) for _ in range(length))
+        # Ensure at least one of each character category
+        if any(c.islower() for c in password) and \
+           any(c.isupper() for c in password) and \
+           any(c.isdigit() for c in password):
+            break
+    return password
 
 
 from sqlalchemy import or_, exists

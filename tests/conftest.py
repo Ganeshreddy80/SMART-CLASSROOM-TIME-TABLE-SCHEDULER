@@ -1,8 +1,13 @@
 import pytest
 import os
 import json
+import secrets
 from app import app as flask_app
 from models import db, University, Department, Course, Faculty, Student, Section, Classroom
+
+# Generate random test passwords (do not hardcode)
+_FACULTY_PASS = secrets.token_urlsafe(16)
+_STUDENT_PASS = secrets.token_urlsafe(16)
 
 @pytest.fixture
 def app():
@@ -52,7 +57,7 @@ def seed_minimal(app):
             department_id=d.id,
             available_slots=json.dumps({"Monday": ["9:00-10:00", "10:00-11:00"], "Tuesday": ["9:00-10:00", "10:00-11:00"]})
         )
-        f.set_password("faculty@123")
+        f.set_password(_FACULTY_PASS)
         f.courses_can_teach = [c1, c2]
         db.session.add(f)
         
@@ -62,7 +67,7 @@ def seed_minimal(app):
             email="test.student@srmap.edu.in",
             department_id=d.id
         )
-        s.set_password("student@123")
+        s.set_password(_STUDENT_PASS)
         s.courses_enrolled = [c1, c2]
         db.session.add(s)
         

@@ -1,18 +1,21 @@
 import pytest
+import os
 from models import Department, Course, Faculty
+from tests.conftest import _FACULTY_PASS, _STUDENT_PASS
 
 def test_login_admin(client):
-    res = client.post('/login', data={'email': 'admin@srmap.edu.in', 'password': 'sukuna@123'}, follow_redirects=False)
+    password = os.getenv('ADMIN_PASSWORD', 'sukuna@123')
+    res = client.post('/login', data={'email': 'admin@srmap.edu.in', 'password': password}, follow_redirects=False)
     assert res.status_code == 302
     assert res.location == '/'
 
 def test_login_faculty(client, seed_minimal):
-    res = client.post('/login', data={'email': 'test.faculty@srmap.edu.in', 'password': 'faculty@123'}, follow_redirects=False)
+    res = client.post('/login', data={'email': 'test.faculty@srmap.edu.in', 'password': _FACULTY_PASS}, follow_redirects=False)
     assert res.status_code == 302
     assert '/faculty-app' in res.location
 
 def test_login_student(client, seed_minimal):
-    res = client.post('/login', data={'email': 'test.student@srmap.edu.in', 'password': 'student@123'}, follow_redirects=False)
+    res = client.post('/login', data={'email': 'test.student@srmap.edu.in', 'password': _STUDENT_PASS}, follow_redirects=False)
     assert res.status_code == 302
     assert '/student-app' in res.location
 

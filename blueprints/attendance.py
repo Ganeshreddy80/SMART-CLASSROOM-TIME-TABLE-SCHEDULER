@@ -75,7 +75,7 @@ _VPN_RANGES = json.loads(os.environ.get('VPN_RANGES', json.dumps([
     "104.196.0.0/14", "107.178.192.0/18", "130.211.0.0/16",
     "139.59.0.0/16", "142.93.0.0/16", "159.203.0.0/16",
     "165.22.0.0/15", "167.71.0.0/16", "167.99.0.0/16",
-]))
+])))
 
 _VPN_NETWORKS = [ipaddress.ip_network(cidr, strict=False) for cidr in _VPN_RANGES]
 
@@ -717,10 +717,23 @@ def submit_attendance():
             'message': f'You are {distance_int}m away. Must be within {GPS_MAX_DISTANCE}m of your faculty'
         }), 403
 
-    gps_spoofed = (
-        abs(float(student_lat) - sess['lat']) < 1e-7 and
-        abs(float(student_lng) - sess['lng']) < 1e-7
-    )
+    # Improved GPS spoof detection: flag if coordinates are identical or suspiciously close
+    gps_spoofed = False
+    lat_diff = abs(float(student_lat) - sess['lat'])
+    lng_diff = abs(float(student_lng) - sess['lng'])
+    # Identical to faculty location (common spoof pattern)
+    if lat_diff < 1e-7 and lng_diff < 1e-7:
+        gps_spoofed = True
+    # Suspiciously precise match (more than 6 decimal places identical)
+    elif round(float(student_lat), 6) == round(sess['lat'], 6) and round(float(student_lng), 6) == round(sess['lng'], 6):
+        gps_spoofed = True
+    # Same coordinates as another already-verified student in this session
+    else:
+        for sid, sub in sess['submissions'].items():
+            if sub.get('status') == 'verified':
+                if lat_diff < 1e-5 and lng_diff < 1e-5:
+                    gps_spoofed = True
+                    break
 
     # CHECK 4: QR Token Validity
     if not _find_valid_token(sess, qr_token):

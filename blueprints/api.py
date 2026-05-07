@@ -3,7 +3,7 @@ API blueprint — all /api/* JSON routes.
 Registered with url_prefix='/api', so route decorators omit the /api prefix.
 """
 from flask import Blueprint, request, jsonify, session
-import json, math, os, threading, time as _time
+import json, math, os, threading, time as _time, re
 from datetime import date as date_type
 
 import requests as http_requests
@@ -17,6 +17,21 @@ from blueprints.utils import login_required, role_required, calc_classes_per_wee
 from utils.date_helpers import parse_iso_date
 
 api = Blueprint('api', __name__, url_prefix='/api')
+
+# Allowed MIME types for image uploads
+_ALLOWED_IMAGE_MIMES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
+
+def _is_valid_image_data(data: str) -> bool:
+    """Validate base64 image data URI has an allowed MIME type."""
+    if not data or not isinstance(data, str):
+        return False
+    if not data.startswith('data:image/'):
+        return False
+    mime_match = re.match(r'^data:([^;]+)', data)
+    if not mime_match:
+        return False
+    mime = mime_match.group(1).lower()
+    return mime in _ALLOWED_IMAGE_MIMES
 
 # ─── AI Context Cache (thread-safe, 60s TTL) ────────────────
 _context_cache = {}
@@ -309,8 +324,8 @@ def upload_faculty_photo(id):
     photo_data = data.get('photo')
     if not photo_data:
         return jsonify({'error': 'No photo provided'}), 400
-    if not photo_data.startswith('data:image'):
-        return jsonify({'error': 'Invalid image format'}), 400
+    if not _is_valid_image_data(photo_data):
+        return jsonify({'error': 'Invalid image format. Only JPEG, PNG, GIF, and WebP are allowed.'}), 400
     f.photo_url = photo_data
     db.session.commit()
     return jsonify({'message': 'Photo saved', 'photo_url': f.photo_url})
@@ -392,9 +407,9 @@ def upload_student_photo(id):
     photo_data = data.get('photo')
     if not photo_data:
         return jsonify({'error': 'No photo provided'}), 400
-    # Ensure it has proper base64 header
-    if not photo_data.startswith('data:image'):
-        return jsonify({'error': 'Invalid image format'}), 400
+    # Ensure it has proper base64 header and allowed MIME type
+    if not _is_valid_image_data(photo_data):
+        return jsonify({'error': 'Invalid image format. Only JPEG, PNG, GIF, and WebP are allowed.'}), 400
     s.photo_url = photo_data
     db.session.commit()
     return jsonify({'message': 'Photo saved', 'photo_url': s.photo_url})
