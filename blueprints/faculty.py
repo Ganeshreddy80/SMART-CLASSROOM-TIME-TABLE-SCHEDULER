@@ -3,6 +3,9 @@ Faculty blueprint — faculty dashboard, timetable, attendance APIs and pages.
 """
 import os
 from flask import Blueprint, render_template, request, session, jsonify
+from datetime import datetime
+
+from utils.date_helpers import parse_date
 
 from models import (Faculty, Student, Section, Course, TimetableEntry, Attendance, db)
 from blueprints.utils import login_required, role_required
@@ -185,10 +188,10 @@ def faculty_attendance_api():
         query = query.filter_by(section_id=filter_section)
     if filter_date:
         try:
-            from utils.date_helpers import parse_date
-            dt = parse_date(filter_date)
+            from datetime import datetime
+            dt = parse_date(filter_date, '%Y-%m-%d')
             query = query.filter_by(date=dt)
-        except ValueError:
+        except (ValueError, TypeError):
             pass
 
     records = query.order_by(Attendance.date.desc()).all()
