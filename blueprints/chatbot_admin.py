@@ -1,7 +1,5 @@
-import os
 import datetime
-from flask import Blueprint, request, jsonify, session
-from anthropic import Anthropic
+from flask import Blueprint, request, jsonify
 
 from models import db, University, Department, Course, Faculty, Student, Section, TimetableEntry
 from blueprints.utils import login_required, role_required

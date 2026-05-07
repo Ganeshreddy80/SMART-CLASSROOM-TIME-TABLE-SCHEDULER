@@ -1,4 +1,3 @@
-import os
 import datetime
 from flask import Blueprint, request, jsonify, session
 from sqlalchemy import func

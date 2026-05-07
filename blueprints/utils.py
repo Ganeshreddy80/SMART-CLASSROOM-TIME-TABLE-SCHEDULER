@@ -15,20 +15,29 @@ ADMIN_EMAIL = 'admin@srmap.edu.in'
 
 
 # ─── Admin Password ─────────────────────────────────────────
-_ADMIN_PASSWORD_HASH = None
+class _AdminPasswordManager:
+    """Encapsulated admin password hash to avoid module-level global state."""
+    def __init__(self):
+        self._hash = None
+    
+    def get_hash(self):
+        if self._hash is None:
+            password = os.environ['ADMIN_PASSWORD']
+            self._hash = generate_password_hash(password, method='pbkdf2:sha256')
+        return self._hash
+    
+    def reset_hash(self, new_password):
+        self._hash = generate_password_hash(new_password, method='pbkdf2:sha256')
+
+_admin_password_manager = _AdminPasswordManager()
 
 def get_admin_password_hash():
-    """Lazy-init admin password hash from ADMIN_PASSWORD env var."""
-    global _ADMIN_PASSWORD_HASH
-    if _ADMIN_PASSWORD_HASH is None:
-        password = os.environ['ADMIN_PASSWORD']  # guaranteed set by app startup check
-        _ADMIN_PASSWORD_HASH = generate_password_hash(password, method='pbkdf2:sha256')
-    return _ADMIN_PASSWORD_HASH
+    """Return admin password hash (lazy-init from ADMIN_PASSWORD env var)."""
+    return _admin_password_manager.get_hash()
 
 def reset_admin_password_hash(new_password):
-    """Update the in-memory admin password hash (used by password reset flow)."""
-    global _ADMIN_PASSWORD_HASH
-    _ADMIN_PASSWORD_HASH = generate_password_hash(new_password, method='pbkdf2:sha256')
+    """Update the admin password hash (used by password reset flow)."""
+    _admin_password_manager.reset_hash(new_password)
 
 
 # ─── Auth Decorators ─────────────────────────────────────────
