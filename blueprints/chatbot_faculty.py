@@ -1,7 +1,5 @@
-import os
 import datetime
 from flask import Blueprint, request, jsonify, session
-from anthropic import Anthropic
 from sqlalchemy import func
 
 from models import db, University, Department, Course, Faculty, Student, Section, TimetableEntry, Attendance, Classroom

@@ -10,6 +10,5 @@ anthropic==0.96.0
 gunicorn==21.2.0
 opencv-python-headless==4.9.0.80
 pytz==2024.1
-pytz==2024.1
 sqlalchemy
 werkzeug

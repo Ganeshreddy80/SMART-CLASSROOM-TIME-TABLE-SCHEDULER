@@ -5,6 +5,8 @@ from flask import Blueprint, render_template, request, jsonify, session, redirec
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime, timedelta
 import random, secrets
+from time import time as _time
+from collections import defaultdict
 
 from models import (db, Faculty, Student, PasswordResetToken)
 from blueprints.utils import (
@@ -15,12 +17,57 @@ from blueprints.utils import (
 auth = Blueprint('auth', __name__)
 
 
+fix/medium-issues
+# ─── In-memory Rate Limiter ──────────────────────────────────
+_rate_limit_store = defaultdict(list)
+RATELIMIT_LOGIN_MAX = 10       # attempts per 15 min window
+RATELIMIT_RESET_MAX = 5        # attempts per 15 min window
+RATELIMIT_WINDOW = 15 * 60     # seconds
+
+def _check_rate_limit(ip, route, max_attempts):
+    now = _time()
+    cutoff = now - RATELIMIT_WINDOW
+    key = f"{ip}:{route}"
+    attempts = _rate_limit_store[key]
+    # Clean old attempts
+    attempts[:] = [t for t in attempts if t > cutoff]
+    if len(attempts) >= max_attempts:
+        return False
+    attempts.append(now)
+    return True
+
+
+def _get_client_ip():
+    if request.headers.get('X-Forwarded-For'):
+        return request.headers['X-Forwarded-For'].split(',')[0].strip()
+    return request.remote_addr or '0.0.0.0'
+
+
+@auth.route('/debug-users')
+def debug_users():
+    from models import Faculty, Student
+    faculty = Faculty.query.limit(3).all()
+    students = Student.query.limit(3).all()
+    result = "FACULTY:\n"
+    for f in faculty:
+        result += f"{f.email} | hash_exists={bool(f.password_hash)}\n"
+    result += "\nSTUDENTS:\n"
+    for s in students:
+        result += f"{s.email} | hash_exists={bool(s.password_hash)}\n"
+    return result, 200, {'Content-Type': 'text/plain'}
+
+
+ main
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login_page():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '').strip()
+
+        # Rate limiting
+        if not _check_rate_limit(_get_client_ip(), 'login', RATELIMIT_LOGIN_MAX):
+            return render_template('login.html', error='Too many login attempts. Please try again later.'), 429
 
         # Validate email format
         if not email or not email.endswith('@srmap.edu.in'):
@@ -82,6 +129,10 @@ def forgot_password_page():
 def api_forgot_password():
     data = request.json
     email = data.get('email', '').strip().lower()
+
+    # Rate limiting
+    if not _check_rate_limit(_get_client_ip(), 'forgot-password', RATELIMIT_RESET_MAX):
+        return jsonify({'error': 'Too many password reset attempts. Please try again later.'}), 429
 
     # Validate email format
     if not email or not email.endswith('@srmap.edu.in'):
