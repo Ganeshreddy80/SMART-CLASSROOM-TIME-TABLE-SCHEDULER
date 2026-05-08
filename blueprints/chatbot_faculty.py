@@ -8,6 +8,15 @@ from blueprints.chatbot_utils import call_claude, format_timetable_for_prompt, f
 
 chatbot_faculty_bp = Blueprint('chatbot_faculty', __name__, url_prefix='/api/chatbot')
 
+# ── Chatbot security (new layer)
+from blueprints.chatbot_security import (
+    validate_user_message,
+    sanitize_output,
+    sanitize_messages,
+    wrap_system_prompt,
+    chatbot_security_check,
+)
+
 def get_faculty_context(faculty_id):
     faculty = Faculty.query.get(faculty_id)
     if not faculty:
@@ -84,19 +93,31 @@ You can ONLY access data for {faculty.name}. Never show other faculty data. Be h
 @chatbot_faculty_bp.route('/faculty', methods=['POST'])
 @login_required
 @role_required('faculty')
+@chatbot_security_check
 def faculty_chat():
     data = request.json
     messages = data.get('messages', [])
     faculty_id = session.get('user_id')
     
-    if not messages:
-        return jsonify({"error": "No messages"}), 400
-        
-    res = call_claude(get_faculty_context(faculty_id), messages)
+    # Validate and sanitize all messages before passing to LLM
+    valid, err, sanitized_messages = sanitize_messages(messages, role='faculty')
+    if not valid:
+        return jsonify({"error": err}), 400
+    
+    # Strict session identity check
+    faculty = Faculty.query.get(faculty_id)
+    if not faculty:
+        return jsonify({"error": "Faculty record not found."}), 403
+    
+    system_prompt = wrap_system_prompt(get_faculty_context(faculty_id))
+    
+    res = call_claude(system_prompt, sanitized_messages)
     if "error" in res:
         return jsonify(res), 500
-        
-    reply = res.get('reply', '')
+    
+    # Sanitize output before returning to client
+    reply = sanitize_output(res.get('reply', ''))
+    res['reply'] = reply
     
     import re, json
     action_match = re.search(r'```action\s*(\{.*?\})\s*```', reply, re.DOTALL)

@@ -8,6 +8,15 @@ from blueprints.chatbot_utils import call_claude, format_timetable_for_prompt, f
 
 chatbot_student_bp = Blueprint('chatbot_student', __name__, url_prefix='/api/chatbot')
 
+# ── Chatbot security (new layer)
+from blueprints.chatbot_security import (
+    validate_user_message,
+    sanitize_output,
+    sanitize_messages,
+    wrap_system_prompt,
+    chatbot_security_check,
+)
+
 def get_student_context(student_id):
     student = Student.query.get(student_id)
     if not student:
@@ -90,15 +99,29 @@ IMPORTANT: If any subject is below 75% attendance, proactively mention it in you
 @chatbot_student_bp.route('/student', methods=['POST'])
 @login_required
 @role_required('student')
+@chatbot_security_check
 def student_chat():
     data = request.json
     messages = data.get('messages', [])
     student_id = session.get('user_id')
     
-    if not messages:
-        return jsonify({"error": "No messages"}), 400
-        
-    res = call_claude(get_student_context(student_id), messages)
+    # Validate and sanitize all messages before passing to LLM
+    valid, err, sanitized_messages = sanitize_messages(messages, role='student')
+    if not valid:
+        return jsonify({"error": err}), 400
+    
+    # Strict session identity check
+    student = Student.query.get(student_id)
+    if not student:
+        return jsonify({"error": "Student record not found."}), 403
+    
+    system_prompt = wrap_system_prompt(get_student_context(student_id))
+    
+    res = call_claude(system_prompt, sanitized_messages)
     if "error" in res:
         return jsonify(res), 500
+    
+    # Sanitize output before returning to client
+    reply = sanitize_output(res.get('reply', ''))
+    res['reply'] = reply
     return jsonify(res)

@@ -7,6 +7,15 @@ from blueprints.chatbot_utils import call_claude
 
 chatbot_admin_bp = Blueprint('chatbot_admin', __name__, url_prefix='/api/chatbot')
 
+# ── Chatbot security (new layer)
+from blueprints.chatbot_security import (
+    validate_user_message,
+    sanitize_output,
+    sanitize_messages,
+    wrap_system_prompt,
+    chatbot_security_check,
+)
+
 def get_admin_context():
     # ... keep existing context gathering logic ...
     uni = University.query.first()
@@ -52,18 +61,25 @@ Always confirm with the user before generating or deleting anything. Be concise 
 @chatbot_admin_bp.route('/admin', methods=['POST'])
 @login_required
 @role_required('admin')
+@chatbot_security_check
 def admin_chat():
     data = request.json
     messages = data.get('messages', [])
     
-    if not messages:
-        return jsonify({"error": "No messages provided"}), 400
-        
-    res = call_claude(get_admin_context(), messages)
+    # Validate and sanitize all messages before passing to LLM
+    valid, err, sanitized_messages = sanitize_messages(messages, role='admin')
+    if not valid:
+        return jsonify({"error": err}), 400
+    
+    system_prompt = wrap_system_prompt(get_admin_context())
+    
+    res = call_claude(system_prompt, sanitized_messages)
     if "error" in res:
         return jsonify(res), 500
     
-    reply = res.get('reply', '')
+    # Sanitize output before returning to client
+    reply = sanitize_output(res.get('reply', ''))
+    res['reply'] = reply
     action_data = None
     
     # Simple action extraction
