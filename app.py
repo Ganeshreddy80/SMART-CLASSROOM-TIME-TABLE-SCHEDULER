@@ -76,6 +76,10 @@ csrf = CSRFProtect(app)
 db.init_app(app)
 migrate = Migrate(app, db)
 
+# ─── Create tables if they don't exist (fallback for fresh deploys) ───
+with app.app_context():
+    db.create_all()
+
 # ─── Register Blueprints ────────────────────────────────────
 from blueprints.auth import auth
 from blueprints.admin import admin
