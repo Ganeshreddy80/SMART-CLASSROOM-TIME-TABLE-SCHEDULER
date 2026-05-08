@@ -144,6 +144,6 @@ csrf.exempt(anomalies_bp)
 
 # ─── Run ────────────────────────────────────────────────────
 if __name__ == '__main__':
-    port = int(os.getenv('FLASK_PORT', 5000))
+    port = int(os.getenv('PORT', os.getenv('FLASK_PORT', 5000)))
     debug = os.getenv('FLASK_DEBUG', 'False').lower() in ('true', '1', 'yes')
     app.run(host='0.0.0.0', debug=debug, port=port)
