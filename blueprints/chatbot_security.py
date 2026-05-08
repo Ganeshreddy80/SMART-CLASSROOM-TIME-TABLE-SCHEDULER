@@ -23,19 +23,19 @@ _JAILBREAK_PATTERNS = [
     r"reveal\s+your\s+(system\s+)?prompt",
     r"you\s+are\s+now\s+",         # "You are now DAN..."
     r"you\s+have\s+no\s+restrictions",
-    r"(?i)\bDAN\b",                 # DAN jailbreak
+    r"\bDAN\b",                 # DAN jailbreak
     r"ignore\s+the\s+above",
-    r"(?i)(?:act\s+as|pretend\s+to\s+be)\s+(?:an?\s+)?(?:unrestricted|unfiltered|jailbroken)",
-    r"(?i)(?:developer[\s_]?mode|debug[\s_]?mode)",  # developer mode requests
-    r"(?i)simulate\s+being\s+(?:an?\s+)?(?:evil|unethical|unrestricted)",
-    r"(?i)(?:nueva|new)\s+(?:sesión|session)\s*(?:sin|without)\s*(?:restricciones|restrictions)",
-    r"(?i)(?:actúa\s+como|act\s+as)\s+(?:un\s+)?(?:modelo|model)\s+(?:sin|without)\s*(?:filtros|filters)",
+    r"(?:act\s+as|pretend\s+to\s+be)\s+(?:an?\s+)?(?:unrestricted|unfiltered|jailbroken)",
+    r"(?:developer[\s_]?mode|debug[\s_]?mode)",  # developer mode requests
+    r"simulate\s+being\s+(?:an?\s+)?(?:evil|unethical|unrestricted)",
+    r"(?:nueva|new)\s+(?:sesión|session)\s*(?:sin|without)\s*(?:restricciones|restrictions)",
+    r"(?:actúa\s+como|act\s+as)\s+(?:un\s+)?(?:modelo|model)\s+(?:sin|without)\s*(?:filtros|filters)",
     # Encoding / obfuscation attempts
     r"<\?xml",                     # XML injection
     r"\[INST\]",                   # LLaMA-style instruction tags
     r"\[:system\s*\]",             # system role spoofing
     r"user:\s*\n\s*(?:system|assistant|admin)",  # role confusion
-    r"(?i)base64:",                # encoded payload hint
+    r"base64:",                # encoded payload hint
     r"`+action\s*\{",             # action injection attempts
 ]
 
