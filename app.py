@@ -109,8 +109,9 @@ def index():
 def health():
     """Health check endpoint for monitoring and load balancers."""
     try:
+        from sqlalchemy import text
         from models import db
-        db.session.execute("SELECT 1")
+        db.session.execute(text("SELECT 1"))
         db_status = "ok"
     except Exception as e:
         db_status = f"error: {e}"
