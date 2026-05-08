@@ -74,9 +74,9 @@ def login_page():
         if not password:
             return render_template('login.html', error='Wrong credentials')
 
-        # Check admin (uses database User model, consistent with other logins)
-        admin_user = Student.query.filter_by(email=email).first()
-        if admin_user and admin_user.check_password(password) and admin_user.role == 'admin':
+        # Check admin (uses database Student model with admin role)
+        admin_user = Student.query.filter_by(email=email, role='admin').first()
+        if admin_user and admin_user.check_password(password):
             session.clear()
             session.permanent = True
             session['role'] = 'admin'

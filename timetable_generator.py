@@ -16,6 +16,7 @@ Key hard constraints (never violated):
   • A section can only be in one class at a time
   • Maximum MAX_CLASSES_PER_DAY classes per section per day
 """
+import os
 from models import db, TimetableEntry, Section, Course, Faculty, Classroom, University
 from sqlalchemy import func
 import json, copy
@@ -599,7 +600,7 @@ def _backtrack_and_place(section, stuck_course, earlier_courses,
             # Now re-place the undone courses
             all_replaced = True
             for _, course_id, _, _, _, _ in undo_data:
-                course_obj = Course.query.get(course_id)
+                course_obj = db.session.get(Course, course_id)
                 if not course_obj:
                     all_replaced = False
                     break
