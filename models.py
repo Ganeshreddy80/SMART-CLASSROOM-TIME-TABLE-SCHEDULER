@@ -197,6 +197,7 @@ class Student(db.Model):
     department_id = db.Column(db.Integer, db.ForeignKey('department.id', ondelete='RESTRICT'), nullable=False)
     password_hash = db.Column(db.String(255), nullable=True)
     photo_url = db.Column(db.Text, nullable=True)
+    role = db.Column(db.String(20), default='student')  # student, admin
     courses_enrolled = db.relationship('Course', secondary=student_courses, lazy='subquery',
                                         backref=db.backref('enrolled_students', lazy=True))
 

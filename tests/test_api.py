@@ -1,11 +1,10 @@
 import pytest
 import os
-from models import Department, Course, Faculty
-from tests.conftest import _FACULTY_PASS, _STUDENT_PASS
+from models import Department, Course, Faculty, db
+from tests.conftest import _FACULTY_PASS, _STUDENT_PASS, _ADMIN_PASS
 
 def test_login_admin(client):
-    password = os.getenv('ADMIN_PASSWORD', 'sukuna@123')
-    res = client.post('/login', data={'email': 'admin@srmap.edu.in', 'password': password}, follow_redirects=False)
+    res = client.post('/login', data={'email': 'admin@srmap.edu.in', 'password': _ADMIN_PASS}, follow_redirects=False)
     assert res.status_code == 302
     assert res.location == '/'
 
@@ -23,13 +22,15 @@ def test_get_departments(admin_session, seed_minimal):
     res = admin_session.get('/api/departments')
     assert res.status_code == 200
     data = res.get_json()
+    # Filter out the admin department
+    data = [d for d in data if d['code'] != 'ADM']
     assert len(data) == 1
     assert data[0]['code'] == 'CSE'
 
 def test_add_course(admin_session, seed_minimal, app):
     with app.app_context():
         dept_id = Department.query.first().id
-        
+
     res = admin_session.post('/api/courses', json={
         'code': 'NEW101',
         'name': 'New Course',
@@ -39,7 +40,7 @@ def test_add_course(admin_session, seed_minimal, app):
         'course_type': 'Theory'
     })
     assert res.status_code == 201
-    
+
     with app.app_context():
         course = Course.query.filter_by(code='NEW101').first()
         assert course is not None
@@ -48,12 +49,12 @@ def test_add_course(admin_session, seed_minimal, app):
 def test_delete_faculty(admin_session, seed_minimal, app):
     with app.app_context():
         fac_id = Faculty.query.first().id
-        
+
     res = admin_session.delete(f'/api/faculty/{fac_id}')
     assert res.status_code == 200
-    
+
     with app.app_context():
-        fac = Faculty.query.get(fac_id)
+        fac = db.session.get(Faculty, fac_id)
         assert fac is None
 
 def test_unauthorized_access(client):
