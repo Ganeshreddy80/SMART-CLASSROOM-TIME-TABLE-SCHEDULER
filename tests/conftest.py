@@ -5,10 +5,13 @@ import secrets
 from app import app as flask_app
 from models import db, University, Department, Course, Faculty, Student, Section, Classroom
 
-# Generate random test passwords (do not hardcode)
+# SMART_ADMIN_EMAIL environment variable for admin email (security best practice)
+_SMART_ADMIN_EMAIL = os.getenv("SMART_ADMIN_EMAIL", "admin@srmap.edu.in")
 _FACULTY_PASS = secrets.token_urlsafe(16)
 _STUDENT_PASS = secrets.token_urlsafe(16)
-_ADMIN_PASS = os.environ.get('ADMIN_PASSWORD', 'sukuna@123')
+_ADMIN_PASS = os.environ.get('ADMIN_PASSWORD')
+if _ADMIN_PASS is None:
+    raise RuntimeError("Environment variable ADMIN_PASSWORD is not set.")
 
 
 @pytest.fixture
@@ -25,12 +28,12 @@ def app():
         db.session.add(d)
         db.session.commit()
 
-        admin = Student.query.filter_by(email='admin@srmap.edu.in').first()
+        admin = Student.query.filter_by(email=_SMART_ADMIN_EMAIL).first()
         if not admin:
             admin = Student(
                 student_uid='ADMIN',
                 name='Admin',
-                email='admin@srmap.edu.in',
+                email=_SMART_ADMIN_EMAIL,
                 role='admin',
                 department_id=d.id
             )
@@ -105,5 +108,5 @@ def seed_minimal(app):
 @pytest.fixture
 def admin_session(client):
     """Log in as admin."""
-    client.post('/login', data={'email': 'admin@srmap.edu.in', 'password': _ADMIN_PASS})
+    client.post('/login', data={'email': _SMART_ADMIN_EMAIL, 'password': _ADMIN_PASS})
     return client

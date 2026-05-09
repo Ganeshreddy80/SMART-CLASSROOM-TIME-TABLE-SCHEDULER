@@ -1,10 +1,10 @@
 import pytest
 import os
 from models import Department, Course, Faculty, db
-from tests.conftest import _FACULTY_PASS, _STUDENT_PASS, _ADMIN_PASS
+from tests.conftest import _FACULTY_PASS, _STUDENT_PASS, _ADMIN_PASS, _SMART_ADMIN_EMAIL
 
 def test_login_admin(client):
-    res = client.post('/login', data={'email': 'admin@srmap.edu.in', 'password': _ADMIN_PASS}, follow_redirects=False)
+    res = client.post('/login', data={'email': _SMART_ADMIN_EMAIL, 'password': _ADMIN_PASS}, follow_redirects=False)
     assert res.status_code == 302
     assert res.location == '/'
 

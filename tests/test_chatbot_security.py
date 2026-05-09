@@ -3,7 +3,7 @@ Comprehensive pytest suite for chatbot security hardening.
 Covers: prompt injection, jailbreak, role escalation, XSS,
 rate limiting, session validation, and output sanitization.
 """
-import pytest, json, base64, time
+import pytest, json, base64, time, os
 from unittest.mock import patch, MagicMock
 
 from app import app as flask_app
@@ -69,7 +69,7 @@ def seed_chatbot(app):
 def _login_as(client, role, seed):
     if role == "admin":
         # Admin is a student with role='admin' in this schema
-        return client.post('/login', data={'email': 'admin@srmap.edu.in', 'password': 'sukuna@123'}, follow_redirects=False)
+        return client.post('/login', data={'email': os.getenv("SMART_ADMIN_EMAIL", "admin@srmap.edu.in"), 'password': os.getenv("ADMIN_PASSWORD")}, follow_redirects=False)
     elif role == "faculty":
         # Need to use actual seeded faculty password (which is "x" via set_password in fixture)
         return client.post('/login', data={'email': 'f@c.edu', 'password': 'x'}, follow_redirects=False)
@@ -270,7 +270,7 @@ def test_invalid_session_rejected(client, seed_chatbot):
     res = client.post('/api/chatbot/faculty', json={"messages": [{"role": "user", "content": "Hello"}]})
     assert res.status_code == 401
 
-    res = client.post('/api/chatbot/admin', json={"messages": [{"role": "user", "content": "Hello"]}])
+    res = client.post('/api/chatbot/admin', json={"messages": [{"role": "user", "content": "Hello"}]})
     assert res.status_code == 401
 
 
