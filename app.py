@@ -79,6 +79,26 @@ migrate = Migrate(app, db)
 # ─── Create tables if they don't exist (fallback for fresh deploys) ───
 with app.app_context():
     db.create_all()
+    from werkzeug.security import generate_password_hash
+    from models import Faculty, Department
+    admin_email = os.getenv('SMART_ADMIN_EMAIL', 'admin@srmap.edu.in')
+    admin_pass = os.getenv('ADMIN_PASSWORD')
+    if admin_pass and not Faculty.query.filter_by(email=admin_email).first():
+        dept = Department.query.first()
+        if not dept:
+            dept = Department(name='Admin', code='ADM')
+            db.session.add(dept)
+            db.session.flush()
+        admin = Faculty(
+            faculty_uid='ADMIN001',
+            name='Admin',
+            email=admin_email,
+            password_hash=generate_password_hash(admin_pass),
+            role='admin',
+            department_id=dept.id
+        )
+        db.session.add(admin)
+        db.session.commit()
 
 # ─── Register Blueprints ────────────────────────────────────
 from blueprints.auth import auth
@@ -138,6 +158,8 @@ def log_request():
         app.logger.info(f"{request.method} {request.path} [{request.remote_addr}]")
 
 # ─── CSRF Exemptions ────────────────────────────────────────
+csrf.exempt(auth)
+csrf.exempt(api)
 csrf.exempt(student_bp)
 csrf.exempt(faculty_bp)
 csrf.exempt(chatbot_admin_bp)
