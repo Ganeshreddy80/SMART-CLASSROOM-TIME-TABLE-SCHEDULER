@@ -195,7 +195,8 @@ def seed():
                     department_id=dept.id,
                     available_slots=json.dumps(avail_full)
                 )
-                f.set_password("faculty123")
+                f.set_password(os.getenv("FACULTY_SEED_PASSWORD", "faculty123"))
+
                 f.courses_can_teach = [course_map[cc] for cc in c_codes if cc in course_map]
                 db.session.add(f)
         db.session.commit()
@@ -226,7 +227,7 @@ def seed():
                     department_id=dept.id,
                     email=f"{fname.lower()}.{lname.lower()}{stu_counter}@srmap.edu.in"
                 )
-                s.set_password("student123")
+                s.set_password(os.getenv("STUDENT_SEED_PASSWORD", "student123"))
                 # Enroll in 4-6 courses
                 num_enroll = min(len(dept_courses), random.randint(4, 6))
                 s.courses_enrolled = random.sample(dept_courses, num_enroll)

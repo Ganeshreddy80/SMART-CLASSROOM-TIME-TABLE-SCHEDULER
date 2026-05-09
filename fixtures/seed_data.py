@@ -19,7 +19,7 @@ import requests, random
 BASE = "http://127.0.0.1:5001/api"
 
 req_session = requests.Session()
-req_session.post("http://127.0.0.1:5001/login", data={"email": "admin@srmap.edu.in", "password": os.getenv("ADMIN_PASSWORD", "sukuna@123")})
+req_session.post("http://127.0.0.1:5001/login", data={"email": os.getenv("SMART_ADMIN_EMAIL", "admin@srmap.edu.in"), "password": os.getenv("ADMIN_PASSWORD")})
 
 # ── 0. Clear existing data ───────────────────────────────────
 print("🗑️  Clearing existing data...")
