@@ -94,7 +94,6 @@ with app.app_context():
             name='Admin',
             email=admin_email,
             password_hash=generate_password_hash(admin_pass),
-            role='admin',
             department_id=dept.id
         )
         db.session.add(admin)
