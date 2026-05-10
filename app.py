@@ -80,24 +80,26 @@ migrate = Migrate(app, db)
 with app.app_context():
     db.create_all()
     from werkzeug.security import generate_password_hash
-    from models import Faculty, Department
+    from models import Student, Department
     admin_email = os.getenv('SMART_ADMIN_EMAIL', 'admin@srmap.edu.in')
     admin_pass = os.getenv('ADMIN_PASSWORD')
-    if admin_pass and not Faculty.query.filter_by(email=admin_email).first():
+    if admin_pass and not Student.query.filter_by(email=admin_email, role='admin').first():
         dept = Department.query.first()
         if not dept:
             dept = Department(name='Admin', code='ADM')
             db.session.add(dept)
             db.session.flush()
-        admin = Faculty(
-            faculty_uid='ADMIN001',
+        admin = Student(
+            student_uid='ADMIN001',
             name='Admin',
             email=admin_email,
             password_hash=generate_password_hash(admin_pass),
+            role='admin',
             department_id=dept.id
         )
         db.session.add(admin)
         db.session.commit()
+        print("Admin user created!")
 
 # ─── Register Blueprints ────────────────────────────────────
 from blueprints.auth import auth
