@@ -79,32 +79,38 @@ migrate = Migrate(app, db)
 # ─── Create tables if they don't exist (fallback for fresh deploys) ───
 with app.app_context():
     db.create_all()
+
+
+@app.cli.command("seed-admin")
+def seed_admin():
     from werkzeug.security import generate_password_hash
     from models import Student, Department
     admin_email = os.getenv('SMART_ADMIN_EMAIL', 'admin@srmap.edu.in')
     admin_pass = os.getenv('ADMIN_PASSWORD')
-    if admin_pass:
-        try:
-            if not Student.query.filter_by(email=admin_email, role='admin').first():
-                dept = Department.query.first()
-                if not dept:
-                    dept = Department(name='Admin', code='ADM')
-                    db.session.add(dept)
-                    db.session.flush()
-                admin = Student(
-                    student_uid='ADMIN001',
-                    name='Admin',
-                    email=admin_email,
-                    password_hash=generate_password_hash(admin_pass),
-                    role='admin',
-                    department_id=dept.id
-                )
-                db.session.add(admin)
-                db.session.commit()
-                print("Admin user created!")
-        except Exception as e:
-            print(f"Admin seed skipped: {e}")
-            db.session.rollback()
+    if not admin_pass:
+        print("No ADMIN_PASSWORD set, skipping")
+        return
+    try:
+        if not Student.query.filter_by(email=admin_email).first():
+            dept = Department.query.first()
+            if not dept:
+                dept = Department(name='Admin', code='ADM')
+                db.session.add(dept)
+                db.session.flush()
+            admin = Student(
+                student_uid='ADMIN001',
+                name='Admin',
+                email=admin_email,
+                password_hash=generate_password_hash(admin_pass),
+                role='admin',
+                department_id=dept.id
+            )
+            db.session.add(admin)
+            db.session.commit()
+            print("Admin created!")
+    except Exception as e:
+        print(f"Seed failed: {e}")
+        db.session.rollback()
 
 # ─── Register Blueprints ────────────────────────────────────
 from blueprints.auth import auth
