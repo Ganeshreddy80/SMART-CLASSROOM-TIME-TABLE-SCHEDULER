@@ -2,6 +2,7 @@
 Faculty blueprint — faculty dashboard, timetable, attendance APIs and pages.
 """
 import os
+import json
 from flask import Blueprint, render_template, request, session, jsonify
 from datetime import datetime
 
