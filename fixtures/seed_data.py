@@ -16,10 +16,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import requests, random
 
-BASE = "http://127.0.0.1:5001/api"
+BASE = os.getenv("APP_URL", "http://127.0.0.1:5001") + "/api"
 
 req_session = requests.Session()
-req_session.post("http://127.0.0.1:5001/login", data={"email": os.getenv("SMART_ADMIN_EMAIL", "admin@srmap.edu.in"), "password": os.getenv("ADMIN_PASSWORD")})
+
+# Build the base URL for the login endpoint using the same APP_URL env var
+BASE_URL = os.getenv("APP_URL", "http://127.0.0.1:5001")
+login_url = BASE_URL + "/login"
+req_session.post(login_url, data={"email": os.getenv("SMART_ADMIN_EMAIL", "admin@srmap.edu.in"), "password": os.getenv("ADMIN_PASSWORD")})
 
 # ── 0. Clear existing data ───────────────────────────────────
 print("🗑️  Clearing existing data...")
