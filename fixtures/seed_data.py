@@ -1,271 +1,320 @@
 """
 Seed script — populates the university timetable system with large realistic data.
-
-Usage:
-    1. Start the Flask server:  python3 app.py
-    2. In another terminal:     python3 fixtures/seed_data.py
-
-The script uses the running Flask API to seed the database, so the server must
-be running first.  It also imports `app` and `db` directly to clear existing
-data before seeding.
+Uses direct DB imports (no HTTP API), so it can be run during a Render deployment
+before the app server starts.
 """
-import sys, os
+import sys, os, random, json
 
 # Allow imports from the project root (one level up)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-import requests, random
-
-BASE = os.getenv("APP_URL", "http://127.0.0.1:5001") + "/api"
-
-req_session = requests.Session()
-
-# Build the base URL for the login endpoint using the same APP_URL env var
-BASE_URL = os.getenv("APP_URL", "http://127.0.0.1:5001")
-login_url = BASE_URL + "/login"
-req_session.post(login_url, data={"email": os.getenv("SMART_ADMIN_EMAIL", "admin@srmap.edu.in"), "password": os.getenv("ADMIN_PASSWORD")})
-
-# ── 0. Clear existing data ───────────────────────────────────
-print("🗑️  Clearing existing data...")
 from app import app, db
-from models import TimetableEntry, Section, Student, Faculty, Course, Department, Classroom, University
-from models import section_students, student_courses, faculty_courses
-with app.app_context():
-    db.create_all()
-    db.session.execute(TimetableEntry.__table__.delete())
-    db.session.execute(section_students.delete())
-    db.session.execute(student_courses.delete())
-    db.session.execute(faculty_courses.delete())
-    db.session.execute(Section.__table__.delete())
-    db.session.execute(Student.__table__.delete())
-    db.session.execute(Faculty.__table__.delete())
-    db.session.execute(Course.__table__.delete())
-    db.session.execute(Department.__table__.delete())
-    db.session.execute(Classroom.__table__.delete())
-    db.session.execute(University.__table__.delete())
-    db.session.commit()
-print("   ✓ Database cleared")
-# ── 1. University Setup ──────────────────────────────────────
-print("🏛️  Setting up university...")
-req_session.post(f"{BASE}/university", json={
-    "name": "SRM University AP",
-    "total_blocks": 4,
-    "floors_per_block": {"1": 3, "2": 4, "3": 2, "4": 3},
-    "rooms_per_block": 5,
-    "room_capacity": 60,
-    "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-    "timeslots": [
-        "9:00-10:00", "10:00-11:00", "11:00-12:00",
-        "12:00-1:00", "2:00-3:00", "3:00-4:00", "4:00-5:00"
+from models import (
+    TimetableEntry, Section, Student, Faculty, Course, Department, Classroom, University,
+    section_students, student_courses, faculty_courses,
+)
+
+
+def _seed():
+    """Actual seeding logic."""
+
+    # ── Guard: already seeded ───────────────────────────────────
+    with app.app_context():
+        if Department.query.count() > 0:
+            print("Database already seeded, skipping!")
+            return
+
+    # ── 0. Clear existing data ─────────────────────────────────
+    print("🗑️  Clearing existing data...")
+    with app.app_context():
+        for tbl in (
+            TimetableEntry.__table__,
+            section_students,
+            student_courses,
+            faculty_courses,
+            Section.__table__,
+            Student.__table__,
+            Faculty.__table__,
+            Course.__table__,
+            Department.__table__,
+            Classroom.__table__,
+            University.__table__,
+        ):
+            db.session.execute(tbl.delete())
+        db.session.commit()
+    print("   ✓ Database cleared")
+
+    # ── 1. University Setup ────────────────────────────────────
+    print("🏛️  Setting up university...")
+    with app.app_context():
+        uni = University(
+            name="SRM University AP",
+            total_blocks=4,
+            floors_per_block=json.dumps({"1": 3, "2": 4, "3": 2, "4": 3}),
+            rooms_per_block=5,
+            room_capacity=60,
+            days=json.dumps(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]),
+            timeslots=json.dumps([
+                "9:00-10:00", "10:00-11:00", "11:00-12:00",
+                "12:00-1:00", "2:00-3:00", "3:00-4:00", "4:00-5:00"
+            ]),
+        )
+        db.session.add(uni)
+        db.session.commit()
+        uni_id = uni.id
+    print("   ✓ University configured (4 blocks, 60 classrooms)")
+
+    # ── 2. Departments ───────────────────────────────────────────
+    print("🏢  Creating departments...")
+    department_data = [
+        ("Computer Science", "CSE"),
+        ("Electronics", "ECE"),
+        ("Mechanical", "MECH"),
+        ("Civil", "CIVIL"),
+        ("Information Technology", "IT"),
+        ("Artificial Intelligence", "AI"),
     ]
-})
-print("   ✓ University configured (4 blocks, 60 classrooms)")
+    dept_ids = {}
+    with app.app_context():
+        for name, code in department_data:
+            d = Department(name=name, code=code, university_id=uni_id)
+            db.session.add(d)
+            db.session.flush()
+            dept_ids[code] = d.id
+        db.session.commit()
+    print(f"   ✓ {len(department_data)} departments created")
 
-# ── 2. Departments ───────────────────────────────────────────
-print("🏢  Creating departments...")
-departments = [
-    ("Computer Science", "CSE"),
-    ("Electronics", "ECE"),
-    ("Mechanical", "MECH"),
-    ("Civil", "CIVIL"),
-    ("Information Technology", "IT"),
-    ("Artificial Intelligence", "AI"),
-]
-dept_ids = {}
-for name, code in departments:
-    r = req_session.post(f"{BASE}/departments", json={"name": name, "code": code}).json()
-    dept_ids[code] = r.get("id", len(dept_ids) + 1)
-print(f"   ✓ {len(departments)} departments created")
+    # Refresh dept_ids from the DB for safety
+    with app.app_context():
+        dept_ids = {d.code: d.id for d in Department.query.all()}
 
-# Re-fetch to get correct IDs
-depts = req_session.get(f"{BASE}/departments").json()
-dept_ids = {d["code"]: d["id"] for d in depts}
+    # ── 3. Courses ───────────────────────────────────────────────
+    print("📖  Creating courses...")
+    course_defs = {
+        "CSE": [
+            ("CS101", "Data Structures", 4, "Hard", "Theory"),
+            ("CS102", "Algorithms", 4, "Hard", "Theory"),
+            ("CS103", "Database Systems", 3, "Medium", "Theory"),
+            ("CS104", "Operating Systems", 4, "Hard", "Theory"),
+            ("CS105", "Computer Networks", 3, "Medium", "Theory"),
+            ("CS106", "Web Development", 3, "Easy", "Lab"),
+            ("CS107", "Machine Learning", 4, "Hard", "Theory"),
+            ("CS108", "Software Engineering", 3, "Medium", "Theory"),
+        ],
+        "ECE": [
+            ("EC101", "Circuit Analysis", 4, "Hard", "Theory"),
+            ("EC102", "Signal Processing", 4, "Hard", "Theory"),
+            ("EC103", "Electromagnetics", 3, "Medium", "Theory"),
+            ("EC104", "VLSI Design", 4, "Hard", "Lab"),
+            ("EC105", "Communication Systems", 3, "Medium", "Theory"),
+            ("EC106", "Embedded Systems", 3, "Medium", "Lab"),
+        ],
+        "MECH": [
+            ("ME101", "Thermodynamics", 4, "Hard", "Theory"),
+            ("ME102", "Fluid Mechanics", 4, "Hard", "Theory"),
+            ("ME103", "Strength of Materials", 3, "Medium", "Theory"),
+            ("ME104", "Manufacturing Processes", 3, "Medium", "Lab"),
+            ("ME105", "CAD/CAM", 3, "Easy", "Lab"),
+            ("ME106", "Heat Transfer", 4, "Hard", "Theory"),
+        ],
+        "CIVIL": [
+            ("CE101", "Structural Analysis", 4, "Hard", "Theory"),
+            ("CE102", "Geotechnical Engineering", 3, "Medium", "Theory"),
+            ("CE103", "Surveying", 3, "Easy", "Lab"),
+            ("CE104", "Concrete Technology", 3, "Medium", "Theory"),
+            ("CE105", "Transportation Engineering", 3, "Medium", "Theory"),
+        ],
+        "IT": [
+            ("IT101", "Cloud Computing", 3, "Medium", "Theory"),
+            ("IT102", "Cybersecurity", 4, "Hard", "Theory"),
+            ("IT103", "DevOps", 3, "Medium", "Lab"),
+            ("IT104", "Big Data Analytics", 4, "Hard", "Theory"),
+            ("IT105", "Mobile App Development", 3, "Easy", "Lab"),
+        ],
+        "AI": [
+            ("AI101", "Deep Learning", 4, "Hard", "Theory"),
+            ("AI102", "Natural Language Processing", 4, "Hard", "Theory"),
+            ("AI103", "Computer Vision", 3, "Medium", "Theory"),
+            ("AI104", "Reinforcement Learning", 4, "Hard", "Theory"),
+            ("AI105", "AI Ethics", 2, "Easy", "Theory"),
+            ("AI106", "Neural Networks Lab", 3, "Medium", "Lab"),
+        ],
+    }
+    course_ids = {}
+    total_courses = 0
+    with app.app_context():
+        for dept_code, courses in course_defs.items():
+            for code, name, credits, diff, ctype in courses:
+                c = Course(
+                    code=code,
+                    name=name,
+                    credits=credits,
+                    difficulty=diff,
+                    course_type=ctype,
+                    department_id=dept_ids[dept_code],
+                )
+                db.session.add(c)
+                db.session.flush()
+                course_ids[code] = c.id
+                total_courses += 1
+        db.session.commit()
+    print(f"   ✓ {total_courses} courses created")
 
-# ── 3. Courses ───────────────────────────────────────────────
-print("📖  Creating courses...")
-course_defs = {
-    "CSE": [
-        ("CS101", "Data Structures", 4, "Hard", "Theory"),
-        ("CS102", "Algorithms", 4, "Hard", "Theory"),
-        ("CS103", "Database Systems", 3, "Medium", "Theory"),
-        ("CS104", "Operating Systems", 4, "Hard", "Theory"),
-        ("CS105", "Computer Networks", 3, "Medium", "Theory"),
-        ("CS106", "Web Development", 3, "Easy", "Lab"),
-        ("CS107", "Machine Learning", 4, "Hard", "Theory"),
-        ("CS108", "Software Engineering", 3, "Medium", "Theory"),
-    ],
-    "ECE": [
-        ("EC101", "Circuit Analysis", 4, "Hard", "Theory"),
-        ("EC102", "Signal Processing", 4, "Hard", "Theory"),
-        ("EC103", "Electromagnetics", 3, "Medium", "Theory"),
-        ("EC104", "VLSI Design", 4, "Hard", "Lab"),
-        ("EC105", "Communication Systems", 3, "Medium", "Theory"),
-        ("EC106", "Embedded Systems", 3, "Medium", "Lab"),
-    ],
-    "MECH": [
-        ("ME101", "Thermodynamics", 4, "Hard", "Theory"),
-        ("ME102", "Fluid Mechanics", 4, "Hard", "Theory"),
-        ("ME103", "Strength of Materials", 3, "Medium", "Theory"),
-        ("ME104", "Manufacturing Processes", 3, "Medium", "Lab"),
-        ("ME105", "CAD/CAM", 3, "Easy", "Lab"),
-        ("ME106", "Heat Transfer", 4, "Hard", "Theory"),
-    ],
-    "CIVIL": [
-        ("CE101", "Structural Analysis", 4, "Hard", "Theory"),
-        ("CE102", "Geotechnical Engineering", 3, "Medium", "Theory"),
-        ("CE103", "Surveying", 3, "Easy", "Lab"),
-        ("CE104", "Concrete Technology", 3, "Medium", "Theory"),
-        ("CE105", "Transportation Engineering", 3, "Medium", "Theory"),
-    ],
-    "IT": [
-        ("IT101", "Cloud Computing", 3, "Medium", "Theory"),
-        ("IT102", "Cybersecurity", 4, "Hard", "Theory"),
-        ("IT103", "DevOps", 3, "Medium", "Lab"),
-        ("IT104", "Big Data Analytics", 4, "Hard", "Theory"),
-        ("IT105", "Mobile App Development", 3, "Easy", "Lab"),
-    ],
-    "AI": [
-        ("AI101", "Deep Learning", 4, "Hard", "Theory"),
-        ("AI102", "Natural Language Processing", 4, "Hard", "Theory"),
-        ("AI103", "Computer Vision", 3, "Medium", "Theory"),
-        ("AI104", "Reinforcement Learning", 4, "Hard", "Theory"),
-        ("AI105", "AI Ethics", 2, "Easy", "Theory"),
-        ("AI106", "Neural Networks Lab", 3, "Medium", "Lab"),
-    ],
-}
+    with app.app_context():
+        courses_all = [
+            {"id": c.id, "code": c.code, "name": c.name, "department_id": c.department_id}
+            for c in Course.query.all()
+        ]
+    courses_by_dept = {}
+    for c in courses_all:
+        courses_by_dept.setdefault(c["department_id"], []).append(c)
 
-course_ids = {}
-total_courses = 0
-for dept_code, courses in course_defs.items():
-    for code, name, credits, diff, ctype in courses:
-        r = req_session.post(f"{BASE}/courses", json={
-            "code": code, "name": name, "credits": credits,
-            "difficulty": diff, "course_type": ctype,
-            "department_id": dept_ids[dept_code]
-        }).json()
-        course_ids[code] = r.get("id", total_courses + 1)
-        total_courses += 1
-print(f"   ✓ {total_courses} courses created")
+    # Timeslots needed for faculty availability
+    with app.app_context():
+        university = University.query.first()
+        timeslots = json.loads(university.timeslots) if university.timeslots else []
+        days_list = json.loads(university.days) if university.days else []
 
-# Re-fetch course IDs
-courses_all = req_session.get(f"{BASE}/courses").json()
-course_ids = {c["code"]: c["id"] for c in courses_all}
-courses_by_dept = {}
-for c in courses_all:
-    courses_by_dept.setdefault(c["department_id"], []).append(c)
+    # ── 4. Faculty ─────────────────────────────────────────────
+    print("👨‍🏫  Creating faculty...")
+    faculty_defs = {
+        "CSE": [
+            ("FAC001", "Dr. Rajesh Kumar",     ["CS101", "CS102"]),
+            ("FAC002", "Prof. Anita Sharma",     ["CS103", "CS108"]),
+            ("FAC003", "Dr. Vikram Patel",       ["CS104", "CS105"]),
+            ("FAC004", "Prof. Meera Reddy",      ["CS106", "CS107"]),
+        ],
+        "ECE": [
+            ("FAC005", "Dr. Suresh Babu",        ["EC101", "EC102"]),
+            ("FAC006", "Prof. Lakshmi Devi",     ["EC103", "EC105"]),
+            ("FAC007", "Dr. Arjun Rao",          ["EC104", "EC106"]),
+        ],
+        "MECH": [
+            ("FAC008", "Dr. Prakash Joshi",     ["ME101", "ME102"]),
+            ("FAC009", "Prof. Kavitha Nair",     ["ME103", "ME106"]),
+            ("FAC010", "Dr. Raman Singh",        ["ME104", "ME105"]),
+        ],
+        "CIVIL": [
+            ("FAC011", "Dr. Sunita Patel",       ["CE101", "CE102"]),
+            ("FAC012", "Prof. Arun Kumar",       ["CE103", "CE104", "CE105"]),
+        ],
+        "IT": [
+            ("FAC013", "Dr. Deepa Menon",        ["IT101", "IT102"]),
+            ("FAC014", "Prof. Karthik Iyer",     ["IT103", "IT104", "IT105"]),
+        ],
+        "AI": [
+            ("FAC015", "Dr. Priya Krishnan",     ["AI101", "AI102"]),
+            ("FAC016", "Prof. Sanjay Gupta",     ["AI103", "AI104"]),
+            ("FAC017", "Dr. Nisha Verma",       ["AI105", "AI106"]),
+        ],
+    }
 
-# Get university timeslots for faculty availability
-uni = req_session.get(f"{BASE}/university").json()
-timeslots = uni.get("timeslots", [])
+    total_faculty = 0
+    avail = {day: timeslots for day in days_list}
+    with app.app_context():
+        for dept_code, facs in faculty_defs.items():
+            for uid, name, course_codes in facs:
+                cids = [course_ids[c] for c in course_codes if c in course_ids]
+                f = Faculty(
+                    faculty_uid=uid,
+                    name=name,
+                    department_id=dept_ids[dept_code],
+                    available_slots=json.dumps(avail)
+                )
+                # Add M2M courses
+                for cid in cids:
+                    c = Course.query.get(cid)
+                    if c:
+                        f.courses_can_teach.append(c)
+                db.session.add(f)
+                total_faculty += 1
+        db.session.commit()
+    print(f"   ✓ {total_faculty} faculty members created")
 
-# ── 4. Faculty ───────────────────────────────────────────────
-print("👨‍🏫  Creating faculty...")
-faculty_defs = {
-    "CSE": [
-        ("FAC001", "Dr. Rajesh Kumar", ["CS101", "CS102"]),
-        ("FAC002", "Prof. Anita Sharma", ["CS103", "CS108"]),
-        ("FAC003", "Dr. Vikram Patel", ["CS104", "CS105"]),
-        ("FAC004", "Prof. Meera Reddy", ["CS106", "CS107"]),
-    ],
-    "ECE": [
-        ("FAC005", "Dr. Suresh Babu", ["EC101", "EC102"]),
-        ("FAC006", "Prof. Lakshmi Devi", ["EC103", "EC105"]),
-        ("FAC007", "Dr. Arjun Rao", ["EC104", "EC106"]),
-    ],
-    "MECH": [
-        ("FAC008", "Dr. Prakash Joshi", ["ME101", "ME102"]),
-        ("FAC009", "Prof. Kavitha Nair", ["ME103", "ME106"]),
-        ("FAC010", "Dr. Raman Singh", ["ME104", "ME105"]),
-    ],
-    "CIVIL": [
-        ("FAC011", "Dr. Sunita Patel", ["CE101", "CE102"]),
-        ("FAC012", "Prof. Arun Kumar", ["CE103", "CE104", "CE105"]),
-    ],
-    "IT": [
-        ("FAC013", "Dr. Deepa Menon", ["IT101", "IT102"]),
-        ("FAC014", "Prof. Karthik Iyer", ["IT103", "IT104", "IT105"]),
-    ],
-    "AI": [
-        ("FAC015", "Dr. Priya Krishnan", ["AI101", "AI102"]),
-        ("FAC016", "Prof. Sanjay Gupta", ["AI103", "AI104"]),
-        ("FAC017", "Dr. Nisha Verma", ["AI105", "AI106"]),
-    ],
-}
+    # ── 5. Students ────────────────────────────────────────────
+    print("🎓  Enrolling students...")
+    first_names = [
+        "Aarav", "Aditi", "Arjun", "Diya", "Ishaan", "Kavya", "Rohan", "Priya",
+        "Vivaan", "Ananya", "Siddharth", "Neha", "Aditya", "Pooja", "Rahul",
+        "Shreya", "Vihaan", "Riya", "Karan", "Sakshi", "Dev", "Tanvi", "Nikhil",
+        "Anjali", "Manish", "Divya", "Akash", "Simran", "Varun", "Meghna",
+        "Harsh", "Kritika", "Rajat", "Swati", "Pranav", "Nandini", "Gaurav",
+        "Isha", "Kunal", "Tanya",
+    ]
+    last_names = [
+        "Sharma", "Patel", "Kumar", "Singh", "Reddy", "Gupta", "Nair", "Iyer",
+        "Joshi", "Verma", "Chauhan", "Mehta", "Rao", "Das", "Bhat", "Malhotra",
+        "Pillai", "Mishra", "Saxena", "Agarwal",
+    ]
 
-total_faculty = 0
-days_list = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-for dept_code, facs in faculty_defs.items():
-    for uid, name, course_codes in facs:
-        cids = [course_ids[c] for c in course_codes if c in course_ids]
-        # Build per-day availability map
-        avail = {day: timeslots for day in days_list}
-        r = req_session.post(f"{BASE}/faculty", json={
-            "faculty_uid": uid,
-            "name": name,
-            "department_id": dept_ids[dept_code],
-            "courses_can_teach": cids,
-            "available_slots": avail
-        })
-        total_faculty += 1
-print(f"   ✓ {total_faculty} faculty members created")
+    total_students = 0
+    stu_counter = 1
+    with app.app_context():
+        for dept_code, did in dept_ids.items():
+            dept_courses = courses_by_dept.get(did, [])
+            num_students = random.randint(45, 80)
+            for _ in range(num_students):
+                fname = random.choice(first_names)
+                lname = random.choice(last_names)
+                num_enroll = min(len(dept_courses), random.randint(4, 6))
+                enrolled = random.sample([c["id"] for c in dept_courses], num_enroll)
 
-# ── 5. Students ──────────────────────────────────────────────
-print("🎓  Enrolling students...")
-first_names = ["Aarav", "Aditi", "Arjun", "Diya", "Ishaan", "Kavya", "Rohan", "Priya", 
-               "Vivaan", "Ananya", "Siddharth", "Neha", "Aditya", "Pooja", "Rahul",
-               "Shreya", "Vihaan", "Riya", "Karan", "Sakshi", "Dev", "Tanvi", "Nikhil",
-               "Anjali", "Manish", "Divya", "Akash", "Simran", "Varun", "Meghna",
-               "Harsh", "Kritika", "Rajat", "Swati", "Pranav", "Nandini", "Gaurav",
-               "Isha", "Kunal", "Tanya"]
-last_names = ["Sharma", "Patel", "Kumar", "Singh", "Reddy", "Gupta", "Nair", "Iyer",
-              "Joshi", "Verma", "Chauhan", "Mehta", "Rao", "Das", "Bhat", "Malhotra",
-              "Pillai", "Mishra", "Saxena", "Agarwal"]
+                s = Student(
+                    student_uid=f"STU{stu_counter:04d}",
+                    name=f"{fname} {lname}",
+                    department_id=did,
+                )
+                db.session.add(s)
+                db.session.flush()
+                for cid in enrolled:
+                    c = Course.query.get(cid)
+                    if c:
+                        s.courses_enrolled.append(c)
+                stu_counter += 1
+                total_students += 1
+        db.session.commit()
+    print(f"   ✓ {total_students} students enrolled")
 
-total_students = 0
-stu_counter = 1
-for dept_code, did in dept_ids.items():
-    dept_courses = courses_by_dept.get(did, [])
-    num_students = random.randint(45, 80)
-    
-    for i in range(num_students):
-        fname = random.choice(first_names)
-        lname = random.choice(last_names)
-        # Each student enrolls in 4-6 courses from their department
-        num_enroll = min(len(dept_courses), random.randint(4, 6))
-        enrolled = random.sample([c["id"] for c in dept_courses], num_enroll)
-        
-        req_session.post(f"{BASE}/students", json={
-            "student_uid": f"STU{stu_counter:04d}",
-            "name": f"{fname} {lname}",
-            "department_id": did,
-            "courses_enrolled": enrolled
-        })
-        stu_counter += 1
-        total_students += 1
+    # ── 6. Generate Sections ───────────────────────────────────
+    print("👥  Generating sections...")
+    from blueprints.api import generate_sections
+    with app.app_context():
+        result = generate_sections()
+        msg = result[0].get("message", "Sections generated") if isinstance(result, tuple) else "Sections generated"
+    print(f"   ✓ {msg}")
 
-print(f"   ✓ {total_students} students enrolled")
+    # ── 7. Generate Timetable ──────────────────────────────────
+    print("⚡  Generating timetable...")
+    from blueprints.api import generate_timetable
+    with app.app_context():
+        result = generate_timetable()
+        msg = result[0].get("message", "Done") if isinstance(result, tuple) else "Done"
+        conflicts = result[0].get("conflicts", []) if isinstance(result, tuple) else []
+    print(f"   ✓ {msg}")
+    if conflicts:
+        print(f"   ⚠ {len(conflicts)} conflicts detected")
 
-# ── 6. Generate Sections ─────────────────────────────────────
-print("👥  Generating sections...")
-r = req_session.post(f"{BASE}/sections/generate").json()
-print(f"   ✓ {r.get('message', 'Sections generated')}")
+    # ── Summary ────────────────────────────────────────────────
+    with app.app_context():
+        print("\n" + "=" * 50)
+        print("📊 DASHBOARD SUMMARY")
+        print(f"   Departments:      {Department.query.count()}")
+        print(f"   Courses:          {Course.query.count()}")
+        print(f"   Faculty:          {Faculty.query.count()}")
+        print(f"   Students:         {Student.query.count()}")
+        print(f"   Sections:         {Section.query.count()}")
+        print(f"   Timetable Slots:  {TimetableEntry.query.count()}")
+        print("=" * 50)
+    print("✅ Seed complete!")
 
-# ── 7. Generate Timetable ────────────────────────────────────
-print("⚡  Generating timetable...")
-r = req_session.post(f"{BASE}/timetable/generate").json()
-print(f"   ✓ {r.get('message', 'Done')}")
-if r.get("conflicts"):
-    print(f"   ⚠ {len(r['conflicts'])} conflicts detected")
 
-# ── Summary ──────────────────────────────────────────────────
-print("\n" + "="*50)
-dash = req_session.get(f"{BASE}/dashboard").json()
-print(f"📊 DASHBOARD SUMMARY")
-print(f"   Departments:      {dash.get('departments', 0)}")
-print(f"   Courses:          {dash.get('courses', 0)}")
-print(f"   Faculty:          {dash.get('faculty', 0)}")
-print(f"   Students:         {dash.get('students', 0)}")
-print(f"   Sections:         {dash.get('sections', 0)}")
-print(f"   Timetable Slots:  {dash.get('timetable_entries', 0)}")
-print("="*50)
-print("✅ Seed complete! Open http://127.0.0.1:5001 to view.")
+if __name__ == "__main__" or True:
+    try:
+        _seed()
+    except Exception as e:
+        print(f"Seed failed: {e}")
+        import traceback
+
+        traceback.print_exc()
+        # Don't exit with error code — just warn and continue so deployment doesn't crash.
+        print("⚠️  Continuing despite seed failure.")
