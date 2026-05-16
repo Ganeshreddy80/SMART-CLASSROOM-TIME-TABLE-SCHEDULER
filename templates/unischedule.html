@@ -234,7 +234,7 @@ tbody tr{transition:background .15s}tbody tr:hover{background:#fafbff}tbody tr:l
 <button class="role-tab" onclick="setRole(this,'student')">🎓 Student</button>
 </div>
 <div class="linner">
-<div class="fg"><label>Email Address</label><input type="email" id="logEmail" placeholder="admin@srmap.edu.in"></div>
+<div class="fg"><label>Email Address</label><input type="email" id="logEmail" placeholder="Email"></div>
 <div class="fg"><label>Password</label><input type="password" id="logPass" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()"></div>
 <button class="lbtn" onclick="doLogin()">🚀 Sign In</button>
 </div>
@@ -294,25 +294,25 @@ courses:[
 {code:"AI204",name:"Computer Vision Lab",dept:"AI",credits:3,difficulty:"Medium",classesPerWeek:3,type:"Lab"},
 {code:"AI205",name:"AI Ethics and Society",dept:"AI",credits:2,difficulty:"Easy",classesPerWeek:2,type:"Theory"}],
 faculty:[
-{id:"FAC001",name:"Dr. Arun Kumar",dept:"CSE",email:"arun.kumar@srmap.edu.in",password:"arun.kumar@123",canTeach:["CS205","CS208"],assignedSections:["SEC001","SEC002"],available:{Mon:["9-10","2-3"],Tue:["9-10"],Wed:["9-10"],Thu:["9-10","2-3"],Fri:["9-10"]},absentDates:[]},
-{id:"FAC002",name:"Dr. Priya Sharma",dept:"CSE",email:"priya.sharma@srmap.edu.in",password:"priya.sharma@123",canTeach:["CS206"],assignedSections:["SEC001","SEC002"],available:{Mon:["10-11"],Tue:["10-11"],Wed:["10-11"],Thu:["10-11"],Fri:["10-11"]},absentDates:[]},
-{id:"FAC003",name:"Dr. Meena Iyer",dept:"CSE",email:"meena.iyer@srmap.edu.in",password:"meena.iyer@123",canTeach:["AEC201"],assignedSections:["SEC001"],available:{Mon:["11-12"],Tue:["11-12"],Wed:["11-12"],Thu:["11-12"],Fri:["11-12"]},absentDates:["2026-04-12"]},
-{id:"FAC004",name:"Dr. Ramesh Babu",dept:"CSE",email:"ramesh.babu@srmap.edu.in",password:"ramesh.babu@123",canTeach:["CS208"],assignedSections:["SEC001"],available:{Mon:["2-3"],Tue:["2-3"],Wed:["2-3"],Thu:["2-3"],Fri:["2-3"]},absentDates:[]},
-{id:"FAC005",name:"Dr. Vikram Rao",dept:"CSE",email:"vikram.rao@srmap.edu.in",password:"vikram.rao@123",canTeach:["CS209"],assignedSections:["SEC001","SEC002"],available:{Mon:["3-4"],Tue:["3-4"],Wed:["3-4"],Thu:["3-4"],Fri:["3-4"]},absentDates:[]},
-{id:"FAC006",name:"Dr. Anjali Nair",dept:"CSE",email:"anjali.nair@srmap.edu.in",password:"anjali.nair@123",canTeach:["CS211"],assignedSections:["SEC001"],available:{Mon:["4-5"],Tue:["4-5"],Wed:["4-5"],Thu:["4-5"],Fri:["4-5"]},absentDates:[]},
-{id:"FAC007",name:"Dr. Suresh Pillai",dept:"CSE",email:"suresh.pillai@srmap.edu.in",password:"suresh.pillai@123",canTeach:["MAT266A"],assignedSections:["SEC001","SEC002"],available:{Mon:["10-11"],Tue:["10-11"],Wed:["10-11"],Thu:["10-11"],Fri:["10-11"]},absentDates:[]},
-{id:"FAC008",name:"Dr. Lakshmi Menon",dept:"ECE",email:"lakshmi.menon@srmap.edu.in",password:"lakshmi.menon@123",canTeach:["EC201","EC204"],assignedSections:["SEC003"],available:{Mon:["9-10","2-3"],Tue:["9-10"],Wed:["9-10","3-4"],Thu:["9-10"],Fri:["9-10","2-3"]},absentDates:[]},
-{id:"FAC009",name:"Dr. Raghav Sinha",dept:"ECE",email:"raghav.sinha@srmap.edu.in",password:"raghav.sinha@123",canTeach:["EC202","EC205"],assignedSections:["SEC003"],available:{Mon:["10-11","3-4"],Tue:["10-11","3-4"],Wed:["10-11"],Thu:["10-11","3-4"],Fri:["10-11"]},absentDates:[]},
-{id:"FAC010",name:"Dr. Kavitha Das",dept:"ECE",email:"kavitha.das@srmap.edu.in",password:"kavitha.das@123",canTeach:["EC203","EC206"],assignedSections:["SEC003"],available:{Mon:["11-12","4-5"],Tue:["11-12","4-5"],Wed:["11-12","4-5"],Thu:["11-12"],Fri:["11-12","4-5"]},absentDates:[]},
-{id:"FAC011",name:"Dr. Karthik Reddy",dept:"MECH",email:"karthik.reddy@srmap.edu.in",password:"karthik.reddy@123",canTeach:["ME201","ME203"],assignedSections:["SEC004"],available:{Mon:["9-10","2-3"],Tue:["9-10","2-3"],Wed:["9-10"],Thu:["9-10"],Fri:["9-10","2-3"]},absentDates:[]},
-{id:"FAC012",name:"Dr. Sanjay Mehta",dept:"MECH",email:"sanjay.mehta@srmap.edu.in",password:"sanjay.mehta@123",canTeach:["ME202","ME204","ME205"],assignedSections:["SEC004"],available:{Mon:["10-11","3-4","4-5"],Tue:["10-11","3-4"],Wed:["10-11","3-4","4-5"],Thu:["10-11","3-4"],Fri:["10-11","3-4","4-5"]},absentDates:[]},
-{id:"FAC013",name:"Dr. Sunita Joshi",dept:"CIVIL",email:"sunita.joshi@srmap.edu.in",password:"sunita.joshi@123",canTeach:["CE201","CE204"],assignedSections:["SEC005"],available:{Mon:["9-10","2-3","11-12"],Tue:["9-10","2-3"],Wed:["9-10"],Thu:["9-10","2-3"],Fri:["9-10","11-12"]},absentDates:[]},
-{id:"FAC014",name:"Dr. Mohan Patil",dept:"CIVIL",email:"mohan.patil@srmap.edu.in",password:"mohan.patil@123",canTeach:["CE202","CE203"],assignedSections:["SEC005"],available:{Mon:["10-11","3-4","4-5"],Tue:["10-11","3-4"],Wed:["10-11","3-4","4-5"],Thu:["10-11","3-4"],Fri:["10-11","3-4"]},absentDates:[]},
-{id:"FAC015",name:"Dr. Neha Kapoor",dept:"IT",email:"neha.kapoor@srmap.edu.in",password:"neha.kapoor@123",canTeach:["IT201","IT204"],assignedSections:["SEC006"],available:{Mon:["9-10","2-3"],Tue:["9-10","2-3"],Wed:["9-10"],Thu:["9-10","2-3"],Fri:["9-10"]},absentDates:[]},
-{id:"FAC016",name:"Dr. Vivek Gupta",dept:"IT",email:"vivek.gupta@srmap.edu.in",password:"vivek.gupta@123",canTeach:["IT202","IT203","IT205"],assignedSections:["SEC006"],available:{Mon:["10-11","3-4","4-5"],Tue:["10-11","3-4"],Wed:["10-11","3-4","4-5"],Thu:["10-11","3-4"],Fri:["10-11","3-4","4-5"]},absentDates:[]},
-{id:"FAC017",name:"Dr. Deepa Verma",dept:"AI",email:"deepa.verma@srmap.edu.in",password:"deepa.verma@123",canTeach:["AI201","AI203"],assignedSections:["SEC007"],available:{Mon:["9-10","2-3"],Tue:["9-10"],Wed:["9-10","3-4"],Thu:["9-10","2-3"],Fri:["9-10"]},absentDates:[]},
-{id:"FAC018",name:"Dr. Arjun Saxena",dept:"AI",email:"arjun.saxena@srmap.edu.in",password:"arjun.saxena@123",canTeach:["AI202","AI204"],assignedSections:["SEC007"],available:{Mon:["10-11","3-4","4-5"],Tue:["10-11","3-4"],Wed:["10-11","4-5"],Thu:["10-11","3-4"],Fri:["10-11","3-4","4-5"]},absentDates:[]},
-{id:"FAC019",name:"Dr. Pooja Rao",dept:"AI",email:"pooja.rao@srmap.edu.in",password:"pooja.rao@123",canTeach:["AI205"],assignedSections:["SEC007"],available:{Mon:["11-12"],Tue:["11-12"],Wed:["11-12"],Thu:["11-12"],Fri:["11-12"]},absentDates:[]}],
+{id:"FAC001",name:"Dr. Arun Kumar",dept:"CSE",email:"arun.kumar@srmap.edu.in",canTeach:["CS205","CS208"],assignedSections:["SEC001","SEC002"],available:{Mon:["9-10","2-3"],Tue:["9-10"],Wed:["9-10"],Thu:["9-10","2-3"],Fri:["9-10"]},absentDates:[]},
+{id:"FAC002",name:"Dr. Priya Sharma",dept:"CSE",email:"priya.sharma@srmap.edu.in",canTeach:["CS206"],assignedSections:["SEC001","SEC002"],available:{Mon:["10-11"],Tue:["10-11"],Wed:["10-11"],Thu:["10-11"],Fri:["10-11"]},absentDates:[]},
+{id:"FAC003",name:"Dr. Meena Iyer",dept:"CSE",email:"meena.iyer@srmap.edu.in",canTeach:["AEC201"],assignedSections:["SEC001"],available:{Mon:["11-12"],Tue:["11-12"],Wed:["11-12"],Thu:["11-12"],Fri:["11-12"]},absentDates:["2026-04-12"]},
+{id:"FAC004",name:"Dr. Ramesh Babu",dept:"CSE",email:"ramesh.babu@srmap.edu.in",canTeach:["CS208"],assignedSections:["SEC001"],available:{Mon:["2-3"],Tue:["2-3"],Wed:["2-3"],Thu:["2-3"],Fri:["2-3"]},absentDates:[]},
+{id:"FAC005",name:"Dr. Vikram Rao",dept:"CSE",email:"vikram.rao@srmap.edu.in",canTeach:["CS209"],assignedSections:["SEC001","SEC002"],available:{Mon:["3-4"],Tue:["3-4"],Wed:["3-4"],Thu:["3-4"],Fri:["3-4"]},absentDates:[]},
+{id:"FAC006",name:"Dr. Anjali Nair",dept:"CSE",email:"anjali.nair@srmap.edu.in",canTeach:["CS211"],assignedSections:["SEC001"],available:{Mon:["4-5"],Tue:["4-5"],Wed:["4-5"],Thu:["4-5"],Fri:["4-5"]},absentDates:[]},
+{id:"FAC007",name:"Dr. Suresh Pillai",dept:"CSE",email:"suresh.pillai@srmap.edu.in",canTeach:["MAT266A"],assignedSections:["SEC001","SEC002"],available:{Mon:["10-11"],Tue:["10-11"],Wed:["10-11"],Thu:["10-11"],Fri:["10-11"]},absentDates:[]},
+{id:"FAC008",name:"Dr. Lakshmi Menon",dept:"ECE",email:"lakshmi.menon@srmap.edu.in",canTeach:["EC201","EC204"],assignedSections:["SEC003"],available:{Mon:["9-10","2-3"],Tue:["9-10"],Wed:["9-10","3-4"],Thu:["9-10"],Fri:["9-10","2-3"]},absentDates:[]},
+{id:"FAC009",name:"Dr. Raghav Sinha",dept:"ECE",email:"raghav.sinha@srmap.edu.in",canTeach:["EC202","EC205"],assignedSections:["SEC003"],available:{Mon:["10-11","3-4"],Tue:["10-11","3-4"],Wed:["10-11"],Thu:["10-11","3-4"],Fri:["10-11"]},absentDates:[]},
+{id:"FAC010",name:"Dr. Kavitha Das",dept:"ECE",email:"kavitha.das@srmap.edu.in",canTeach:["EC203","EC206"],assignedSections:["SEC003"],available:{Mon:["11-12","4-5"],Tue:["11-12","4-5"],Wed:["11-12","4-5"],Thu:["11-12"],Fri:["11-12","4-5"]},absentDates:[]},
+{id:"FAC011",name:"Dr. Karthik Reddy",dept:"MECH",email:"karthik.reddy@srmap.edu.in",canTeach:["ME201","ME203"],assignedSections:["SEC004"],available:{Mon:["9-10","2-3"],Tue:["9-10","2-3"],Wed:["9-10"],Thu:["9-10"],Fri:["9-10","2-3"]},absentDates:[]},
+{id:"FAC012",name:"Dr. Sanjay Mehta",dept:"MECH",email:"sanjay.mehta@srmap.edu.in",canTeach:["ME202","ME204","ME205"],assignedSections:["SEC004"],available:{Mon:["10-11","3-4","4-5"],Tue:["10-11","3-4"],Wed:["10-11","3-4","4-5"],Thu:["10-11","3-4"],Fri:["10-11","3-4","4-5"]},absentDates:[]},
+{id:"FAC013",name:"Dr. Sunita Joshi",dept:"CIVIL",email:"sunita.joshi@srmap.edu.in",canTeach:["CE201","CE204"],assignedSections:["SEC005"],available:{Mon:["9-10","2-3","11-12"],Tue:["9-10","2-3"],Wed:["9-10"],Thu:["9-10","2-3"],Fri:["9-10","11-12"]},absentDates:[]},
+{id:"FAC014",name:"Dr. Mohan Patil",dept:"CIVIL",email:"mohan.patil@srmap.edu.in",canTeach:["CE202","CE203"],assignedSections:["SEC005"],available:{Mon:["10-11","3-4","4-5"],Tue:["10-11","3-4"],Wed:["10-11","3-4","4-5"],Thu:["10-11","3-4"],Fri:["10-11","3-4"]},absentDates:[]},
+{id:"FAC015",name:"Dr. Neha Kapoor",dept:"IT",email:"neha.kapoor@srmap.edu.in",canTeach:["IT201","IT204"],assignedSections:["SEC006"],available:{Mon:["9-10","2-3"],Tue:["9-10","2-3"],Wed:["9-10"],Thu:["9-10","2-3"],Fri:["9-10"]},absentDates:[]},
+{id:"FAC016",name:"Dr. Vivek Gupta",dept:"IT",email:"vivek.gupta@srmap.edu.in",canTeach:["IT202","IT203","IT205"],assignedSections:["SEC006"],available:{Mon:["10-11","3-4","4-5"],Tue:["10-11","3-4"],Wed:["10-11","3-4","4-5"],Thu:["10-11","3-4"],Fri:["10-11","3-4","4-5"]},absentDates:[]},
+{id:"FAC017",name:"Dr. Deepa Verma",dept:"AI",email:"deepa.verma@srmap.edu.in",canTeach:["AI201","AI203"],assignedSections:["SEC007"],available:{Mon:["9-10","2-3"],Tue:["9-10"],Wed:["9-10","3-4"],Thu:["9-10","2-3"],Fri:["9-10"]},absentDates:[]},
+{id:"FAC018",name:"Dr. Arjun Saxena",dept:"AI",email:"arjun.saxena@srmap.edu.in",canTeach:["AI202","AI204"],assignedSections:["SEC007"],available:{Mon:["10-11","3-4","4-5"],Tue:["10-11","3-4"],Wed:["10-11","4-5"],Thu:["10-11","3-4"],Fri:["10-11","3-4","4-5"]},absentDates:[]},
+{id:"FAC019",name:"Dr. Pooja Rao",dept:"AI",email:"pooja.rao@srmap.edu.in",canTeach:["AI205"],assignedSections:["SEC007"],available:{Mon:["11-12"],Tue:["11-12"],Wed:["11-12"],Thu:["11-12"],Fri:["11-12"]},absentDates:[]}],
 sections:[
 {id:"SEC001",name:"CSE-A",dept:"CSE",semester:4,year:2,courses:["CS205","CS206","AEC201","CS208","CS209","CS211","MAT266A"],students:["STU2024CS047","STU2024CS048","STU2024CS049","STU2024CS050","STU2024CS051"]},
 {id:"SEC002",name:"CSE-B",dept:"CSE",semester:4,year:2,courses:["CS205","CS206","AEC201","CS208","CS209","CS211","MAT266A"],students:["STU2024CS052","STU2024CS053","STU2024CS054","STU2024CS055"]},
@@ -323,36 +323,36 @@ sections:[
 {id:"SEC007",name:"AI-A",dept:"AI",semester:4,year:2,courses:["AI201","AI202","AI203","AI204","AI205"],students:["STU2024AI001","STU2024AI002","STU2024AI003","STU2024AI004"]},
 {id:"SEC008",name:"CSE-C",dept:"CSE",semester:2,year:1,courses:["CS205","CS206","AEC201"],students:["STU2025CS001","STU2025CS002","STU2025CS003"]}],
 students:[
-{id:"STU2024CS047",name:"Manish Singh",section:"SEC001",dept:"CSE",semester:4,year:2,email:"manish.singh@srmap.edu.in",phone:"+91 98765 43210",dob:"15 March 2005",blood:"B+",hostel:"Block-C, Room 214",advisor:"Dr. Arun Kumar",cgpa:8.74,password:"manish@123"},
-{id:"STU2024CS048",name:"Riya Patel",section:"SEC001",dept:"CSE",semester:4,year:2,email:"riya.patel@srmap.edu.in",phone:"+91 87654 32109",dob:"22 July 2005",blood:"O+",hostel:"Block-D, Room 108",advisor:"Dr. Arun Kumar",cgpa:9.12,password:"riya@123"},
-{id:"STU2024CS049",name:"Arjun Verma",section:"SEC001",dept:"CSE",semester:4,year:2,email:"arjun.verma@srmap.edu.in",phone:"+91 76543 21098",dob:"10 Nov 2005",blood:"A+",hostel:"Block-B, Room 312",advisor:"Dr. Priya Sharma",cgpa:7.95,password:"arjun@123"},
-{id:"STU2024CS050",name:"Simran Sharma",section:"SEC001",dept:"CSE",semester:4,year:2,email:"simran.sharma@srmap.edu.in",phone:"+91 95432 10987",dob:"5 Jan 2005",blood:"AB+",hostel:"Block-D, Room 205",advisor:"Dr. Priya Sharma",cgpa:8.42,password:"simran@123"},
-{id:"STU2024CS051",name:"Siddharth Nair",section:"SEC001",dept:"CSE",semester:4,year:2,email:"siddharth.nair@srmap.edu.in",phone:"+91 94321 09876",dob:"18 Apr 2005",blood:"O-",hostel:"Block-A, Room 118",advisor:"Dr. Arun Kumar",cgpa:8.10,password:"siddharth@123"},
-{id:"STU2024CS052",name:"Divya Joshi",section:"SEC002",dept:"CSE",semester:4,year:2,email:"divya.joshi@srmap.edu.in",phone:"+91 93210 98765",dob:"12 Feb 2005",blood:"B-",hostel:"Block-D, Room 301",advisor:"Dr. Vikram Rao",cgpa:8.88,password:"divya@123"},
-{id:"STU2024CS053",name:"Kritika Pillai",section:"SEC002",dept:"CSE",semester:4,year:2,email:"kritika.pillai@srmap.edu.in",phone:"+91 92109 87654",dob:"30 Aug 2005",blood:"A+",hostel:"Block-D, Room 106",advisor:"Dr. Vikram Rao",cgpa:9.25,password:"kritika@123"},
-{id:"STU2024CS054",name:"Harsh Bhat",section:"SEC002",dept:"CSE",semester:4,year:2,email:"harsh.bhat@srmap.edu.in",phone:"+91 91098 76543",dob:"7 Jun 2005",blood:"O+",hostel:"Block-C, Room 405",advisor:"Dr. Suresh Pillai",cgpa:7.65,password:"harsh@123"},
-{id:"STU2024CS055",name:"Diya Saxena",section:"SEC002",dept:"CSE",semester:4,year:2,email:"diya.saxena@srmap.edu.in",phone:"+91 90987 65432",dob:"25 Sep 2005",blood:"B+",hostel:"Block-D, Room 310",advisor:"Dr. Suresh Pillai",cgpa:8.33,password:"diya@123"},
-{id:"STU2024EC001",name:"Neha Iyer",section:"SEC003",dept:"ECE",semester:4,year:2,email:"neha.iyer@srmap.edu.in",phone:"+91 89876 54321",dob:"14 Mar 2005",blood:"A+",hostel:"Block-D, Room 202",advisor:"Dr. Lakshmi Menon",cgpa:8.55,password:"neha@123"},
-{id:"STU2024EC002",name:"Aditya Nair",section:"SEC003",dept:"ECE",semester:4,year:2,email:"aditya.nair@srmap.edu.in",phone:"+91 88765 43210",dob:"2 Jul 2005",blood:"B+",hostel:"Block-B, Room 115",advisor:"Dr. Lakshmi Menon",cgpa:7.82,password:"aditya@123"},
-{id:"STU2024EC003",name:"Isha Malhotra",section:"SEC003",dept:"ECE",semester:4,year:2,email:"isha.malhotra@srmap.edu.in",phone:"+91 87654 32101",dob:"19 Dec 2004",blood:"O-",hostel:"Block-D, Room 407",advisor:"Dr. Raghav Sinha",cgpa:8.90,password:"isha@123"},
-{id:"STU2024EC004",name:"Pooja Reddy",section:"SEC003",dept:"ECE",semester:4,year:2,email:"pooja.reddy@srmap.edu.in",phone:"+91 86543 21090",dob:"8 May 2005",blood:"AB+",hostel:"Block-D, Room 112",advisor:"Dr. Kavitha Das",cgpa:8.20,password:"pooja@123"},
-{id:"STU2024ME001",name:"Tanvi Patel",section:"SEC004",dept:"MECH",semester:4,year:2,email:"tanvi.patel@srmap.edu.in",phone:"+91 85432 10989",dob:"11 Oct 2005",blood:"A-",hostel:"Block-D, Room 315",advisor:"Dr. Karthik Reddy",cgpa:7.95,password:"tanvi@123"},
-{id:"STU2024ME002",name:"Gaurav Kumar",section:"SEC004",dept:"MECH",semester:4,year:2,email:"gaurav.kumar@srmap.edu.in",phone:"+91 84321 09878",dob:"27 Jan 2005",blood:"B+",hostel:"Block-A, Room 220",advisor:"Dr. Karthik Reddy",cgpa:8.15,password:"gaurav@123"},
-{id:"STU2024ME003",name:"Tanya Gupta",section:"SEC004",dept:"MECH",semester:4,year:2,email:"tanya.gupta@srmap.edu.in",phone:"+91 83210 98767",dob:"4 Sep 2005",blood:"O+",hostel:"Block-D, Room 411",advisor:"Dr. Sanjay Mehta",cgpa:8.60,password:"tanya@123"},
-{id:"STU2024CE001",name:"Ishaan Singh",section:"SEC005",dept:"CIVIL",semester:4,year:2,email:"ishaan.singh@srmap.edu.in",phone:"+91 82109 87656",dob:"16 Jun 2005",blood:"AB-",hostel:"Block-B, Room 308",advisor:"Dr. Sunita Joshi",cgpa:7.45,password:"ishaan@123"},
-{id:"STU2024CE002",name:"Divya Reddy",section:"SEC005",dept:"CIVIL",semester:4,year:2,email:"divya.reddy@srmap.edu.in",phone:"+91 81098 76545",dob:"3 Apr 2005",blood:"B+",hostel:"Block-D, Room 505",advisor:"Dr. Sunita Joshi",cgpa:8.30,password:"divya@123"},
-{id:"STU2024CE003",name:"Rajat Pillai",section:"SEC005",dept:"CIVIL",semester:4,year:2,email:"rajat.pillai@srmap.edu.in",phone:"+91 80987 65434",dob:"22 Nov 2004",blood:"O+",hostel:"Block-A, Room 104",advisor:"Dr. Mohan Patil",cgpa:7.80,password:"rajat@123"},
-{id:"STU2024IT001",name:"Pranav Kumar",section:"SEC006",dept:"IT",semester:4,year:2,email:"pranav.kumar@srmap.edu.in",phone:"+91 79876 54323",dob:"9 Feb 2005",blood:"A+",hostel:"Block-C, Room 310",advisor:"Dr. Neha Kapoor",cgpa:8.65,password:"pranav@123"},
-{id:"STU2024IT002",name:"Swati Bhat",section:"SEC006",dept:"IT",semester:4,year:2,email:"swati.bhat@srmap.edu.in",phone:"+91 78765 43212",dob:"20 Aug 2005",blood:"B-",hostel:"Block-D, Room 209",advisor:"Dr. Neha Kapoor",cgpa:9.05,password:"swati@123"},
-{id:"STU2024IT003",name:"Priya Verma",section:"SEC006",dept:"IT",semester:4,year:2,email:"priya.verma@srmap.edu.in",phone:"+91 77654 32101",dob:"15 May 2005",blood:"O+",hostel:"Block-D, Room 315",advisor:"Dr. Vivek Gupta",cgpa:8.40,password:"priya@123"},
-{id:"STU2024IT004",name:"Dev Nair",section:"SEC006",dept:"IT",semester:4,year:2,email:"dev.nair@srmap.edu.in",phone:"+91 76543 21090",dob:"1 Dec 2004",blood:"AB+",hostel:"Block-B, Room 205",advisor:"Dr. Vivek Gupta",cgpa:7.70,password:"dev@123"},
-{id:"STU2024AI001",name:"Ananya Nair",section:"SEC007",dept:"AI",semester:4,year:2,email:"ananya.nair@srmap.edu.in",phone:"+91 75432 10989",dob:"6 Mar 2005",blood:"A+",hostel:"Block-D, Room 106",advisor:"Dr. Deepa Verma",cgpa:9.15,password:"ananya@123"},
-{id:"STU2024AI002",name:"Meghna Saxena",section:"SEC007",dept:"AI",semester:4,year:2,email:"meghna.saxena@srmap.edu.in",phone:"+91 74321 09878",dob:"18 Jul 2005",blood:"B+",hostel:"Block-D, Room 401",advisor:"Dr. Deepa Verma",cgpa:8.78,password:"meghna@123"},
-{id:"STU2024AI003",name:"Aditi Reddy",section:"SEC007",dept:"AI",semester:4,year:2,email:"aditi.reddy@srmap.edu.in",phone:"+91 73210 98767",dob:"24 Oct 2005",blood:"O-",hostel:"Block-D, Room 220",advisor:"Dr. Arjun Saxena",cgpa:8.50,password:"aditi@123"},
-{id:"STU2024AI004",name:"Vihaan Bhat",section:"SEC007",dept:"AI",semester:4,year:2,email:"vihaan.bhat@srmap.edu.in",phone:"+91 72109 87656",dob:"12 Jan 2005",blood:"AB+",hostel:"Block-C, Room 102",advisor:"Dr. Arjun Saxena",cgpa:7.90,password:"vihaan@123"},
-{id:"STU2025CS001",name:"Anjali Chauhan",section:"SEC008",dept:"CSE",semester:2,year:1,email:"anjali.chauhan@srmap.edu.in",phone:"+91 71098 76545",dob:"30 Jun 2006",blood:"B+",hostel:"Block-D, Room 103",advisor:"Dr. Priya Sharma",cgpa:8.20,password:"anjali@123"},
-{id:"STU2025CS002",name:"Akash Mishra",section:"SEC008",dept:"CSE",semester:2,year:1,email:"akash.mishra@srmap.edu.in",phone:"+91 70987 65434",dob:"8 Sep 2006",blood:"O+",hostel:"Block-A, Room 412",advisor:"Dr. Priya Sharma",cgpa:7.55,password:"akash@123"},
-{id:"STU2025CS003",name:"Divya Patel",section:"SEC008",dept:"CSE",semester:2,year:1,email:"divya.patel@srmap.edu.in",phone:"+91 69876 54323",dob:"17 Feb 2006",blood:"A-",hostel:"Block-D, Room 208",advisor:"Dr. Arun Kumar",cgpa:8.85,password:"divya@123"}],
+{id:"STU2024CS047",name:"Manish Singh",section:"SEC001",dept:"CSE",semester:4,year:2,email:"manish.singh@srmap.edu.in",phone:"+91 98765 43210",dob:"15 March 2005",blood:"B+",hostel:"Block-C, Room 214",advisor:"Dr. Arun Kumar",cgpa:8.74},
+{id:"STU2024CS048",name:"Riya Patel",section:"SEC001",dept:"CSE",semester:4,year:2,email:"riya.patel@srmap.edu.in",phone:"+91 87654 32109",dob:"22 July 2005",blood:"O+",hostel:"Block-D, Room 108",advisor:"Dr. Arun Kumar",cgpa:9.12},
+{id:"STU2024CS049",name:"Arjun Verma",section:"SEC001",dept:"CSE",semester:4,year:2,email:"arjun.verma@srmap.edu.in",phone:"+91 76543 21098",dob:"10 Nov 2005",blood:"A+",hostel:"Block-B, Room 312",advisor:"Dr. Priya Sharma",cgpa:7.95},
+{id:"STU2024CS050",name:"Simran Sharma",section:"SEC001",dept:"CSE",semester:4,year:2,email:"simran.sharma@srmap.edu.in",phone:"+91 95432 10987",dob:"5 Jan 2005",blood:"AB+",hostel:"Block-D, Room 205",advisor:"Dr. Priya Sharma",cgpa:8.42},
+{id:"STU2024CS051",name:"Siddharth Nair",section:"SEC001",dept:"CSE",semester:4,year:2,email:"siddharth.nair@srmap.edu.in",phone:"+91 94321 09876",dob:"18 Apr 2005",blood:"O-",hostel:"Block-A, Room 118",advisor:"Dr. Arun Kumar",cgpa:8.10},
+{id:"STU2024CS052",name:"Divya Joshi",section:"SEC002",dept:"CSE",semester:4,year:2,email:"divya.joshi@srmap.edu.in",phone:"+91 93210 98765",dob:"12 Feb 2005",blood:"B-",hostel:"Block-D, Room 301",advisor:"Dr. Vikram Rao",cgpa:8.88},
+{id:"STU2024CS053",name:"Kritika Pillai",section:"SEC002",dept:"CSE",semester:4,year:2,email:"kritika.pillai@srmap.edu.in",phone:"+91 92109 87654",dob:"30 Aug 2005",blood:"A+",hostel:"Block-D, Room 106",advisor:"Dr. Vikram Rao",cgpa:9.25},
+{id:"STU2024CS054",name:"Harsh Bhat",section:"SEC002",dept:"CSE",semester:4,year:2,email:"harsh.bhat@srmap.edu.in",phone:"+91 91098 76543",dob:"7 Jun 2005",blood:"O+",hostel:"Block-C, Room 405",advisor:"Dr. Suresh Pillai",cgpa:7.65},
+{id:"STU2024CS055",name:"Diya Saxena",section:"SEC002",dept:"CSE",semester:4,year:2,email:"diya.saxena@srmap.edu.in",phone:"+91 90987 65432",dob:"25 Sep 2005",blood:"B+",hostel:"Block-D, Room 310",advisor:"Dr. Suresh Pillai",cgpa:8.33},
+{id:"STU2024EC001",name:"Neha Iyer",section:"SEC003",dept:"ECE",semester:4,year:2,email:"neha.iyer@srmap.edu.in",phone:"+91 89876 54321",dob:"14 Mar 2005",blood:"A+",hostel:"Block-D, Room 202",advisor:"Dr. Lakshmi Menon",cgpa:8.55},
+{id:"STU2024EC002",name:"Aditya Nair",section:"SEC003",dept:"ECE",semester:4,year:2,email:"aditya.nair@srmap.edu.in",phone:"+91 88765 43210",dob:"2 Jul 2005",blood:"B+",hostel:"Block-B, Room 115",advisor:"Dr. Lakshmi Menon",cgpa:7.82},
+{id:"STU2024EC003",name:"Isha Malhotra",section:"SEC003",dept:"ECE",semester:4,year:2,email:"isha.malhotra@srmap.edu.in",phone:"+91 87654 32101",dob:"19 Dec 2004",blood:"O-",hostel:"Block-D, Room 407",advisor:"Dr. Raghav Sinha",cgpa:8.90},
+{id:"STU2024EC004",name:"Pooja Reddy",section:"SEC003",dept:"ECE",semester:4,year:2,email:"pooja.reddy@srmap.edu.in",phone:"+91 86543 21090",dob:"8 May 2005",blood:"AB+",hostel:"Block-D, Room 112",advisor:"Dr. Kavitha Das",cgpa:8.20},
+{id:"STU2024ME001",name:"Tanvi Patel",section:"SEC004",dept:"MECH",semester:4,year:2,email:"tanvi.patel@srmap.edu.in",phone:"+91 85432 10989",dob:"11 Oct 2005",blood:"A-",hostel:"Block-D, Room 315",advisor:"Dr. Karthik Reddy",cgpa:7.95},
+{id:"STU2024ME002",name:"Gaurav Kumar",section:"SEC004",dept:"MECH",semester:4,year:2,email:"gaurav.kumar@srmap.edu.in",phone:"+91 84321 09878",dob:"27 Jan 2005",blood:"B+",hostel:"Block-A, Room 220",advisor:"Dr. Karthik Reddy",cgpa:8.15},
+{id:"STU2024ME003",name:"Tanya Gupta",section:"SEC004",dept:"MECH",semester:4,year:2,email:"tanya.gupta@srmap.edu.in",phone:"+91 83210 98767",dob:"4 Sep 2005",blood:"O+",hostel:"Block-D, Room 411",advisor:"Dr. Sanjay Mehta",cgpa:8.60},
+{id:"STU2024CE001",name:"Ishaan Singh",section:"SEC005",dept:"CIVIL",semester:4,year:2,email:"ishaan.singh@srmap.edu.in",phone:"+91 82109 87656",dob:"16 Jun 2005",blood:"AB-",hostel:"Block-B, Room 308",advisor:"Dr. Sunita Joshi",cgpa:7.45},
+{id:"STU2024CE002",name:"Divya Reddy",section:"SEC005",dept:"CIVIL",semester:4,year:2,email:"divya.reddy@srmap.edu.in",phone:"+91 81098 76545",dob:"3 Apr 2005",blood:"B+",hostel:"Block-D, Room 505",advisor:"Dr. Sunita Joshi",cgpa:8.30},
+{id:"STU2024CE003",name:"Rajat Pillai",section:"SEC005",dept:"CIVIL",semester:4,year:2,email:"rajat.pillai@srmap.edu.in",phone:"+91 80987 65434",dob:"22 Nov 2004",blood:"O+",hostel:"Block-A, Room 104",advisor:"Dr. Mohan Patil",cgpa:7.80},
+{id:"STU2024IT001",name:"Pranav Kumar",section:"SEC006",dept:"IT",semester:4,year:2,email:"pranav.kumar@srmap.edu.in",phone:"+91 79876 54323",dob:"9 Feb 2005",blood:"A+",hostel:"Block-C, Room 310",advisor:"Dr. Neha Kapoor",cgpa:8.65},
+{id:"STU2024IT002",name:"Swati Bhat",section:"SEC006",dept:"IT",semester:4,year:2,email:"swati.bhat@srmap.edu.in",phone:"+91 78765 43212",dob:"20 Aug 2005",blood:"B-",hostel:"Block-D, Room 209",advisor:"Dr. Neha Kapoor",cgpa:9.05},
+{id:"STU2024IT003",name:"Priya Verma",section:"SEC006",dept:"IT",semester:4,year:2,email:"priya.verma@srmap.edu.in",phone:"+91 77654 32101",dob:"15 May 2005",blood:"O+",hostel:"Block-D, Room 315",advisor:"Dr. Vivek Gupta",cgpa:8.40},
+{id:"STU2024IT004",name:"Dev Nair",section:"SEC006",dept:"IT",semester:4,year:2,email:"dev.nair@srmap.edu.in",phone:"+91 76543 21090",dob:"1 Dec 2004",blood:"AB+",hostel:"Block-B, Room 205",advisor:"Dr. Vivek Gupta",cgpa:7.70},
+{id:"STU2024AI001",name:"Ananya Nair",section:"SEC007",dept:"AI",semester:4,year:2,email:"ananya.nair@srmap.edu.in",phone:"+91 75432 10989",dob:"6 Mar 2005",blood:"A+",hostel:"Block-D, Room 106",advisor:"Dr. Deepa Verma",cgpa:9.15},
+{id:"STU2024AI002",name:"Meghna Saxena",section:"SEC007",dept:"AI",semester:4,year:2,email:"meghna.saxena@srmap.edu.in",phone:"+91 74321 09878",dob:"18 Jul 2005",blood:"B+",hostel:"Block-D, Room 401",advisor:"Dr. Deepa Verma",cgpa:8.78},
+{id:"STU2024AI003",name:"Aditi Reddy",section:"SEC007",dept:"AI",semester:4,year:2,email:"aditi.reddy@srmap.edu.in",phone:"+91 73210 98767",dob:"24 Oct 2005",blood:"O-",hostel:"Block-D, Room 220",advisor:"Dr. Arjun Saxena",cgpa:8.50},
+{id:"STU2024AI004",name:"Vihaan Bhat",section:"SEC007",dept:"AI",semester:4,year:2,email:"vihaan.bhat@srmap.edu.in",phone:"+91 72109 87656",dob:"12 Jan 2005",blood:"AB+",hostel:"Block-C, Room 102",advisor:"Dr. Arjun Saxena",cgpa:7.90},
+{id:"STU2025CS001",name:"Anjali Chauhan",section:"SEC008",dept:"CSE",semester:2,year:1,email:"anjali.chauhan@srmap.edu.in",phone:"+91 71098 76545",dob:"30 Jun 2006",blood:"B+",hostel:"Block-D, Room 103",advisor:"Dr. Priya Sharma",cgpa:8.20},
+{id:"STU2025CS002",name:"Akash Mishra",section:"SEC008",dept:"CSE",semester:2,year:1,email:"akash.mishra@srmap.edu.in",phone:"+91 70987 65434",dob:"8 Sep 2006",blood:"O+",hostel:"Block-A, Room 412",advisor:"Dr. Priya Sharma",cgpa:7.55},
+{id:"STU2025CS003",name:"Divya Patel",section:"SEC008",dept:"CSE",semester:2,year:1,email:"divya.patel@srmap.edu.in",phone:"+91 69876 54323",dob:"17 Feb 2006",blood:"A-",hostel:"Block-D, Room 208",advisor:"Dr. Arun Kumar",cgpa:8.85}],
 timetable:[],
 attendance:{}
 };
@@ -616,15 +616,11 @@ function $(id){return document.getElementById(id)}
 /* ═══ LOGIN ═══ */
 function setRole(btn,role){
 document.querySelectorAll('.role-tab').forEach(b=>b.classList.remove('active'));
-btn.classList.add('active');selectedLoginRole=role;
-const hints={admin:['admin@srmap.edu.in','admin123'],faculty:['arun.kumar@srmap.edu.in','arun.kumar@123'],student:['manish.singh@srmap.edu.in','manish@123']};
-$('logEmail').placeholder=hints[role][0];$('logPass').placeholder=hints[role][1];
+btn.classList.add('active');selectedLoginRole=role;$('logEmail').placeholder=hints[role][0];$('logPass').placeholder=hints[role][1];
 }
 function doLogin(){
 const e=$('logEmail').value.trim().toLowerCase(),p=$('logPass').value.trim();
-if(!e||!p){showToast('❌ Please fill in both fields','error');return}
-if(e==='admin@srmap.edu.in'&&p==='admin123'){currentRole='admin';currentUser='admin';initApp();return}
-const fac=DATA.faculty.find(f=>f.email===e&&f.password===p);
+if(!e||!p){showToast('❌ Please fill in both fields','error');return}const fac=DATA.faculty.find(f=>f.email===e&&f.password===p);
 if(fac){currentRole='faculty';currentFaculty=fac;currentUser=fac;initApp();return}
 const stu=DATA.students.find(s=>s.email===e&&s.password===p);
 if(stu){currentRole='student';currentStudent=stu;currentUser=stu;initApp();return}
@@ -1198,7 +1194,7 @@ m.innerHTML=`<div class="modal" style="max-width:720px"><h3>${f?'Edit':'Add'} Fa
 <div class="fg"><label>Name</label><input id="fmNm" value="${f?f.name:''}" oninput="autoFacEmail()"></div>
 <div class="fg"><label>Department</label><select id="fmDp">${DATA.departments.map(d=>`<option value="${d.code}" ${f&&f.dept===d.code?'selected':''}>${d.code}</option>`).join('')}</select></div>
 <div class="fg"><label>Email</label><input id="fmEm" value="${f?f.email:''}"></div>
-<div class="fg"><label>Password</label><input id="fmPw" value="${f?f.password:''}"></div></div>
+<div class="fg"><label>Password</label><input id="fmPw" value=""></div></div>
 <div class="fg" style="margin-top:14px"><label>Can Teach (Courses)</label>
 <div class="cg">${DATA.courses.map(c=>`<label><input type="checkbox" class="fmCrs" value="${c.code}" ${f&&f.canTeach.includes(c.code)?'checked':''}>${c.code}</label>`).join('')}</div></div>
 <div class="fg" style="margin-top:10px"><label>Assigned Sections</label>
@@ -1217,8 +1213,8 @@ if(!id||!nm||!em){showToast('⚠️ Fill required fields','warning');return}
 const canTeach=[...document.querySelectorAll('.fmCrs:checked')].map(c=>c.value);
 const assignedSections=[...document.querySelectorAll('.fmSec:checked')].map(c=>c.value);
 const available={};DATA.university.days.forEach(d=>{const s=[...document.querySelectorAll(`.favl[data-d="${d}"]:checked`)].map(c=>c.dataset.s);if(s.length)available[d]=s});
-if(isEdit){const f=DATA.faculty.find(x=>x.id===id);if(f){Object.assign(f,{name:nm,email:em,password:pw,dept:dp,canTeach,assignedSections,available})}showToast('✅ Faculty updated','success')}
-else{if(DATA.faculty.find(f=>f.id===id)){showToast('⚠️ ID exists','warning');return}DATA.faculty.push({id,name:nm,email:em,password:pw,dept:dp,canTeach,assignedSections,available,absentDates:[]});showToast('✅ Faculty added','success')}
+if(isEdit){const f=DATA.faculty.find(x=>x.id===id);if(f){Object.assign(f,{name:nm,email:em,dept:dp,canTeach,assignedSections,available})}showToast('✅ Faculty updated','success')}
+else{if(DATA.faculty.find(f=>f.id===id)){showToast('⚠️ ID exists','warning');return}DATA.faculty.push({id,name:nm,email:em,dept:dp,canTeach,assignedSections,available,absentDates:[]});showToast('✅ Faculty added','success')}
 $('fModal').remove();renderFacTable()}
 function delFac(id){if(!confirm('Delete?'))return;DATA.faculty=DATA.faculty.filter(f=>f.id!==id);showToast('🗑️ Faculty deleted','error');renderFacTable()}
 
@@ -1229,7 +1225,7 @@ return`<div class="hdr"><div><h2>🎓 Students</h2><p>Manage enrolled students</
 <div class="form-grid c3"><div class="fg"><label>Student ID</label><input id="sId" placeholder="STU2024CS050"></div>
 <div class="fg"><label>Name</label><input id="sNm" placeholder="Full name"></div>
 <div class="fg"><label>Email</label><input id="sEm" placeholder="name@srmap.edu.in"></div>
-<div class="fg"><label>Password</label><input id="sPw" value="student123"></div>
+<div class="fg"><label>Password</label><input id="sPw" value=""></div>
 <div class="fg"><label>Department</label><select id="sDp" onchange="filterStuSec()">${DATA.departments.map(d=>`<option value="${d.code}">${d.code}</option>`).join('')}</select></div>
 <div class="fg"><label>Section</label><select id="sSc"></select></div>
 <div class="fg"><label>DOB</label><input id="sDob" placeholder="e.g. 15 March 2005"></div>
@@ -1241,7 +1237,7 @@ return`<div class="hdr"><div><h2>🎓 Students</h2><p>Manage enrolled students</
 <input type="hidden" id="sEdit" value=""><div class="form-row"><button class="btn btn-g" onclick="saveStu()">💾 Save</button><button class="btn btn-o" onclick="toggleStuForm()">Cancel</button></div></div>
 <div class="card"><div class="tw"><table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Section</th><th>CGPA</th><th>Actions</th></tr></thead><tbody id="sTb"></tbody></table></div></div>`;
 }
-function toggleStuForm(){const f=$('stuForm');f.style.display=f.style.display==='none'?'block':'none';['sId','sNm','sEm','sDob','sBl','sPh','sHo','sAd'].forEach(i=>$(i).value='');$('sPw').value='student123';$('sCg').value='0';$('sEdit').value='';filterStuSec()}
+function toggleStuForm(){const f=$('stuForm');f.style.display=f.style.display==='none'?'block':'none';['sId','sNm','sEm','sDob','sBl','sPh','sHo','sAd'].forEach(i=>$(i).value=''); $('sPw').value='';$('sCg').value='0';$('sEdit').value='';filterStuSec()}
 function filterStuSec(){const dp=$('sDp').value;$('sSc').innerHTML=DATA.sections.filter(s=>s.dept===dp).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')||'<option value="">No sections</option>'}
 function renderStuTable(){const tb=$('sTb');if(!tb)return;
 tb.innerHTML=DATA.students.map(s=>{const sec=DATA.sections.find(x=>x.id===s.section);
@@ -1249,13 +1245,13 @@ return`<tr><td>${s.id}</td><td>${s.name}</td><td style="font-size:.8rem;color:va
 function saveStu(){
 const id=$('sId').value.trim(),nm=$('sNm').value.trim(),em=$('sEm').value.trim(),pw=$('sPw').value,dp=$('sDp').value,sc=$('sSc').value,eid=$('sEdit').value;
 if(!id||!nm){showToast('⚠️ Fill ID & name','warning');return}
-const obj={id,name:nm,email:em,password:pw,dept:dp,section:sc,semester:4,year:2,dob:$('sDob').value,blood:$('sBl').value,phone:$('sPh').value,hostel:$('sHo').value,advisor:$('sAd').value,cgpa:+$('sCg').value};
+const obj={id,name:nm,email:em,dept:dp,section:sc,semester:4,year:2,dob:$('sDob').value,blood:$('sBl').value,phone:$('sPh').value,hostel:$('sHo').value,advisor:$('sAd').value,cgpa:+$('sCg').value};
 if(eid){const i=DATA.students.findIndex(s=>s.id===eid);if(i>-1)DATA.students[i]=obj;showToast('✅ Student updated','success')}
 else{if(DATA.students.find(s=>s.id===id)){showToast('⚠️ ID exists','warning');return}DATA.students.push(obj);
 const sec=DATA.sections.find(s=>s.id===sc);if(sec&&!sec.students.includes(id))sec.students.push(id);
 DATA.attendance[id]={};showToast('✅ Student added','success')}
 toggleStuForm();renderStuTable()}
-function editStu(id){const s=DATA.students.find(x=>x.id===id);if(!s)return;$('stuForm').style.display='block';$('sId').value=s.id;$('sNm').value=s.name;$('sEm').value=s.email;$('sPw').value=s.password;$('sDp').value=s.dept;filterStuSec();$('sSc').value=s.section;$('sDob').value=s.dob;$('sBl').value=s.blood;$('sPh').value=s.phone;$('sHo').value=s.hostel;$('sAd').value=s.advisor;$('sCg').value=s.cgpa;$('sEdit').value=s.id}
+function editStu(id){const s=DATA.students.find(x=>x.id===id);if(!s)return;$('stuForm').style.display='block';$('sId').value=s.id;$('sNm').value=s.name;$('sEm').value=s.email;$('sDp').value=s.dept;filterStuSec();$('sSc').value=s.section;$('sDob').value=s.dob;$('sBl').value=s.blood;$('sPh').value=s.phone;$('sHo').value=s.hostel;$('sAd').value=s.advisor;$('sCg').value=s.cgpa;$('sEdit').value=s.id}
 function delStu(id){if(!confirm('Delete?'))return;DATA.students=DATA.students.filter(s=>s.id!==id);DATA.sections.forEach(s=>s.students=s.students.filter(x=>x!==id));showToast('🗑️ Student deleted','error');renderStuTable()}
 
 /* ═══ SECTIONS ═══ */

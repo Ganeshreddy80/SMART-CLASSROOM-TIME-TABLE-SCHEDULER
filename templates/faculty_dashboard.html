@@ -2218,8 +2218,8 @@
       </div>
       <div class="linner">
         <div class="fg"><label>Email Address</label><input type="email" id="logEmail"
-            placeholder="arun.kumar@srmap.edu.in"></div>
-        <div class="fg"><label>Password</label><input type="password" id="logPass" placeholder="arun.kumar@123"
+            placeholder="Email"></div>
+        <div class="fg"><label>Password</label><input type="password" id="logPass" placeholder="Password"
             onkeydown="if(event.key==='Enter')doLogin()"></div>
         <button class="lbtn" onclick="doLogin()">🚀 Sign In</button>
       </div>
@@ -2341,8 +2341,6 @@
     function setRole(btn, role) {
       document.querySelectorAll('.role-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active'); selectedLoginRole = role;
-      const hints = { admin: ['admin@srmap.edu.in', 'admin123'], faculty: ['arun.kumar@srmap.edu.in', 'arun.kumar@123'], student: ['manish.singh@srmap.edu.in', 'student123'] };
-      $('logEmail').placeholder = hints[role][0]; $('logPass').placeholder = hints[role][1];
     }
     function doLogin() {
       const e = $('logEmail').value.trim().toLowerCase(), p = $('logPass').value.trim();

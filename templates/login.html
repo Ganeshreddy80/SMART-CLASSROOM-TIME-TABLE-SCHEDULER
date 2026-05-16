@@ -230,8 +230,8 @@ body::after{
     <input type="hidden" name="login_role" id="loginRole" value="admin">
     <div class="form-group">
       <label>EMAIL ADDRESS</label>
-      <input type="email" name="email" id="emailInput" required
-             placeholder="admin@srmap.edu.in" autocomplete="email">
+        <input type="email" name="email" required
+          placeholder="Email" autocomplete="email">
     </div>
 
     <div class="form-group">
@@ -254,7 +254,7 @@ body::after{
 
 <script>
 const roleHints = {
-  admin:   { email: 'admin@srmap.edu.in',           pass: 'Enter admin password' },
+  admin:   { email: '',           pass: '' },
   faculty: { email: 'firstname.lastname@srmap.edu.in', pass: 'Enter faculty password' },
   student: { email: 'firstname.lastname@srmap.edu.in', pass: 'Enter student password' }
 };
