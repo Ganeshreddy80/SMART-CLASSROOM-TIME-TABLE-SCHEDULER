@@ -164,7 +164,7 @@
             showToast('Faculty updated!');
         } else {
             const result = await api('/api/faculty', 'POST', data);
-            showToast(`Faculty added! Login: ${result.email} / ${result.default_password}`);
+            showToast('Faculty added! Email: ' + result.email);
         }
         resetForm();
         loadFaculty();
