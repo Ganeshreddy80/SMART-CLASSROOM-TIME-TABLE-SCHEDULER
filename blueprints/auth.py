@@ -1,5 +1,6 @@
 """
 Auth blueprint — login, logout, forgot password, OTP reset.
+Separate login pages for student, faculty, and admin roles.
 """
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -56,48 +57,29 @@ def debug_users():
     return result, 200, {'Content-Type': 'text/plain'}
 
 
-
+# ─── Legacy /login → redirect to landing ────────────────────
 @auth.route('/login', methods=['GET', 'POST'])
 def login_page():
+    return redirect('/')
+
+
+# ─── Student Login ───────────────────────────────────────────
+@auth.route('/student-login', methods=['GET', 'POST'])
+def student_login():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '').strip()
 
         # Rate limiting
-        if not _check_rate_limit(_get_client_ip(), 'login', RATELIMIT_LOGIN_MAX):
-            return render_template('login.html', error='Too many login attempts. Please try again later.'), 429
+        if not _check_rate_limit(_get_client_ip(), 'student-login', RATELIMIT_LOGIN_MAX):
+            return render_template('student_login.html', error='Too many login attempts. Please try again later.'), 429
 
-        # Validate email format
-        if not email or not email.endswith('@srmap.edu.in'):
-            return render_template('login.html', error='Wrong credentials')
+        if not email or not password:
+            return render_template('student_login.html', error='Please enter your email and password.')
 
-        if not password:
-            return render_template('login.html', error='Wrong credentials')
-
-        # Check admin (uses database Student model with admin role)
-        admin_user = Student.query.filter_by(email=email, role='admin').first()
-        if admin_user and admin_user.check_password(password):
-            session.clear()
-            session.permanent = True
-            session['role'] = 'admin'
-            session['user_id'] = admin_user.id
-            session['user_name'] = admin_user.name
-            return redirect(url_for('admin.dashboard'))
-
-        # Check faculty
-        f = Faculty.query.filter_by(email=email).first()
-        if f and f.check_password(password):
-            session.clear()
-            session.permanent = True
-            session['role'] = 'faculty'
-            session['user_id'] = f.id
-            session['user_name'] = f.name
-            session['user_email'] = f.email
-            return redirect(url_for('faculty_bp.faculty_app', email=f.email))
-
-        # Check student
+        # Check student credentials
         s = Student.query.filter_by(email=email).first()
-        if s and s.check_password(password):
+        if s and s.role != 'admin' and s.check_password(password):
             session.clear()
             session.permanent = True
             session['role'] = 'student'
@@ -108,15 +90,87 @@ def login_page():
             session['section_ids'] = student_sections
             return redirect(url_for('student_bp.student_app'))
 
-        return render_template('login.html', error='Wrong credentials')
+        # Check if they're actually faculty trying student login
+        f = Faculty.query.filter_by(email=email).first()
+        if f and f.check_password(password):
+            return render_template('student_login.html',
+                error='This is a faculty account. Please use the Faculty Portal.')
 
-    return render_template('login.html')
+        return render_template('student_login.html', error='Invalid email or password.')
+
+    return render_template('student_login.html')
+
+
+# ─── Faculty Login ───────────────────────────────────────────
+@auth.route('/faculty-login', methods=['GET', 'POST'])
+def faculty_login():
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '').strip()
+
+        # Rate limiting
+        if not _check_rate_limit(_get_client_ip(), 'faculty-login', RATELIMIT_LOGIN_MAX):
+            return render_template('faculty_login.html', error='Too many login attempts. Please try again later.'), 429
+
+        if not email or not password:
+            return render_template('faculty_login.html', error='Please enter your email and password.')
+
+        # Check faculty credentials
+        f = Faculty.query.filter_by(email=email).first()
+        if f and f.check_password(password):
+            session.clear()
+            session.permanent = True
+            session['role'] = 'faculty'
+            session['user_id'] = f.id
+            session['user_name'] = f.name
+            session['user_email'] = f.email
+            return redirect(url_for('faculty_bp.faculty_app', email=f.email))
+
+        # Check if they're actually a student trying faculty login
+        s = Student.query.filter_by(email=email).first()
+        if s and s.role != 'admin' and s.check_password(password):
+            return render_template('faculty_login.html',
+                error='This is a student account. Please use the Student Portal.')
+
+        return render_template('faculty_login.html', error='Invalid email or password.')
+
+    return render_template('faculty_login.html')
+
+
+# ─── Hidden Admin Login ──────────────────────────────────────
+@auth.route('/x7k9-admin', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '').strip()
+
+        # Rate limiting
+        if not _check_rate_limit(_get_client_ip(), 'admin-login', RATELIMIT_LOGIN_MAX):
+            return render_template('admin_login.html', error='Too many attempts. Try again later.'), 429
+
+        if not email or not password:
+            return render_template('admin_login.html', error='Credentials required.')
+
+        # Check admin credentials (Student model with admin role)
+        admin_user = Student.query.filter_by(email=email, role='admin').first()
+        if admin_user and admin_user.check_password(password):
+            session.clear()
+            session.permanent = True
+            session['role'] = 'admin'
+            session['user_id'] = admin_user.id
+            session['user_name'] = admin_user.name
+            return redirect(url_for('admin.admin_dashboard_alias'))
+
+        # Don't give hints about what went wrong
+        return render_template('admin_login.html', error='Authentication failed.')
+
+    return render_template('admin_login.html')
 
 
 @auth.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('auth.login_page'))
+    return redirect('/')
 
 
 # ─── Forgot Password Routes ──────────────────────────────────

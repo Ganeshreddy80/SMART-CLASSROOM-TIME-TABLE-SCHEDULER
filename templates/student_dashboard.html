@@ -1148,13 +1148,105 @@
       color: var(--side);
       background: #f1f5f9;
     }
+
+    /* ══════════ MOBILE HAMBURGER ══════════ */
+    .mobile-hamburger {
+      display: none;
+      position: fixed;
+      top: 14px; left: 14px;
+      z-index: 200;
+      background: #0f172a;
+      color: #a5b4fc;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
+    }
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 99;
+      opacity: 0;
+      transition: opacity .3s;
+    }
+    .sidebar-backdrop.show {
+      display: block;
+      opacity: 1;
+    }
+
+    /* ══════════ RESPONSIVE ══════════ */
+    @media (max-width: 900px) {
+      .mobile-hamburger { display: block; }
+      .sidebar {
+        transform: translateX(-100%);
+        transition: transform .3s cubic-bezier(.4,0,.2,1);
+        z-index: 100;
+      }
+      .sidebar.open {
+        transform: translateX(0);
+        box-shadow: 4px 0 20px rgba(0,0,0,.2);
+      }
+      .main {
+        margin-left: 0;
+        padding: 16px;
+        padding-top: 60px;
+      }
+      .topbar {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 10px 16px;
+        border-radius: 10px;
+      }
+      .tb-title { font-size: .88rem; }
+      .hero-card {
+        flex-direction: column;
+        text-align: center;
+        padding: 20px;
+        gap: 16px;
+      }
+      .hero-av-circle { width: 90px; height: 90px; }
+      .hero-info h1 { font-size: 1.2rem; }
+      .hero-contact { justify-content: center; }
+      .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .tt-box-grid { grid-template-columns: 1fr; }
+      .course-grid { flex-direction: column; }
+      .course-chip { min-width: unset; }
+      .card { padding: 14px; border-radius: 14px; }
+    }
+
+    @media (max-width: 480px) {
+      .main { padding: 10px; padding-top: 56px; }
+      .stat-grid { grid-template-columns: 1fr; }
+      .hero-card { padding: 16px; }
+      .hero-info h1 { font-size: 1.05rem; }
+      .hero-av-circle { width: 70px; height: 70px; }
+      .topbar { flex-direction: column; align-items: flex-start; }
+      .tb-right { width: 100%; justify-content: flex-end; }
+      /* Scrollable tables */
+      .week-grid-wrap { border-radius: 8px; }
+      .att-table, .tt-table, .mark-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+      .chat-panel { width: calc(100vw - 20px); right: 10px; }
+      .chat-fab { bottom: 16px; right: 16px; width: 50px; height: 50px; }
+    }
   </style>
 </head>
 
 <body>
 
+  <!-- Mobile hamburger + backdrop -->
+  <button class="mobile-hamburger" id="stuHamburger" onclick="toggleStudentSidebar()">☰</button>
+  <div class="sidebar-backdrop" id="stuBackdrop" onclick="closeStudentSidebar()"></div>
+
   <!-- SIDEBAR -->
-  <div class="sidebar">
+  <div class="sidebar" id="stuSidebar">
     <div class="sb-brand"><span class="sb-logo">🎓</span><span class="sb-title">UniSchedule</span><span
         class="sb-sub">Student Portal</span></div>
     <div class="sb-sec">OVERVIEW</div>
@@ -2159,6 +2251,22 @@ window.addEventListener('load', () => {
         if(lowAtt.length > 0) document.getElementById('stuChatWarning').style.display = 'block';
     }, 2000);
 });
+  </script>
+  <script>
+  /* ─── Student Sidebar Mobile Toggle ─────────────────── */
+  function toggleStudentSidebar() {
+    const sb = document.getElementById('stuSidebar');
+    const bd = document.getElementById('stuBackdrop');
+    if (!sb) return;
+    const isOpen = sb.classList.toggle('open');
+    if (bd) bd.classList.toggle('show', isOpen);
+  }
+  function closeStudentSidebar() {
+    const sb = document.getElementById('stuSidebar');
+    const bd = document.getElementById('stuBackdrop');
+    if (sb) sb.classList.remove('open');
+    if (bd) bd.classList.remove('show');
+  }
   </script>
 </body>
 

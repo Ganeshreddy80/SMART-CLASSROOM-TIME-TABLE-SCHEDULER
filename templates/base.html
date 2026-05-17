@@ -17,9 +17,10 @@
 
 <body>
     {% if session.get('role') %}
-    <button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+    <button class="mobile-toggle" id="mobileToggle" onclick="toggleSidebar()">☰</button>
+    <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
 
-    <nav class="sidebar">
+    <nav class="sidebar" id="mainSidebar">
         <div class="sidebar-header">
             <h1><span class="brand-icon">📚</span> UniSchedule</h1>
             <div class="subtitle">Timetable Management System</div>
@@ -208,6 +209,22 @@
     </div>
     {% endif %}
 
+    <script>
+    /* ─── Mobile Sidebar Toggle ─────────────────────────────── */
+    function toggleSidebar() {
+        const sb = document.getElementById('mainSidebar');
+        const bd = document.getElementById('sidebarBackdrop');
+        if (!sb) return;
+        const isOpen = sb.classList.toggle('open');
+        if (bd) bd.classList.toggle('show', isOpen);
+    }
+    function closeSidebar() {
+        const sb = document.getElementById('mainSidebar');
+        const bd = document.getElementById('sidebarBackdrop');
+        if (sb) sb.classList.remove('open');
+        if (bd) bd.classList.remove('show');
+    }
+    </script>
     <script src="/static/js/app.js"></script>
     <script>
         {% if session.get('role') == 'admin' %}

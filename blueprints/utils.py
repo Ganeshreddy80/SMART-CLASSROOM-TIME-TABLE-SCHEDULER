@@ -47,7 +47,7 @@ def login_required(f):
         if 'role' not in session:
             if request.path.startswith('/api/'):
                 return jsonify({'error': 'Unauthorized'}), 401
-            return redirect(url_for('auth.login_page'))
+            return redirect('/')
         return f(*args, **kwargs)
     return decorated_function
 
@@ -58,11 +58,11 @@ def role_required(*allowed_roles):
             if 'role' not in session:
                 if request.path.startswith('/api/'):
                     return jsonify({'error': 'Unauthorized'}), 401
-                return redirect(url_for('auth.login_page'))
+                return redirect('/')
             if session['role'] not in allowed_roles and session['role'] != 'admin':
                 if request.path.startswith('/api/'):
                     return jsonify({'error': 'Forbidden'}), 403
-                return redirect(url_for('auth.login_page'))
+                return redirect('/')
             return f(*args, **kwargs)
         return decorated_function
     return decorator

@@ -1892,50 +1892,91 @@
       margin-bottom: 16px
     }
 
+    /* MOBILE HAMBURGER */
+    .fac-hamburger {
+      display: none;
+      position: fixed;
+      top: 14px; left: 14px;
+      z-index: 200;
+      background: var(--navy-deep);
+      color: var(--gold);
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(20,29,66,.3);
+    }
+    .fac-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 99;
+      opacity: 0;
+      transition: opacity .3s;
+    }
+    .fac-backdrop.show {
+      display: block;
+      opacity: 1;
+    }
+
     /* RESPONSIVE */
     @media(max-width:900px) {
+      .fac-hamburger { display: block; }
       .sb {
         transform: translateX(-100%);
-        transition: transform .3s
+        transition: transform .3s cubic-bezier(.4,0,.2,1);
       }
-
       .sb.open {
-        transform: translateX(0)
+        transform: translateX(0);
+        box-shadow: 4px 0 20px rgba(0,0,0,.2);
       }
-
       .main {
-        margin-left: 0
+        margin-left: 0;
+        padding-top: 60px;
       }
-
       .hero-card {
         flex-direction: column;
-        text-align: center
+        text-align: center;
       }
-
       .hero-stats {
-        grid-template-columns: 1fr 1fr
+        grid-template-columns: 1fr 1fr;
       }
-
       .det-grid {
-        grid-template-columns: 1fr
+        grid-template-columns: 1fr;
       }
-
       .tt-grid {
-        font-size: .65rem
+        font-size: .65rem;
       }
-
       .ctrl-grid {
-        grid-template-columns: 1fr
+        grid-template-columns: 1fr;
       }
-
       .roll-row {
-        flex-wrap: wrap
+        flex-wrap: wrap;
       }
-
       .roll-btns {
         width: 100%;
-        justify-content: center
+        justify-content: center;
       }
+      .topbar {
+        flex-wrap: wrap;
+        gap: 8px;
+        height: auto;
+        padding: 10px 16px;
+      }
+      .tb-search { width: 100%; }
+      .tb-right { width: 100%; justify-content: flex-end; }
+    }
+
+    @media(max-width:480px) {
+      .main { padding: 10px; padding-top: 56px; }
+      .hero-card { padding: 20px; }
+      .hero-photo .photo-circle { width: 80px; height: 80px; }
+      .hero-info h1 { font-size: 1.2rem; }
+      .hstat { padding: 10px; min-width: 80px; }
+      .hstat .hv { font-size: 1.2rem; }
+      .page { padding: 16px; }
     }
 
     /* ─── AI Chatbot UI ────────────────────────────────────────────── */
@@ -2230,6 +2271,9 @@
   <!-- APP -->
   <div id="appView">
     <div class="wrap">
+      <!-- Mobile hamburger + backdrop -->
+      <button class="fac-hamburger" id="facHamburger" onclick="toggleFacSidebar()">☰</button>
+      <div class="fac-backdrop" id="facBackdrop" onclick="closeFacSidebar()"></div>
       <nav class="sb" id="sidebar"></nav>
       <div class="main">
         <div class="topbar" id="topbar"></div>
@@ -3462,6 +3506,22 @@
       } catch(e) {}
     }
     document.addEventListener('DOMContentLoaded', loadPerformanceInsight);
+  </script>
+  <script>
+  /* ─── Faculty Sidebar Mobile Toggle ─────────────────── */
+  function toggleFacSidebar() {
+    const sb = document.getElementById('sidebar');
+    const bd = document.getElementById('facBackdrop');
+    if (!sb) return;
+    const isOpen = sb.classList.toggle('open');
+    if (bd) bd.classList.toggle('show', isOpen);
+  }
+  function closeFacSidebar() {
+    const sb = document.getElementById('sidebar');
+    const bd = document.getElementById('facBackdrop');
+    if (sb) sb.classList.remove('open');
+    if (bd) bd.classList.remove('show');
+  }
   </script>
 </body>
 

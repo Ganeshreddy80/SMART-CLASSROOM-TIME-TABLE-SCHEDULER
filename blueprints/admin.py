@@ -23,6 +23,15 @@ def dashboard():
     return render_template('dashboard.html')
 
 
+@admin.route('/admin/dashboard')
+@login_required
+def admin_dashboard_alias():
+    """Alias for admin dashboard — used as redirect target after admin login."""
+    if session.get('role') != 'admin':
+        return redirect('/')
+    return render_template('dashboard.html')
+
+
 @admin.route('/university')
 @login_required
 @role_required('admin')
