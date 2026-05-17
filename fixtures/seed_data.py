@@ -14,9 +14,7 @@ from models import (
 
 def _seed():
     with app.app_context():
-        if Department.query.count() > 0:
-            print("Database already seeded, skipping!")
-            sys.exit(0)
+        print("Force reseeding database...")
             
         print("🗑️ Clearing existing data...")
         db.session.query(TimetableEntry).delete()
