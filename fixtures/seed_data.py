@@ -5,6 +5,9 @@ Uses direct DB imports (no HTTP API), so it can be run during a Render deploymen
 import sys, os, random, json
 from werkzeug.security import generate_password_hash
 
+FACULTY_PASSWORD = os.getenv('FACULTY_SEED_PASSWORD', 'Faculty@123')
+STUDENT_PASSWORD = os.getenv('STUDENT_SEED_PASSWORD', 'Student@123')
+
 # Allow imports from the project root
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -190,7 +193,7 @@ def _seed():
 
         total_faculty = 0
         avail = {day: timeslots for day in days_list}
-        fac_pwd = generate_password_hash("Faculty@123")
+        fac_pwd = generate_password_hash(FACULTY_PASSWORD)
         
         for dept_code, facs in faculty_defs.items():
             for uid, name, course_codes in facs:
@@ -237,7 +240,7 @@ def _seed():
 
         total_students = 0
         stu_counter = 1
-        stu_pwd = generate_password_hash("Student@123")
+        stu_pwd = generate_password_hash(STUDENT_PASSWORD)
         
         for dept_code, did in dept_ids.items():
             dept_courses = courses_by_dept.get(did, [])
