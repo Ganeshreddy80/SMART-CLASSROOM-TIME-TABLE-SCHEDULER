@@ -38,6 +38,38 @@ def student_profile():
         return jsonify({'error': 'Unauthorized'}), 403
     s = Student.query.get(session.get('user_id'))
     if not s:
+        return jsonify({})
+        
+    section_name = ''
+    if s.sections:
+        section_name = f"{s.sections[0].department.code}-{s.sections[0].name}"
+
+    return jsonify({
+        'id': s.id,
+        'name': s.name,
+        'regNo': s.student_uid,
+        'dept': s.department.name if s.department else '',
+        'year': 3,
+        'semester': 5,
+        'sectionName': section_name,
+        'advisor': 'Assigned Faculty',
+        'blood': 'O+',
+        'dob': '2003-05-15',
+        'email': s.email or '',
+        'phone': '+91 9999999999',
+        'cgpa': 8.8,
+        'hostel': 'Day Scholar',
+        'photo': s.photo_url or ''
+    })
+
+
+@student_bp.route('/student/api/courses')
+@login_required
+def student_courses():
+    if session.get('role') != 'student':
+        return jsonify({'error': 'Unauthorized'}), 403
+    s = Student.query.get(session.get('user_id'))
+    if not s:
         return jsonify([])
     res = []
     for c in s.courses_enrolled:
