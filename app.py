@@ -139,7 +139,8 @@ app.register_blueprint(anomalies_bp)
 
 @app.route('/')
 def index():
-    return redirect('/login')
+    from flask import render_template
+    return render_template('landing.html')
 
 @app.route('/health')
 def health():

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Student Login – UniSchedule</title>
+<meta name="description" content="UniSchedule Student Portal — Login to access your timetable, attendance, and academic dashboard.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#1e2a5e;--navy-deep:#141d42;
+  --gold:#f5c518;--gold-dark:#c9a200;--gold-light:#fff3b0;
+  --text:#1a1a2e;--muted:#6b7280;
+  --accent:#4f8ef7;--indigo:#6366f1;--danger:#ef4444;
+}
+body{
+  font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  background:linear-gradient(135deg,#0f1a3e 0%,#1e2a5e 40%,#1a1054 100%);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;color:var(--text);
+}
+
+/* Animated orbs */
+body::before{
+  content:'';position:absolute;width:550px;height:550px;
+  background:radial-gradient(circle,rgba(99,102,241,.1),transparent 70%);
+  top:-150px;right:-120px;border-radius:50%;
+  animation:orbFloat 10s ease-in-out infinite;
+}
+body::after{
+  content:'';position:absolute;width:450px;height:450px;
+  background:radial-gradient(circle,rgba(79,142,247,.08),transparent 70%);
+  bottom:-100px;left:-80px;border-radius:50%;
+  animation:orbFloat 12s ease-in-out infinite reverse;
+}
+
+@keyframes orbFloat{
+  0%,100%{transform:translate(0,0) scale(1)}
+  25%{transform:translate(25px,-20px) scale(1.04)}
+  50%{transform:translate(-15px,20px) scale(.96)}
+  75%{transform:translate(20px,10px) scale(1.02)}
+}
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(30px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes pulseGold{
+  0%,100%{box-shadow:0 0 0 0 rgba(99,102,241,.3)}
+  50%{box-shadow:0 0 20px 4px rgba(99,102,241,.1)}
+}
+@keyframes shake{
+  0%,100%{transform:translateX(0)}
+  20%,60%{transform:translateX(-6px)}
+  40%,80%{transform:translateX(6px)}
+}
+@keyframes bounce{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-6px)}
+}
+
+.login-card{
+  background:#fff;border-radius:24px;padding:44px 40px;
+  width:440px;max-width:92vw;
+  box-shadow:0 25px 80px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.05);
+  animation:fadeUp .6s cubic-bezier(.34,1.56,.64,1);
+  position:relative;z-index:10;text-align:center;
+}
+.login-card::before{
+  content:'';position:absolute;inset:-2px;border-radius:26px;z-index:-1;
+  background:linear-gradient(135deg,var(--indigo),transparent 40%,transparent 60%,var(--accent));
+  opacity:.3;
+}
+
+.login-icon{font-size:2.8rem;margin-bottom:8px;display:inline-block;animation:bounce 3s ease-in-out infinite}
+.login-card h2{font-size:1.6rem;font-weight:800;color:var(--navy);margin-bottom:4px;letter-spacing:-.02em}
+.login-subtitle{color:var(--muted);font-size:.82rem;margin-bottom:24px;font-weight:500}
+
+/* Role pill */
+.role-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(99,102,241,.08);border:1.5px solid rgba(99,102,241,.2);
+  padding:6px 16px;border-radius:20px;
+  font-size:.72rem;font-weight:700;color:var(--indigo);
+  margin-bottom:20px;text-transform:uppercase;letter-spacing:.06em;
+}
+
+/* Error */
+.login-error{
+  background:#fee2e2;border:1px solid rgba(239,68,68,.25);
+  border-radius:12px;padding:12px 16px;margin-bottom:16px;
+  font-size:.82rem;color:#dc2626;font-weight:500;
+  display:flex;align-items:center;gap:8px;
+  animation:shake .4s;text-align:left;
+}
+
+/* Form */
+.login-form{text-align:left}
+.form-group{margin-bottom:16px}
+.form-group label{
+  display:block;font-size:.72rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);margin-bottom:6px;
+}
+.form-group input{
+  width:100%;padding:13px 18px;
+  border:2px solid #e8eaf0;border-radius:14px;
+  font-size:.9rem;font-family:inherit;
+  background:#f8f9fc;transition:all .25s;color:var(--text);
+}
+.form-group input::placeholder{color:#b0b8c8}
+.form-group input:focus{
+  outline:none;border-color:var(--indigo);
+  box-shadow:0 0 0 4px rgba(99,102,241,.12);background:#fff;
+}
+
+.sign-in-btn{
+  width:100%;padding:15px;margin-top:4px;
+  background:linear-gradient(135deg,var(--indigo),#4338ca);
+  border:none;border-radius:14px;
+  font-size:1.05rem;font-weight:700;color:#fff;
+  cursor:pointer;font-family:inherit;transition:all .2s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  animation:pulseGold 3s infinite;
+}
+.sign-in-btn:hover{
+  transform:translateY(-2px);
+  box-shadow:0 8px 25px rgba(99,102,241,.35);animation:none;
+}
+.sign-in-btn:active{transform:translateY(0)}
+
+.links{margin-top:20px;display:flex;justify-content:space-between;align-items:center}
+.links a{color:var(--accent);font-size:.82rem;text-decoration:none;font-weight:600;transition:color .2s}
+.links a:hover{color:var(--indigo)}
+
+.login-footer{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  color:rgba(255,255,255,.2);font-size:.7rem;font-weight:500;z-index:5;
+}
+
+@media(max-width:480px){
+  .login-card{padding:32px 24px;border-radius:20px}
+  .login-card h2{font-size:1.4rem}
+}
+</style>
+</head>
+<body>
+
+<div class="login-card">
+  <div class="login-icon">🎓</div>
+  <h2>Student Portal</h2>
+  <p class="login-subtitle">Sign in to access your academic dashboard</p>
+  <div class="role-pill">🎓 Student Login</div>
+
+  {% if error %}
+  <div class="login-error">
+    <span style="font-size:1.1rem">⚠️</span> {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="POST" action="/student-login" class="login-form" id="studentLoginForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-group">
+      <label>EMAIL ADDRESS</label>
+      <input type="email" name="email" required
+        placeholder="firstname.lastname@srmap.edu.in" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>PASSWORD</label>
+      <input type="password" name="password" required
+        placeholder="Enter your password" autocomplete="current-password">
+    </div>
+    <button type="submit" class="sign-in-btn">
+      🚀 Sign In
+    </button>
+  </form>
+
+  <div class="links">
+    <a href="/">← Back to Home</a>
+    <a href="/forgot-password">Forgot Password?</a>
+  </div>
+</div>
+
+<div class="login-footer">UniSchedule &copy; 2026 — SRM AP University</div>
+
+</body>
+</html>

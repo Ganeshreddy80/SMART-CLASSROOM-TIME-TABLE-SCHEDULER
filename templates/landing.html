@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>UniSchedule — Smart Classroom Timetable</title>
+<meta name="description" content="UniSchedule — University Timetable Management System. Access your student or faculty portal to view schedules, attendance, and more.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#1e2a5e;--navy-deep:#141d42;--navy-darker:#0f1a3e;
+  --gold:#f5c518;--gold-dark:#c9a200;--gold-light:#fff3b0;
+  --surface:#f7f8fc;--text:#1a1a2e;--muted:#6b7280;
+  --accent:#4f8ef7;--purple:#7c3aed;--indigo:#6366f1;
+  --success:#10b981;--danger:#ef4444;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  background:linear-gradient(135deg,#0f1a3e 0%,#1e2a5e 35%,#2d1b69 70%,#1a0a3e 100%);
+  min-height:100vh;color:#fff;overflow-x:hidden;
+  position:relative;
+}
+
+/* ─── Animated Background ─── */
+.bg-orb{
+  position:fixed;border-radius:50%;pointer-events:none;
+  filter:blur(60px);opacity:.5;z-index:0;
+}
+.bg-orb-1{
+  width:600px;height:600px;top:-200px;right:-150px;
+  background:radial-gradient(circle,rgba(245,197,24,.12),transparent 70%);
+  animation:orbFloat 12s ease-in-out infinite;
+}
+.bg-orb-2{
+  width:500px;height:500px;bottom:-150px;left:-100px;
+  background:radial-gradient(circle,rgba(124,58,237,.15),transparent 70%);
+  animation:orbFloat 16s ease-in-out infinite reverse;
+}
+.bg-orb-3{
+  width:350px;height:350px;top:40%;left:50%;
+  background:radial-gradient(circle,rgba(79,142,247,.08),transparent 70%);
+  animation:orbFloat 14s ease-in-out infinite 3s;
+}
+.grid-pattern{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px);
+  background-size:60px 60px;
+}
+
+@keyframes orbFloat{
+  0%,100%{transform:translate(0,0) scale(1)}
+  25%{transform:translate(30px,-25px) scale(1.05)}
+  50%{transform:translate(-20px,30px) scale(.96)}
+  75%{transform:translate(25px,15px) scale(1.03)}
+}
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(40px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes fadeIn{
+  from{opacity:0}to{opacity:1}
+}
+@keyframes float{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-8px)}
+}
+@keyframes shimmer{
+  0%{background-position:-200% center}
+  100%{background-position:200% center}
+}
+@keyframes pulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(245,197,24,.3)}
+  50%{box-shadow:0 0 30px 8px rgba(245,197,24,.08)}
+}
+@keyframes scaleIn{
+  from{opacity:0;transform:scale(.9)}
+  to{opacity:1;transform:scale(1)}
+}
+
+/* ─── Layout ─── */
+.landing-container{
+  position:relative;z-index:1;
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:40px 24px 80px;
+}
+
+/* ─── Header / Brand ─── */
+.brand-section{
+  text-align:center;margin-bottom:48px;
+  animation:fadeUp .7s cubic-bezier(.34,1.56,.64,1);
+}
+.brand-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.1);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  padding:8px 20px;border-radius:40px;
+  font-size:.75rem;font-weight:600;color:rgba(255,255,255,.7);
+  margin-bottom:20px;letter-spacing:.04em;
+}
+.brand-badge .dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--success);animation:pulse 2s infinite;
+}
+.brand-icon{
+  font-size:3.5rem;margin-bottom:12px;display:block;
+  animation:float 4s ease-in-out infinite;
+}
+.brand-title{
+  font-size:3rem;font-weight:900;letter-spacing:-.04em;
+  background:linear-gradient(135deg,#fff 0%,var(--gold) 50%,#fff 100%);
+  background-size:200% auto;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+  animation:shimmer 4s linear infinite;
+  line-height:1.1;
+}
+.brand-subtitle{
+  font-size:1.05rem;color:rgba(255,255,255,.5);
+  margin-top:10px;font-weight:500;letter-spacing:.02em;
+}
+.brand-desc{
+  max-width:520px;margin:16px auto 0;
+  font-size:.88rem;color:rgba(255,255,255,.35);
+  line-height:1.7;
+}
+
+/* ─── Portal Cards ─── */
+.portals-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);
+  gap:24px;max-width:720px;width:100%;
+}
+.portal-card{
+  position:relative;border-radius:24px;
+  padding:40px 32px;text-align:center;
+  cursor:pointer;text-decoration:none;color:#fff;
+  transition:all .35s cubic-bezier(.34,1.56,.64,1);
+  overflow:hidden;
+  animation:scaleIn .6s cubic-bezier(.34,1.56,.64,1) backwards;
+}
+.portal-card:nth-child(1){animation-delay:.15s}
+.portal-card:nth-child(2){animation-delay:.3s}
+
+.portal-card::before{
+  content:'';position:absolute;inset:0;border-radius:24px;z-index:0;
+  transition:opacity .3s;
+}
+.portal-card::after{
+  content:'';position:absolute;inset:0;border-radius:24px;z-index:0;
+  border:1px solid rgba(255,255,255,.1);
+  transition:border-color .3s;
+}
+.portal-card>*{position:relative;z-index:1}
+
+/* Student Card */
+.portal-student::before{
+  background:linear-gradient(160deg,
+    rgba(99,102,241,.15) 0%,
+    rgba(30,58,138,.2) 50%,
+    rgba(99,102,241,.08) 100%);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+}
+.portal-student:hover::before{
+  background:linear-gradient(160deg,
+    rgba(99,102,241,.25) 0%,
+    rgba(30,58,138,.3) 50%,
+    rgba(99,102,241,.15) 100%);
+}
+.portal-student:hover::after{border-color:var(--indigo)}
+.portal-student:hover{transform:translateY(-6px) scale(1.02)}
+
+/* Faculty Card */
+.portal-faculty::before{
+  background:linear-gradient(160deg,
+    rgba(124,58,237,.15) 0%,
+    rgba(79,70,229,.2) 50%,
+    rgba(124,58,237,.08) 100%);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+}
+.portal-faculty:hover::before{
+  background:linear-gradient(160deg,
+    rgba(124,58,237,.25) 0%,
+    rgba(79,70,229,.3) 50%,
+    rgba(124,58,237,.15) 100%);
+}
+.portal-faculty:hover::after{border-color:var(--purple)}
+.portal-faculty:hover{transform:translateY(-6px) scale(1.02)}
+
+.portal-icon{
+  font-size:3.2rem;margin-bottom:16px;display:block;
+  filter:drop-shadow(0 4px 12px rgba(0,0,0,.3));
+}
+.portal-title{
+  font-size:1.35rem;font-weight:800;margin-bottom:6px;
+  letter-spacing:-.01em;
+}
+.portal-desc{
+  font-size:.82rem;color:rgba(255,255,255,.5);
+  line-height:1.5;
+}
+.portal-arrow{
+  display:inline-flex;align-items:center;gap:6px;
+  margin-top:18px;padding:10px 24px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;font-size:.82rem;font-weight:700;
+  color:rgba(255,255,255,.8);
+  transition:all .25s;
+}
+.portal-card:hover .portal-arrow{
+  background:rgba(255,255,255,.15);
+  border-color:rgba(255,255,255,.25);
+  color:#fff;
+  transform:translateX(4px);
+}
+
+/* ─── Features Strip ─── */
+.features{
+  display:flex;gap:32px;justify-content:center;
+  margin-top:48px;flex-wrap:wrap;
+  animation:fadeUp .7s .5s backwards;
+}
+.feature{
+  display:flex;align-items:center;gap:8px;
+  font-size:.78rem;color:rgba(255,255,255,.35);
+  font-weight:500;
+}
+.feature-dot{
+  width:5px;height:5px;border-radius:50%;
+  background:var(--gold);opacity:.6;
+}
+
+/* ─── Footer ─── */
+.landing-footer{
+  position:fixed;bottom:0;left:0;right:0;
+  padding:16px 24px;text-align:center;z-index:5;
+  background:linear-gradient(transparent,rgba(15,26,62,.8));
+}
+.footer-text{
+  color:rgba(255,255,255,.18);font-size:.7rem;font-weight:500;
+}
+.admin-secret{
+  display:inline-block;margin-top:6px;
+  color:rgba(255,255,255,.06);font-size:.6rem;
+  text-decoration:none;letter-spacing:4px;
+  transition:color .3s;cursor:default;
+}
+.admin-secret:hover{
+  color:rgba(255,255,255,.15);cursor:pointer;
+}
+
+/* ─── Responsive ─── */
+@media(max-width:640px){
+  .landing-container{padding:32px 16px 100px}
+  .brand-icon{font-size:2.8rem}
+  .brand-title{font-size:2.2rem}
+  .brand-subtitle{font-size:.9rem}
+  .brand-desc{font-size:.8rem}
+  .portals-grid{
+    grid-template-columns:1fr;
+    max-width:360px;gap:16px;
+  }
+  .portal-card{padding:32px 24px}
+  .portal-icon{font-size:2.6rem}
+  .portal-title{font-size:1.15rem}
+  .features{gap:20px}
+  .feature{font-size:.72rem}
+}
+@media(max-width:380px){
+  .brand-title{font-size:1.8rem}
+  .brand-badge{font-size:.68rem;padding:6px 14px}
+}
+</style>
+</head>
+<body>
+
+<!-- Background Effects -->
+<div class="bg-orb bg-orb-1"></div>
+<div class="bg-orb bg-orb-2"></div>
+<div class="bg-orb bg-orb-3"></div>
+<div class="grid-pattern"></div>
+
+<div class="landing-container">
+  <!-- Brand Section -->
+  <div class="brand-section">
+    <div class="brand-badge">
+      <span class="dot"></span>
+      SRM AP University · Live System
+    </div>
+    <span class="brand-icon">📚</span>
+    <h1 class="brand-title">UniSchedule</h1>
+    <p class="brand-subtitle">Smart Classroom Timetable Management</p>
+    <p class="brand-desc">
+      Access your personalized dashboard for timetables, attendance tracking,
+      academic performance, and real-time scheduling updates.
+    </p>
+  </div>
+
+  <!-- Portal Cards -->
+  <div class="portals-grid">
+    <a href="/student-login" class="portal-card portal-student" id="studentPortalBtn">
+      <span class="portal-icon">🎓</span>
+      <div class="portal-title">Student Portal</div>
+      <div class="portal-desc">View timetable, track attendance, check marks & academic progress</div>
+      <div class="portal-arrow">Enter Portal →</div>
+    </a>
+
+    <a href="/faculty-login" class="portal-card portal-faculty" id="facultyPortalBtn">
+      <span class="portal-icon">👨‍🏫</span>
+      <div class="portal-title">Faculty Portal</div>
+      <div class="portal-desc">Manage classes, mark attendance, view section schedules & insights</div>
+      <div class="portal-arrow">Enter Portal →</div>
+    </a>
+  </div>
+
+  <!-- Features Strip -->
+  <div class="features">
+    <div class="feature"><span class="feature-dot"></span> AI-Powered Scheduling</div>
+    <div class="feature"><span class="feature-dot"></span> Real-time Attendance</div>
+    <div class="feature"><span class="feature-dot"></span> Smart Analytics</div>
+    <div class="feature"><span class="feature-dot"></span> Conflict-Free Timetables</div>
+  </div>
+</div>
+
+<!-- Footer with hidden admin link -->
+<div class="landing-footer">
+  <div class="footer-text">UniSchedule &copy; 2026 — SRM AP University</div>
+  <a href="/x7k9-admin" class="admin-secret" title="">·····</a>
+</div>
+
+</body>
+</html>
